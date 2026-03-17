@@ -1,17 +1,37 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統</title>
-
-  <!-- 👉 這行一定要有 -->
-  <link rel="stylesheet" href="style.css" />
-</head>
 <body>
+  <div id="login-page">
+    <h1>選擇登入使用者</h1>
+    <div id="user-list">載入中...</div>
+  </div>
 
-  <!-- 你的內容 -->
+  <div id="main-page" style="display: none;">
+    <div class="top-bar">
+      <h1>班表系統</h1>
+      <div>
+        <span id="current-user-name"></span>
+        <button id="logout-btn">登出</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <button class="menu-btn">公告欄</button>
+        <button class="menu-btn">人員管理</button>
+        <button class="menu-btn">當日上班人員</button>
+        <button class="menu-btn">休假表</button>
+        <button class="menu-btn">補休表</button>
+        <button class="menu-btn">排程表</button>
+        <button class="menu-btn">請假</button>
+        <button class="menu-btn">特休總覽</button>
+      </aside>
+
+      <main class="content">
+        <h2>首頁</h2>
+        <p>你已成功登入系統。</p>
+        <div id="role-info"></div>
+      </main>
+    </div>
+  </div>
 
   <script type="module" src="app.js"></script>
 </body>
-</html>
