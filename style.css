@@ -5,10 +5,6 @@ body {
   color: #222;
 }
 
-h1, h2, p {
-  margin-top: 0;
-}
-
 #login-page {
   padding: 32px;
 }
@@ -47,12 +43,10 @@ h1, h2, p {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .layout {
   display: flex;
-  min-height: calc(100vh - 72px);
 }
 
 .sidebar {
@@ -74,24 +68,15 @@ h1, h2, p {
   cursor: pointer;
 }
 
-.menu-btn:hover {
-  opacity: 0.9;
-}
-
 .content {
   flex: 1;
   padding: 24px;
 }
 
 button {
-  padding: 10px 14px;
+  padding: 10px;
+  border-radius: 8px;
   border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  background: #111827;
+  background: black;
   color: white;
-}
-
-button:hover {
-  opacity: 0.9;
 }
