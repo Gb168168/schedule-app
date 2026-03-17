@@ -129,15 +129,27 @@ logoutBtn.addEventListener("click", () => {
 });
 
 async function init() {
-  await ensureGoldBricksUser();
+  // 🔥 分頁切換
+const menuButtons = document.querySelectorAll(".menu-btn");
 
-  const savedUser = getCurrentUser();
-  if (savedUser) {
-    showMainPage(savedUser);
-  } else {
-    showLoginPage();
-    await loadUsers();
+function showPage(pageName) {
+  const pages = document.querySelectorAll(".page");
+
+  pages.forEach((page) => {
+    page.style.display = "none";
+  });
+
+  const target = document.getElementById(`page-${pageName}`);
+  if (target) {
+    target.style.display = "block";
   }
 }
+
+menuButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const page = btn.dataset.page;
+    showPage(page);
+  });
+});
 
 init();
