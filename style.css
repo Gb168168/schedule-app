@@ -1,1 +1,17 @@
+body {
+  font-family: sans-serif;
+  padding: 24px;
+  background: #f5f5f5;
+}
 
+h1 {
+  margin-bottom: 20px;
+}
+
+.schedule-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
