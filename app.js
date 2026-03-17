@@ -8,7 +8,8 @@ import {
   setDoc
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
-apiKey: "AIzaSyAmPIQMfAR1BmvJbjx3L002ibVu2kXA3uM",
+const firebaseConfig = {
+  apiKey: "AIzaSyAmPIQMfAR1BmvJbjx3L002ibVu2kXA3uM",
   authDomain: "schedule-app-5845b.firebaseapp.com",
   projectId: "schedule-app-5845b",
   storageBucket: "schedule-app-5845b.firebasestorage.app",
