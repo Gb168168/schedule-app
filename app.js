@@ -8,13 +8,13 @@ import {
   setDoc
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "你的 apiKey",
-  authDomain: "你的 authDomain",
-  projectId: "你的 projectId",
-  storageBucket: "你的 storageBucket",
-  messagingSenderId: "你的 messagingSenderId",
-  appId: "你的 appId"
+apiKey: "AIzaSyAmPIQMfAR1BmvJbjx3L002ibVu2kXA3uM",
+  authDomain: "schedule-app-5845b.firebaseapp.com",
+  projectId: "schedule-app-5845b",
+  storageBucket: "schedule-app-5845b.firebasestorage.app",
+  messagingSenderId: "1046564647922",
+  appId: "1:1046564647922:web:965bb01618c8b6b992b16b",
+
 };
 
 const app = initializeApp(firebaseConfig);
