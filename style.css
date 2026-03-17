@@ -10,23 +10,55 @@ h1 {
   font-size: 40px;
 }
 
-#schedule-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+h2 {
+  margin-top: 0;
 }
 
+.form-card,
 .schedule-card {
   background: #ffffff;
   border-radius: 16px;
   padding: 20px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
   max-width: 720px;
+  margin-bottom: 20px;
+}
+
+.form-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+input,
+select,
+button {
+  padding: 12px;
+  font-size: 18px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: #111827;
+  color: white;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+#schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .schedule-card div {
   margin-bottom: 6px;
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1.5;
 }
 
