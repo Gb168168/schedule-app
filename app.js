@@ -9,12 +9,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAmPIQMfAR1BmvJbjx3L002ibVu2kXA3uM",
-  authDomain: "schedule-app-5845b.firebaseapp.com",
-  projectId: "schedule-app-5845b",
-  storageBucket: "schedule-app-5845b.firebasestorage.app",
-  messagingSenderId: "1046564647922",
-  appId: "1:1046564647922:web:965bb01618c8b6b992b16b",
+  apiKey: "你的 apiKey",
+  authDomain: "你的 authDomain",
+  projectId: "你的 projectId",
+  storageBucket: "你的 storageBucket",
+  messagingSenderId: "你的 messagingSenderId",
+  appId: "你的 appId"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -50,6 +50,8 @@ function showMainPage(user) {
     <div>區域：${user.region}</div>
     <div>部門：${user.department}</div>
   `;
+
+  showPage("home");
 }
 
 function showLoginPage() {
@@ -123,15 +125,6 @@ async function loadUsers() {
   }
 }
 
-logoutBtn.addEventListener("click", () => {
-  clearCurrentUser();
-  showLoginPage();
-});
-
-async function init() {
-  // 🔥 分頁切換
-const menuButtons = document.querySelectorAll(".menu-btn");
-
 function showPage(pageName) {
   const pages = document.querySelectorAll(".page");
 
@@ -145,11 +138,32 @@ function showPage(pageName) {
   }
 }
 
+const menuButtons = document.querySelectorAll(".menu-btn");
 menuButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
     const page = btn.dataset.page;
     showPage(page);
   });
 });
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", () => {
+    clearCurrentUser();
+    showLoginPage();
+    loadUsers();
+  });
+}
+
+async function init() {
+  await ensureGoldBricksUser();
+
+  const savedUser = getCurrentUser();
+  if (savedUser) {
+    showMainPage(savedUser);
+  } else {
+    showLoginPage();
+    await loadUsers();
+  }
+}
 
 init();
