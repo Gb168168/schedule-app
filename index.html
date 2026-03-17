@@ -32,13 +32,38 @@
         <button class="menu-btn">特休總覽</button>
       </aside>
 
-      <main class="content">
-        <h2>首頁</h2>
-        <p>你已成功登入系統。</p>
-        <div id="role-info"></div>
-      </main>
-    </div>
+     <main class="content">
+  <!-- 首頁 -->
+  <div id="page-home" class="page">
+    <h2>首頁</h2>
+    <p>你已成功登入系統。</p>
+    <div id="role-info"></div>
   </div>
+
+  <!-- 公告欄 -->
+  <div id="page-announcements" class="page" style="display:none;">
+    <h2>公告欄</h2>
+    <p>這裡會顯示公告</p>
+  </div>
+
+  <!-- 人員管理 -->
+  <div id="page-users" class="page" style="display:none;">
+    <h2>人員管理</h2>
+    <p>這裡會管理員工</p>
+  </div>
+
+  <!-- 請假 -->
+  <div id="page-leave" class="page" style="display:none;">
+    <h2>請假</h2>
+    <p>這裡會送出請假單</p>
+  </div>
+
+  <!-- 排程表 -->
+  <div id="page-schedules" class="page" style="display:none;">
+    <h2>排程表</h2>
+    <p>這裡會顯示班表</p>
+  </div>
+</main>
 
   <script type="module" src="app.js"></script>
 </body>
