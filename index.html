@@ -1,25 +1,17 @@
-<h1>班表</h1>
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>班表系統</title>
 
-<div class="form-card">
-  <h2>新增班表</h2>
+  <!-- 👉 這行一定要有 -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
 
-  <input id="date" type="date" />
-  
-  <select id="shift">
-    <option value="早班">早班</option>
-    <option value="晚班">晚班</option>
-    <option value="一般班">一般班</option>
-  </select>
+  <!-- 你的內容 -->
 
-  <input id="startTime" type="time" />
-  <input id="endTime" type="time" />
-  <input id="store" type="text" placeholder="地區" />
-  <input id="department" type="text" placeholder="部門" />
-
-  <button id="add-btn">新增班表</button>
-</div>
-
-<h2>班表列表</h2>
-<div id="schedule-list">載入中...</div>
-
-<script type="module" src="app.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
