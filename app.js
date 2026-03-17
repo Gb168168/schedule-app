@@ -13,9 +13,10 @@ apiKey: "AIzaSyAmPIQMfAR1BmvJbjx3L002ibVu2kXA3uM",
   projectId: "schedule-app-5845b",
   storageBucket: "schedule-app-5845b.firebasestorage.app",
   messagingSenderId: "1046564647922",
-  appId: "1:1046564647922:web:965bb01618c8b6b992b16b",
-
+  appId: "1:1046564647922:web:965bb01618c8b6b992b16b"
 };
+
+console.log("Firebase config projectId =", firebaseConfig.projectId);
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -59,29 +60,54 @@ function showLoginPage() {
   mainPage.style.display = "none";
 }
 
-async function ensureGoldBricksUser() {
-  const goldRef = doc(db, "users", "goldbricks");
-  const goldSnap = await getDoc(goldRef);
+function showPage(pageName) {
+  const pages = document.querySelectorAll(".page");
+  pages.forEach((page) => {
+    page.style.display = "none";
+  });
 
-  if (!goldSnap.exists()) {
-    await setDoc(goldRef, {
-      name: "GoldBricks",
-      role: "admin",
-      region: "全部",
-      department: "全部",
-      canManageAnnouncements: true,
-      active: true
-    });
+  const target = document.getElementById(`page-${pageName}`);
+  if (target) {
+    target.style.display = "block";
+  }
+}
+
+async function ensureGoldBricksUser() {
+  try {
+    console.log("開始檢查 goldbricks");
+    const goldRef = doc(db, "users", "goldbricks");
+    const goldSnap = await getDoc(goldRef);
+
+    if (!goldSnap.exists()) {
+      console.log("goldbricks 不存在，建立中...");
+      await setDoc(goldRef, {
+        name: "GoldBricks",
+        role: "admin",
+        region: "全部",
+        department: "全部",
+        canManageAnnouncements: true,
+        active: true
+      });
+    } else {
+      console.log("goldbricks 已存在");
+    }
+  } catch (error) {
+    console.error("ensureGoldBricksUser 錯誤：", error);
+    throw error;
   }
 }
 
 async function loadUsers() {
   try {
+    console.log("開始讀 users");
     const querySnapshot = await getDocs(collection(db, "users"));
+    console.log("users 筆數 =", querySnapshot.size);
+
     let html = "";
 
     querySnapshot.forEach((docItem) => {
       const data = docItem.data();
+      console.log("讀到 user =", docItem.id, data);
 
       if (data.active === false) return;
 
@@ -120,21 +146,8 @@ async function loadUsers() {
       });
     });
   } catch (error) {
-    console.error("讀取 users 錯誤：", error);
+    console.error("loadUsers 錯誤：", error);
     userList.innerHTML = "讀取使用者失敗";
-  }
-}
-
-function showPage(pageName) {
-  const pages = document.querySelectorAll(".page");
-
-  pages.forEach((page) => {
-    page.style.display = "none";
-  });
-
-  const target = document.getElementById(`page-${pageName}`);
-  if (target) {
-    target.style.display = "block";
   }
 }
 
@@ -147,22 +160,27 @@ menuButtons.forEach((btn) => {
 });
 
 if (logoutBtn) {
-  logoutBtn.addEventListener("click", () => {
+  logoutBtn.addEventListener("click", async () => {
     clearCurrentUser();
     showLoginPage();
-    loadUsers();
+    await loadUsers();
   });
 }
 
 async function init() {
-  await ensureGoldBricksUser();
+  try {
+    await ensureGoldBricksUser();
 
-  const savedUser = getCurrentUser();
-  if (savedUser) {
-    showMainPage(savedUser);
-  } else {
-    showLoginPage();
-    await loadUsers();
+    const savedUser = getCurrentUser();
+    if (savedUser) {
+      showMainPage(savedUser);
+    } else {
+      showLoginPage();
+      await loadUsers();
+    }
+  } catch (error) {
+    console.error("init 錯誤：", error);
+    userList.innerHTML = "系統無法連線到 Firebase";
   }
 }
 
