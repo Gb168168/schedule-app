@@ -1,67 +1,97 @@
 body {
   font-family: Arial, sans-serif;
-  padding: 24px;
+  margin: 0;
   background: #f3f4f6;
   color: #222;
 }
 
-h1 {
-  margin-bottom: 20px;
-  font-size: 40px;
-}
-
-h2 {
+h1, h2, p {
   margin-top: 0;
 }
 
-.form-card,
-.schedule-card {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-  max-width: 720px;
-  margin-bottom: 20px;
+#login-page {
+  padding: 32px;
 }
 
-.form-card {
+#user-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.user-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  width: 240px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.user-card h3 {
+  margin: 0 0 12px 0;
+}
+
+.user-card div {
+  margin-bottom: 8px;
+}
+
+.user-card button {
+  margin-top: 12px;
+  width: 100%;
+}
+
+.top-bar {
+  background: white;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.layout {
+  display: flex;
+  min-height: calc(100vh - 72px);
+}
+
+.sidebar {
+  width: 220px;
+  background: #111827;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-input,
-select,
-button {
-  padding: 12px;
-  font-size: 18px;
+.menu-btn {
+  background: #1f2937;
+  color: white;
+  border: none;
   border-radius: 10px;
-  border: 1px solid #ccc;
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-btn:hover {
+  opacity: 0.9;
+}
+
+.content {
+  flex: 1;
+  padding: 24px;
 }
 
 button {
-  cursor: pointer;
+  padding: 10px 14px;
   border: none;
+  border-radius: 10px;
+  cursor: pointer;
   background: #111827;
   color: white;
 }
 
 button:hover {
   opacity: 0.9;
-}
-
-#schedule-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.schedule-card div {
-  margin-bottom: 6px;
-  font-size: 20px;
-  line-height: 1.5;
-}
-
-.schedule-card div:last-child {
-  margin-bottom: 0;
 }
