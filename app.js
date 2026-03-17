@@ -1,7 +1,7 @@
 console.log("app.js 有載入");
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
-import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAmPIQMfAR1BmvJbjx3L002ibVu2kXA3uM",
@@ -21,7 +21,8 @@ async function loadSchedules() {
   console.log("開始讀取 schedules");
 
   try {
-    const querySnapshot = await getDocs(collection(db, "schedules"));
+    const q = query(collection(db, "schedules"), orderBy("date", "asc"));
+    const querySnapshot = await getDocs(q);
     console.log("成功拿到資料筆數：", querySnapshot.size);
 
     let html = "";
