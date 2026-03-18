@@ -25,62 +25,68 @@ const users = [
   }
 ];
 
-const loginPage = document.getElementById("login-page");
-const mainPage = document.getElementById("main-page");
-const loginBtn = document.getElementById("login-btn");
-const logoutBtn = document.getElementById("logout-btn");
-const loginError = document.getElementById("login-error");
+window.addEventListener("DOMContentLoaded", () => {
+  const loginPage = document.getElementById("login-page");
+  const mainPage = document.getElementById("main-page");
+  const loginBtn = document.getElementById("login-btn");
+  const logoutBtn = document.getElementById("logout-btn");
+  const loginError = document.getElementById("login-error");
+  const employeeIdInput = document.getElementById("employeeId");
+  const passwordInput = document.getElementById("password");
 
-function showMainPage(user) {
-  loginPage.classList.add("hidden");
-  mainPage.classList.remove("hidden");
+  function showMainPage(user) {
+    loginPage.classList.add("hidden");
+    mainPage.classList.remove("hidden");
 
-  document.getElementById("current-user-name").textContent = user.name;
-  document.getElementById("user-role").textContent = user.role;
-  document.getElementById("user-region").textContent = user.region;
-  document.getElementById("user-department").textContent = user.department;
-}
-
-function showLoginPage() {
-  mainPage.classList.add("hidden");
-  loginPage.classList.remove("hidden");
-}
-
-function login() {
-  const employeeId = document.getElementById("employeeId").value.trim();
-  const password = document.getElementById("password").value.trim();
-
-  const user = users.find(
-    (u) => u.employeeId === employeeId && u.password === password
-  );
-
-  if (!user) {
-    loginError.textContent = "帳號或密碼錯誤";
-    return;
+    document.getElementById("current-user-name").textContent = user.name;
+    document.getElementById("user-role").textContent = user.role;
+    document.getElementById("user-region").textContent = user.region;
+    document.getElementById("user-department").textContent = user.department;
   }
 
-  localStorage.setItem("currentUser", JSON.stringify(user));
-  loginError.textContent = "";
-  showMainPage(user);
-}
+  function showLoginPage() {
+    mainPage.classList.add("hidden");
+    loginPage.classList.remove("hidden");
+  }
 
-function logout() {
-  localStorage.removeItem("currentUser");
-  document.getElementById("employeeId").value = "";
-  document.getElementById("password").value = "";
-  loginError.textContent = "";
-  showLoginPage();
-}
+  function login() {
+    const employeeId = employeeIdInput.value.trim();
+    const password = passwordInput.value.trim();
 
-loginBtn.addEventListener("click", login);
-logoutBtn.addEventListener("click", logout);
+    const user = users.find(
+      (u) => u.employeeId === employeeId && u.password === password
+    );
 
-window.addEventListener("load", () => {
-  const savedUser = localStorage.getItem("currentUser");
+    if (!user) {
+      loginError.textContent = "帳號或密碼錯誤";
+      return;
+    }
 
-  if (savedUser) {
-    const user = JSON.parse(savedUser);
+    localStorage.setItem("currentUser", JSON.stringify(user));
+    loginError.textContent = "";
     showMainPage(user);
+  }
+
+  function logout() {
+    localStorage.removeItem("currentUser");
+    employeeIdInput.value = "";
+    passwordInput.value = "";
+    loginError.textContent = "";
+    showLoginPage();
+  }
+
+  loginBtn.addEventListener("click", login);
+  logoutBtn.addEventListener("click", logout);
+
+  passwordInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      login();
+    }
+  });
+
+  const savedUser = localStorage.getItem("currentUser");
+  if (savedUser) {
+    showMainPage(JSON.parse(savedUser));
   } else {
     showLoginPage();
   }
