@@ -50,13 +50,15 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   function login() {
-    const employeeId = employeeIdInput.value.trim();
-    const password = passwordInput.value.trim();
+  const employeeId = employeeIdInput.value.trim();
+  const password = passwordInput.value.trim();
 
-    const user = users.find(
-      (u) => u.employeeId === employeeId && u.password === password
-    );
+  console.log(employeeId, password);
 
+  const user = users.find(
+    (u) => u.employeeId === employeeId && u.password === password
+  );
+    
     if (!user) {
       loginError.textContent = "帳號或密碼錯誤";
       return;
