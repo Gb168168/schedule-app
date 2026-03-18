@@ -2,19 +2,51 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <title>登入 - 班表系統</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>班表系統</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- 登入頁 -->
+  <div id="login-page" class="page">
+    <div class="login-box">
+      <h1>班表系統登入</h1>
+      <input id="employeeId" type="text" placeholder="員工編號" />
+      <input id="password" type="password" placeholder="密碼" />
+      <button id="login-btn">登入</button>
+      <p id="login-error" class="error-text"></p>
+    </div>
+  </div>
 
-  <h2>班表系統登入</h2>
+  <!-- 系統首頁 -->
+  <div id="main-page" class="hidden">
+    <header class="topbar">
+      <h1>班表系統</h1>
+      <div class="topbar-right">
+        <span>目前登入：<span id="current-user-name"></span></span>
+        <button id="logout-btn">登出</button>
+      </div>
+    </header>
 
-  <input id="employeeId" placeholder="員工編號" /><br><br>
-  <input id="password" type="password" placeholder="密碼" /><br><br>
+    <div class="layout">
+      <aside class="sidebar">
+        <button class="menu-btn">首頁</button>
+        <button class="menu-btn">公告欄</button>
+        <button class="menu-btn">人員管理</button>
+        <button class="menu-btn">請假</button>
+        <button class="menu-btn">排程表</button>
+      </aside>
 
-  <button onclick="login()">登入</button>
+      <main class="content">
+        <h2>首頁</h2>
+        <p>你已成功登入系統。</p>
+        <p>權限：<span id="user-role"></span></p>
+        <p>區域：<span id="user-region"></span></p>
+        <p>部門：<span id="user-department"></span></p>
+      </main>
+    </div>
+  </div>
 
-  <p id="error" style="color:red;"></p>
-
-  <script src="login.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
