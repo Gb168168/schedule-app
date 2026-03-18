@@ -1,68 +1,20 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>登入 - 班表系統</title>
 </head>
-
 <body>
-  <div id="login-page">
-    <h1>選擇登入使用者</h1>
-    <div id="user-list">載入中...</div>
-  </div>
 
-  <div id="main-page" style="display: none;">
-    <div class="top-bar">
-      <h1>班表系統</h1>
-      <div>
-        <span id="current-user-name"></span>
-        <button id="logout-btn">登出</button>
-      </div>
-    </div>
+  <h2>班表系統登入</h2>
 
-    <div class="layout">
-     <aside class="sidebar">
-       <button class="menu-btn" data-page="home">首頁</button>
-       <button class="menu-btn" data-page="announcements">公告欄</button>
-       <button class="menu-btn" data-page="users">人員管理</button>
-       <button class="menu-btn" data-page="leave">請假</button>
-       <button class="menu-btn" data-page="schedules">排程表</button>
-     </aside>
+  <input id="employeeId" placeholder="員工編號" /><br><br>
+  <input id="password" type="password" placeholder="密碼" /><br><br>
 
-     <main class="content">
-  <!-- 首頁 -->
-  <div id="page-home" class="page">
-    <h2>首頁</h2>
-    <p>你已成功登入系統。</p>
-    <div id="role-info"></div>
-  </div>
+  <button onclick="login()">登入</button>
 
-  <!-- 公告欄 -->
-  <div id="page-announcements" class="page" style="display:none;">
-    <h2>公告欄</h2>
-    <p>這裡會顯示公告</p>
-  </div>
+  <p id="error" style="color:red;"></p>
 
-  <!-- 人員管理 -->
-  <div id="page-users" class="page" style="display:none;">
-    <h2>人員管理</h2>
-    <p>這裡會管理員工</p>
-  </div>
-
-  <!-- 請假 -->
-  <div id="page-leave" class="page" style="display:none;">
-    <h2>請假</h2>
-    <p>這裡會送出請假單</p>
-  </div>
-
-  <!-- 排程表 -->
-  <div id="page-schedules" class="page" style="display:none;">
-    <h2>排程表</h2>
-    <p>這裡會顯示班表</p>
-  </div>
-</main>
-
-  <script type="module" src="app.js"></script>
+  <script src="login.js"></script>
 </body>
-
-
+</html>
