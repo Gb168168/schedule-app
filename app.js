@@ -26,7 +26,7 @@ const users = [
 ];
 
 function normalizeCredential(value) {
-  return value
+ return String(value ?? "")
     .normalize("NFKC")
     .trim()
     .replace(/\s+/g, "")
@@ -76,13 +76,16 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   function login() {
-    const employeeId = normalizeCredential(employeeIdInput.value);
-    const password = normalizeCredential(passwordInput.value);
+    const employeeId = employeeIdInput.value.trim();
+    const password = passwordInput.value.trim();
 
-   const user = users.find(
-      (u) => normalizeCredential(u.employeeId) === employeeId && normalizeCredential(u.password) === password
-    );
-    
+    if (!employeeId || !password) {
+      loginError.textContent = "請輸入帳號與密碼";
+      return;
+    }
+
+    const user = findUserByCredential(employeeId, password);
+ 
     if (!user) {
       loginError.textContent = "帳號或密碼錯誤";
       return;
@@ -97,7 +100,7 @@ window.addEventListener("DOMContentLoaded", () => {
     localStorage.removeItem("currentUser");
     employeeIdInput.value = "";
     passwordInput.value = "";
-    loginError.textContent = "";
+    clearLoginError();
     showLoginPage();
   }
 
@@ -110,9 +113,26 @@ window.addEventListener("DOMContentLoaded", () => {
   passwordInput.addEventListener("input", clearLoginError);
 
   const savedUser = localStorage.getItem("currentUser");
-  if (savedUser) {
-    showMainPage(JSON.parse(savedUser));
-  } else {
+  if (!savedUser) {
     showLoginPage();
+    return;
   }
+
+  let parsedUser;
+  try {
+    parsedUser = JSON.parse(savedUser);
+  } catch {
+    localStorage.removeItem("currentUser");
+    showLoginPage();
+    return;
+  }
+  
+  const matchedUser = findUserByCredential(parsedUser.employeeId, parsedUser.password);
+  if (!matchedUser) {
+    localStorage.removeItem("currentUser");
+    showLoginPage();
+    return;
+  }
+
+  showMainPage(matchedUser);
 });
