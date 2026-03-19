@@ -115,16 +115,18 @@ document.addEventListener("DOMContentLoaded", function () {
   const calendarTitle = document.getElementById("calendar-title");
   const prevMonthBtn = document.getElementById("prev-month");
   const nextMonthBtn = document.getElementById("next-month");
-  const scheduleEditorPanel = document.getElementById("schedule-editor-panel");
+  const scheduleModal = document.getElementById("schedule-modal");
+  const scheduleModalBackdrop = document.getElementById("schedule-modal-backdrop");
+  const scheduleModalClose = document.getElementById("schedule-modal-close");
   const selectedDateText = document.getElementById("selected-date-text");
   const selectedDateScheduleList = document.getElementById("selected-date-schedule-list");
   const scheduleCancelBtn = document.getElementById("schedule-cancel-btn");
 
   function updateUserInfo(user) {
-    currentUserName.textContent = user.name;
-    userRole.textContent = user.role;
-    userRegion.textContent = user.region;
-    userDepartment.textContent = user.department;
+    if (currentUserName) currentUserName.textContent = user.name;
+    if (userRole) userRole.textContent = user.role;
+    if (userRegion) userRegion.textContent = user.region;
+    if (userDepartment) userDepartment.textContent = user.department;
 
     if (staffName) staffName.textContent = user.name;
     if (staffRole) staffRole.textContent = user.role;
@@ -309,7 +311,7 @@ document.addEventListener("DOMContentLoaded", function () {
     selectedScheduleDate = dateString;
     editingScheduleId = null;
 
-    if (scheduleEditorPanel) scheduleEditorPanel.classList.remove("hidden");
+    if (scheduleModal) scheduleModal.classList.remove("hidden");
     if (selectedDateText) selectedDateText.textContent = dateString;
     if (scheduleDate) scheduleDate.value = dateString;
     if (scheduleTitle) scheduleTitle.value = "";
@@ -319,11 +321,15 @@ document.addEventListener("DOMContentLoaded", function () {
     renderCalendar();
   }
 
+  function closeScheduleEditor() {
+    if (scheduleModal) scheduleModal.classList.add("hidden");
+    editingScheduleId = null;
+  }
+
   function clearScheduleEditor() {
     editingScheduleId = null;
     if (scheduleTitle) scheduleTitle.value = "";
     if (scheduleContent) scheduleContent.value = "";
-
     if (selectedScheduleDate && scheduleDate) {
       scheduleDate.value = selectedScheduleDate;
     }
@@ -388,10 +394,10 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!item) return;
 
     editingAnnouncementId = id;
-    announcementEditTitle.value = item.title;
-    announcementEditContent.value = item.content;
-    announcementEditBox.classList.remove("hidden");
-    announcementEditTitle.focus();
+    if (announcementEditTitle) announcementEditTitle.value = item.title;
+    if (announcementEditContent) announcementEditContent.value = item.content;
+    if (announcementEditBox) announcementEditBox.classList.remove("hidden");
+    if (announcementEditTitle) announcementEditTitle.focus();
   };
 
   window.deleteAnnouncement = function (id) {
@@ -400,6 +406,7 @@ document.addEventListener("DOMContentLoaded", function () {
     announcements = announcements.filter(function (item) {
       return item.id !== id;
     });
+
     saveData(STORAGE_KEYS.announcements, announcements);
 
     if (editingAnnouncementId === id) {
@@ -474,7 +481,7 @@ document.addEventListener("DOMContentLoaded", function () {
     selectedScheduleDate = item.date;
     editingScheduleId = id;
 
-    if (scheduleEditorPanel) scheduleEditorPanel.classList.remove("hidden");
+    if (scheduleModal) scheduleModal.classList.remove("hidden");
     if (selectedDateText) selectedDateText.textContent = item.date;
     if (scheduleDate) scheduleDate.value = item.date;
     if (scheduleTitle) scheduleTitle.value = item.title;
@@ -513,8 +520,8 @@ document.addEventListener("DOMContentLoaded", function () {
     currentUser = user;
     updateUserInfo(user);
 
-    loginPage.classList.add("hidden");
-    mainPage.classList.remove("hidden");
+    if (loginPage) loginPage.classList.add("hidden");
+    if (mainPage) mainPage.classList.remove("hidden");
 
     localStorage.setItem(STORAGE_KEYS.currentUser, user.employeeId);
 
@@ -537,41 +544,48 @@ document.addEventListener("DOMContentLoaded", function () {
     setLoggedInUser(matchedUser);
   }
 
-  loginForm.addEventListener("submit", function (event) {
-    event.preventDefault();
+  if (loginForm) {
+    loginForm.addEventListener("submit", function (event) {
+      event.preventDefault();
 
-    const employeeId = document.getElementById("employeeId").value.trim();
-    const password = document.getElementById("password").value.trim();
+      const employeeIdInput = document.getElementById("employeeId");
+      const passwordInput = document.getElementById("password");
 
-    const user = users.find(function (u) {
-      return u.employeeId === employeeId && u.password === password;
+      const employeeId = employeeIdInput ? employeeIdInput.value.trim() : "";
+      const password = passwordInput ? passwordInput.value.trim() : "";
+
+      const user = users.find(function (u) {
+        return u.employeeId === employeeId && u.password === password;
+      });
+
+      if (!user) {
+        if (loginError) loginError.textContent = "帳號或密碼錯誤";
+        return;
+      }
+
+      if (loginError) loginError.textContent = "";
+      setLoggedInUser(user);
     });
+  }
 
-    if (!user) {
-      loginError.textContent = "帳號或密碼錯誤";
-      return;
-    }
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", function () {
+      currentUser = null;
+      editingAnnouncementId = null;
+      editingScheduleId = null;
+      selectedScheduleDate = "";
 
-    loginError.textContent = "";
-    setLoggedInUser(user);
-  });
+      localStorage.removeItem(STORAGE_KEYS.currentUser);
 
-  logoutBtn.addEventListener("click", function () {
-    currentUser = null;
-    editingAnnouncementId = null;
-    editingScheduleId = null;
-    selectedScheduleDate = "";
-    localStorage.removeItem(STORAGE_KEYS.currentUser);
+      hideAnnouncementEditor();
+      if (scheduleModal) scheduleModal.classList.add("hidden");
 
-    hideAnnouncementEditor();
-
-    if (scheduleEditorPanel) scheduleEditorPanel.classList.add("hidden");
-
-    mainPage.classList.add("hidden");
-    loginPage.classList.remove("hidden");
-    loginForm.reset();
-    loginError.textContent = "";
-  });
+      if (mainPage) mainPage.classList.add("hidden");
+      if (loginPage) loginPage.classList.remove("hidden");
+      if (loginForm) loginForm.reset();
+      if (loginError) loginError.textContent = "";
+    });
+  }
 
   menuButtons.forEach(function (button) {
     button.addEventListener("click", function () {
@@ -591,33 +605,35 @@ document.addEventListener("DOMContentLoaded", function () {
         targetSection.classList.remove("hidden");
       }
 
-      pageTitle.textContent = button.textContent;
+      if (pageTitle) pageTitle.textContent = button.textContent;
     });
   });
 
-  announcementForm.addEventListener("submit", function (event) {
-    event.preventDefault();
+  if (announcementForm) {
+    announcementForm.addEventListener("submit", function (event) {
+      event.preventDefault();
 
-    const title = announcementTitle.value.trim();
-    const content = announcementContent.value.trim();
+      const title = announcementTitle ? announcementTitle.value.trim() : "";
+      const content = announcementContent ? announcementContent.value.trim() : "";
 
-    if (!title || !content) {
-      alert("請填寫完整公告內容");
-      return;
-    }
+      if (!title || !content) {
+        alert("請填寫完整公告內容");
+        return;
+      }
 
-    announcements.push({
-      id: Date.now().toString(),
-      title: title,
-      content: content,
-      author: currentUser ? currentUser.name : "未知使用者",
-      createdAt: new Date().toLocaleString()
+      announcements.push({
+        id: Date.now().toString(),
+        title: title,
+        content: content,
+        author: currentUser ? currentUser.name : "未知使用者",
+        createdAt: new Date().toLocaleString()
+      });
+
+      saveData(STORAGE_KEYS.announcements, announcements);
+      announcementForm.reset();
+      renderAnnouncements();
     });
-
-    saveData(STORAGE_KEYS.announcements, announcements);
-    announcementForm.reset();
-    renderAnnouncements();
-  });
+  }
 
   if (announcementEditForm) {
     announcementEditForm.addEventListener("submit", function (event) {
@@ -625,8 +641,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (!editingAnnouncementId) return;
 
-      const title = announcementEditTitle.value.trim();
-      const content = announcementEditContent.value.trim();
+      const title = announcementEditTitle ? announcementEditTitle.value.trim() : "";
+      const content = announcementEditContent ? announcementEditContent.value.trim() : "";
 
       if (!title || !content) {
         alert("請填寫完整公告內容");
@@ -657,49 +673,51 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  leaveForm.addEventListener("submit", function (event) {
-    event.preventDefault();
+  if (leaveForm) {
+    leaveForm.addEventListener("submit", function (event) {
+      event.preventDefault();
 
-    const startDate = leaveStart.value;
-    const endDate = leaveEnd.value;
-    const reason = leaveReason.value.trim();
+      const startDate = leaveStart ? leaveStart.value : "";
+      const endDate = leaveEnd ? leaveEnd.value : "";
+      const reason = leaveReason ? leaveReason.value.trim() : "";
 
-    if (!startDate || !endDate || !reason) {
-      alert("請填寫完整請假資料");
-      return;
-    }
+      if (!startDate || !endDate || !reason) {
+        alert("請填寫完整請假資料");
+        return;
+      }
 
-    if (startDate > endDate) {
-      alert("開始日期不能晚於結束日期");
-      return;
-    }
+      if (startDate > endDate) {
+        alert("開始日期不能晚於結束日期");
+        return;
+      }
 
-    leaveRequests.push({
-      id: Date.now().toString(),
-      userName: currentUser ? currentUser.name : "未知使用者",
-      department: currentUser ? currentUser.department : "",
-      region: currentUser ? currentUser.region : "",
-      type: leaveType.value,
-      startDate: startDate,
-      endDate: endDate,
-      reason: reason,
-      status: "待審核",
-      reviewedBy: "",
-      reviewedAt: ""
+      leaveRequests.push({
+        id: Date.now().toString(),
+        userName: currentUser ? currentUser.name : "未知使用者",
+        department: currentUser ? currentUser.department : "",
+        region: currentUser ? currentUser.region : "",
+        type: leaveType ? leaveType.value : "特休",
+        startDate: startDate,
+        endDate: endDate,
+        reason: reason,
+        status: "待審核",
+        reviewedBy: "",
+        reviewedAt: ""
+      });
+
+      saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
+      leaveForm.reset();
+      renderLeaves();
     });
-
-    saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
-    leaveForm.reset();
-    renderLeaves();
-  });
+  }
 
   if (scheduleForm) {
     scheduleForm.addEventListener("submit", function (event) {
       event.preventDefault();
 
-      const date = scheduleDate.value;
-      const title = scheduleTitle.value.trim();
-      const content = scheduleContent.value.trim();
+      const date = scheduleDate ? scheduleDate.value : "";
+      const title = scheduleTitle ? scheduleTitle.value.trim() : "";
+      const content = scheduleContent ? scheduleContent.value.trim() : "";
 
       if (!date || !title || !content) {
         alert("請填寫完整排程資料");
@@ -730,8 +748,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
       saveData(STORAGE_KEYS.schedules, schedules);
       editingScheduleId = null;
-      scheduleTitle.value = "";
-      scheduleContent.value = "";
+
+      if (scheduleTitle) scheduleTitle.value = "";
+      if (scheduleContent) scheduleContent.value = "";
 
       renderSchedules();
       renderCalendar();
@@ -741,6 +760,18 @@ document.addEventListener("DOMContentLoaded", function () {
   if (scheduleCancelBtn) {
     scheduleCancelBtn.addEventListener("click", function () {
       clearScheduleEditor();
+    });
+  }
+
+  if (scheduleModalClose) {
+    scheduleModalClose.addEventListener("click", function () {
+      closeScheduleEditor();
+    });
+  }
+
+  if (scheduleModalBackdrop) {
+    scheduleModalBackdrop.addEventListener("click", function () {
+      closeScheduleEditor();
     });
   }
 
