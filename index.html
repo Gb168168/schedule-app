@@ -144,16 +144,9 @@
 </section>
 
         <!-- 排程表 -->
-    <section id="page-schedule" class="page-section hidden">
-     <div class="card">
-     <h3>排程表</h3>
-
-    <form id="schedule-form" class="form-grid">
-      <input id="schedule-date" type="date" required />
-      <input id="schedule-title" type="text" placeholder="排程標題" required />
-      <textarea id="schedule-content" placeholder="排程內容" required></textarea>
-      <button type="submit" class="primary-btn">新增排程</button>
-    </form>
+<section id="page-schedule" class="page-section hidden">
+  <div class="card">
+    <h3>排程表</h3>
 
     <div class="calendar-toolbar">
       <button type="button" id="prev-month" class="small-btn">上個月</button>
@@ -173,8 +166,25 @@
 
     <div id="calendar-grid" class="calendar-grid"></div>
 
-    <h4 style="margin-top: 24px;">排程清單</h4>
-    <div id="schedule-list" class="list-wrap"></div>
+    <div id="schedule-editor-panel" class="schedule-editor-panel hidden">
+      <div class="selected-date-box">
+        <h4>已選日期：<span id="selected-date-text">--</span></h4>
+        <p>點選月曆日期後，可新增或編輯該日排程。</p>
+      </div>
+
+      <form id="schedule-form" class="form-grid">
+        <input id="schedule-date" type="date" required readonly />
+        <input id="schedule-title" type="text" placeholder="排程標題" required />
+        <textarea id="schedule-content" placeholder="排程內容" required></textarea>
+        <div class="item-actions">
+          <button type="submit" class="primary-btn">儲存排程</button>
+          <button type="button" id="schedule-cancel-btn" class="small-btn cancel-btn">清空</button>
+        </div>
+      </form>
+
+      <h4>當日排程</h4>
+      <div id="selected-date-schedule-list" class="list-wrap"></div>
+    </div>
   </div>
 </section>
 
