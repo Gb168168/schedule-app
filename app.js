@@ -27,6 +27,8 @@ const STORAGE_KEYS = {
 let currentUser = null;
 let editingAnnouncementId = null;
 let calendarDate = new Date();
+let selectedScheduleDate = "";
+let editingScheduleId = null;
 
 let announcements = loadData(STORAGE_KEYS.announcements, [
   {
@@ -109,11 +111,14 @@ document.addEventListener("DOMContentLoaded", function () {
   const scheduleDate = document.getElementById("schedule-date");
   const scheduleTitle = document.getElementById("schedule-title");
   const scheduleContent = document.getElementById("schedule-content");
-  const scheduleList = document.getElementById("schedule-list");
   const calendarGrid = document.getElementById("calendar-grid");
   const calendarTitle = document.getElementById("calendar-title");
   const prevMonthBtn = document.getElementById("prev-month");
   const nextMonthBtn = document.getElementById("next-month");
+  const scheduleEditorPanel = document.getElementById("schedule-editor-panel");
+  const selectedDateText = document.getElementById("selected-date-text");
+  const selectedDateScheduleList = document.getElementById("selected-date-schedule-list");
+  const scheduleCancelBtn = document.getElementById("schedule-cancel-btn");
 
   function updateUserInfo(user) {
     currentUserName.textContent = user.name;
@@ -129,8 +134,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function hideAnnouncementEditor() {
     editingAnnouncementId = null;
-    announcementEditBox.classList.add("hidden");
-    announcementEditForm.reset();
+    if (announcementEditBox) announcementEditBox.classList.add("hidden");
+    if (announcementEditForm) announcementEditForm.reset();
   }
 
   function renderAnnouncements() {
@@ -267,18 +272,23 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function renderSchedules() {
-    if (!scheduleList) return;
+    if (!selectedDateScheduleList) return;
 
-    if (schedules.length === 0) {
-      scheduleList.innerHTML = `<div class="list-item"><p>目前沒有排程。</p></div>`;
+    if (!selectedScheduleDate) {
+      selectedDateScheduleList.innerHTML = `<div class="list-item"><p>請先點選月曆日期。</p></div>`;
       return;
     }
 
-    scheduleList.innerHTML = schedules
-      .slice()
-      .sort(function (a, b) {
-        return a.date.localeCompare(b.date);
-      })
+    const selectedSchedules = schedules.filter(function (item) {
+      return item.date === selectedScheduleDate;
+    });
+
+    if (selectedSchedules.length === 0) {
+      selectedDateScheduleList.innerHTML = `<div class="list-item"><p>這一天目前沒有排程。</p></div>`;
+      return;
+    }
+
+    selectedDateScheduleList.innerHTML = selectedSchedules
       .map(function (item) {
         return `
           <div class="list-item">
@@ -286,12 +296,37 @@ document.addEventListener("DOMContentLoaded", function () {
             <div class="item-meta">日期：${item.date}｜建立者：${item.author}</div>
             <p>${item.content}</p>
             <div class="item-actions">
+              <button class="small-btn edit-btn" onclick="editSchedule('${item.id}')">編輯</button>
               <button class="small-btn delete-btn" onclick="deleteSchedule('${item.id}')">刪除</button>
             </div>
           </div>
         `;
       })
       .join("");
+  }
+
+  function openScheduleEditor(dateString) {
+    selectedScheduleDate = dateString;
+    editingScheduleId = null;
+
+    if (scheduleEditorPanel) scheduleEditorPanel.classList.remove("hidden");
+    if (selectedDateText) selectedDateText.textContent = dateString;
+    if (scheduleDate) scheduleDate.value = dateString;
+    if (scheduleTitle) scheduleTitle.value = "";
+    if (scheduleContent) scheduleContent.value = "";
+
+    renderSchedules();
+    renderCalendar();
+  }
+
+  function clearScheduleEditor() {
+    editingScheduleId = null;
+    if (scheduleTitle) scheduleTitle.value = "";
+    if (scheduleContent) scheduleContent.value = "";
+
+    if (selectedScheduleDate && scheduleDate) {
+      scheduleDate.value = selectedScheduleDate;
+    }
   }
 
   function renderCalendar() {
@@ -307,7 +342,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const firstCellDate = new Date(year, month, 1 - startDay);
 
     const todayString = formatDate(new Date());
-
     const cells = [];
 
     for (let i = 0; i < 42; i++) {
@@ -322,9 +356,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
       const isOtherMonth = cellDate.getMonth() !== month;
       const isToday = cellDateString === todayString;
+      const isSelected = cellDateString === selectedScheduleDate;
 
       cells.push(`
-        <div class="calendar-day ${isOtherMonth ? "other-month" : ""} ${isToday ? "today" : ""}">
+        <div
+          class="calendar-day ${isOtherMonth ? "other-month" : ""} ${isToday ? "today" : ""} ${isSelected ? "selected" : ""}"
+          onclick="selectCalendarDate('${cellDateString}')"
+        >
           <div class="calendar-day-number">${cellDate.getDate()}</div>
           <div class="calendar-events">
             ${daySchedules
@@ -369,15 +407,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     renderAnnouncements();
-  };
-
-  window.deleteSchedule = function (id) {
-    schedules = schedules.filter(function (item) {
-      return item.id !== id;
-    });
-    saveData(STORAGE_KEYS.schedules, schedules);
-    renderSchedules();
-    renderCalendar();
   };
 
   window.approveLeave = function (id) {
@@ -431,6 +460,55 @@ document.addEventListener("DOMContentLoaded", function () {
     renderLeaves();
   };
 
+  window.selectCalendarDate = function (dateString) {
+    openScheduleEditor(dateString);
+  };
+
+  window.editSchedule = function (id) {
+    const item = schedules.find(function (schedule) {
+      return schedule.id === id;
+    });
+
+    if (!item) return;
+
+    selectedScheduleDate = item.date;
+    editingScheduleId = id;
+
+    if (scheduleEditorPanel) scheduleEditorPanel.classList.remove("hidden");
+    if (selectedDateText) selectedDateText.textContent = item.date;
+    if (scheduleDate) scheduleDate.value = item.date;
+    if (scheduleTitle) scheduleTitle.value = item.title;
+    if (scheduleContent) scheduleContent.value = item.content;
+
+    renderSchedules();
+    renderCalendar();
+  };
+
+  window.deleteSchedule = function (id) {
+    const target = schedules.find(function (item) {
+      return item.id === id;
+    });
+
+    schedules = schedules.filter(function (item) {
+      return item.id !== id;
+    });
+
+    saveData(STORAGE_KEYS.schedules, schedules);
+
+    if (editingScheduleId === id) {
+      editingScheduleId = null;
+      if (scheduleTitle) scheduleTitle.value = "";
+      if (scheduleContent) scheduleContent.value = "";
+    }
+
+    renderSchedules();
+    renderCalendar();
+
+    if (target && selectedScheduleDate === target.date) {
+      renderSchedules();
+    }
+  };
+
   function setLoggedInUser(user) {
     currentUser = user;
     updateUserInfo(user);
@@ -481,9 +559,13 @@ document.addEventListener("DOMContentLoaded", function () {
   logoutBtn.addEventListener("click", function () {
     currentUser = null;
     editingAnnouncementId = null;
+    editingScheduleId = null;
+    selectedScheduleDate = "";
     localStorage.removeItem(STORAGE_KEYS.currentUser);
 
     hideAnnouncementEditor();
+
+    if (scheduleEditorPanel) scheduleEditorPanel.classList.add("hidden");
 
     mainPage.classList.add("hidden");
     loginPage.classList.remove("hidden");
@@ -537,39 +619,43 @@ document.addEventListener("DOMContentLoaded", function () {
     renderAnnouncements();
   });
 
-  announcementEditForm.addEventListener("submit", function (event) {
-    event.preventDefault();
+  if (announcementEditForm) {
+    announcementEditForm.addEventListener("submit", function (event) {
+      event.preventDefault();
 
-    if (!editingAnnouncementId) return;
+      if (!editingAnnouncementId) return;
 
-    const title = announcementEditTitle.value.trim();
-    const content = announcementEditContent.value.trim();
+      const title = announcementEditTitle.value.trim();
+      const content = announcementEditContent.value.trim();
 
-    if (!title || !content) {
-      alert("請填寫完整公告內容");
-      return;
-    }
-
-    announcements = announcements.map(function (item) {
-      if (item.id === editingAnnouncementId) {
-        return {
-          ...item,
-          title: title,
-          content: content,
-          createdAt: new Date().toLocaleString()
-        };
+      if (!title || !content) {
+        alert("請填寫完整公告內容");
+        return;
       }
-      return item;
+
+      announcements = announcements.map(function (item) {
+        if (item.id === editingAnnouncementId) {
+          return {
+            ...item,
+            title: title,
+            content: content,
+            createdAt: new Date().toLocaleString()
+          };
+        }
+        return item;
+      });
+
+      saveData(STORAGE_KEYS.announcements, announcements);
+      hideAnnouncementEditor();
+      renderAnnouncements();
     });
+  }
 
-    saveData(STORAGE_KEYS.announcements, announcements);
-    hideAnnouncementEditor();
-    renderAnnouncements();
-  });
-
-  announcementCancelEdit.addEventListener("click", function () {
-    hideAnnouncementEditor();
-  });
+  if (announcementCancelEdit) {
+    announcementCancelEdit.addEventListener("click", function () {
+      hideAnnouncementEditor();
+    });
+  }
 
   leaveForm.addEventListener("submit", function (event) {
     event.preventDefault();
@@ -607,41 +693,70 @@ document.addEventListener("DOMContentLoaded", function () {
     renderLeaves();
   });
 
-  scheduleForm.addEventListener("submit", function (event) {
-    event.preventDefault();
+  if (scheduleForm) {
+    scheduleForm.addEventListener("submit", function (event) {
+      event.preventDefault();
 
-    const date = scheduleDate.value;
-    const title = scheduleTitle.value.trim();
-    const content = scheduleContent.value.trim();
+      const date = scheduleDate.value;
+      const title = scheduleTitle.value.trim();
+      const content = scheduleContent.value.trim();
 
-    if (!date || !title || !content) {
-      alert("請填寫完整排程資料");
-      return;
-    }
+      if (!date || !title || !content) {
+        alert("請填寫完整排程資料");
+        return;
+      }
 
-    schedules.push({
-      id: Date.now().toString(),
-      date: date,
-      title: title,
-      content: content,
-      author: currentUser ? currentUser.name : "未知使用者"
+      if (editingScheduleId) {
+        schedules = schedules.map(function (item) {
+          if (item.id === editingScheduleId) {
+            return {
+              ...item,
+              date: date,
+              title: title,
+              content: content
+            };
+          }
+          return item;
+        });
+      } else {
+        schedules.push({
+          id: Date.now().toString(),
+          date: date,
+          title: title,
+          content: content,
+          author: currentUser ? currentUser.name : "未知使用者"
+        });
+      }
+
+      saveData(STORAGE_KEYS.schedules, schedules);
+      editingScheduleId = null;
+      scheduleTitle.value = "";
+      scheduleContent.value = "";
+
+      renderSchedules();
+      renderCalendar();
     });
+  }
 
-    saveData(STORAGE_KEYS.schedules, schedules);
-    scheduleForm.reset();
-    renderSchedules();
-    renderCalendar();
-  });
+  if (scheduleCancelBtn) {
+    scheduleCancelBtn.addEventListener("click", function () {
+      clearScheduleEditor();
+    });
+  }
 
-  prevMonthBtn.addEventListener("click", function () {
-    calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1);
-    renderCalendar();
-  });
+  if (prevMonthBtn) {
+    prevMonthBtn.addEventListener("click", function () {
+      calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1);
+      renderCalendar();
+    });
+  }
 
-  nextMonthBtn.addEventListener("click", function () {
-    calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1);
-    renderCalendar();
-  });
+  if (nextMonthBtn) {
+    nextMonthBtn.addEventListener("click", function () {
+      calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1);
+      renderCalendar();
+    });
+  }
 
   renderAnnouncements();
   renderLeaves();
