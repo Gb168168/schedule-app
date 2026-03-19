@@ -2,169 +2,239 @@
   box-sizing: border-box;
 }
 
+:root {
+  --bg: #f4f7fb;
+  --panel: #ffffff;
+  --line: #e5e7eb;
+  --text: #111827;
+  --muted: #6b7280;
+  --nav: #0f172a;
+  --nav-hover: rgba(255, 255, 255, 0.08);
+  --nav-active: linear-gradient(135deg, #2563eb, #1d4ed8);
+  --danger: #ef4444;
+  --primary: #2563eb;
+  --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --radius: 18px;
+}
+
+html,
 body {
   margin: 0;
-  font-family: "Microsoft JhengHei", Arial, sans-serif;
-  background: #f3f4f6;
-  color: #111827;
+  padding: 0;
+  font-family: "Segoe UI", "Microsoft JhengHei", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  min-height: 100vh;
 }
 
 .hidden {
   display: none !important;
 }
 
-/* 登入頁 */
+/* login */
 .login-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #eef2ff, #f8fafc);
+  padding: 24px;
+  background:
+    radial-gradient(circle at top left, #dbeafe 0%, transparent 30%),
+    radial-gradient(circle at bottom right, #e0e7ff 0%, transparent 25%),
+    linear-gradient(135deg, #f8fbff 0%, #eef3f9 100%);
 }
 
 .login-box {
-  width: 380px;
-  background: #ffffff;
-  padding: 32px;
-  border-radius: 20px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  max-width: 420px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 28px;
+  box-shadow: 0 30px 80px rgba(37, 99, 235, 0.12);
+  padding: 36px 30px 28px;
 }
 
 .login-box h1 {
-  margin-top: 0;
-  margin-bottom: 24px;
-  font-size: 32px;
+  margin: 0 0 28px;
+  text-align: center;
+  font-size: 2.2rem;
+  line-height: 1.2;
+  letter-spacing: 1px;
 }
 
 .login-box input {
   width: 100%;
   margin-bottom: 14px;
-  padding: 14px 16px;
-  border: 1px solid #d1d5db;
-  border-radius: 12px;
+  padding: 15px 16px;
+  border: 1px solid #d6dce5;
+  background: #f8fafc;
+  border-radius: 14px;
   font-size: 16px;
+  outline: none;
+  transition: 0.2s ease;
+}
+
+.login-box input:focus {
+  border-color: #60a5fa;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
 
 .login-box button {
   width: 100%;
+  margin-top: 4px;
   border: none;
-  border-radius: 12px;
-  padding: 14px;
-  background: #0f172a;
+  border-radius: 14px;
+  padding: 15px;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
   color: white;
-  font-size: 16px;
+  font-size: 17px;
+  font-weight: 700;
   cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
 .login-box button:hover {
-  opacity: 0.95;
+  opacity: 0.96;
+  transform: translateY(-1px);
 }
 
 .login-hint {
-  margin-top: 14px;
+  margin: 16px 0 0;
   font-size: 14px;
-  color: #6b7280;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 .error-text {
-  color: #dc2626;
   min-height: 22px;
+  margin-top: 10px;
+  color: #dc2626;
+  font-size: 14px;
 }
 
-/* 主系統 */
+/* app */
 .app-shell {
-  display: flex;
   min-height: 100vh;
+  display: flex;
 }
 
+/* sidebar */
 .sidebar {
   width: 260px;
-  background: #0f172a;
+  background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
   color: white;
   padding: 24px 18px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 28px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  box-shadow: 8px 0 30px rgba(15, 23, 42, 0.08);
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 8px 8px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 4px 6px 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .brand-logo {
   width: 52px;
   height: 52px;
   border-radius: 16px;
-  background: #2563eb;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  font-weight: 800;
+  font-size: 18px;
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.35);
 }
 
 .brand h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 1.35rem;
 }
 
 .brand p {
   margin: 4px 0 0;
-  font-size: 12px;
-  color: #cbd5e1;
+  color: #94a3b8;
+  font-size: 0.92rem;
 }
 
 .menu {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .menu-btn {
   width: 100%;
+  border: none;
+  background: transparent;
+  color: #e5e7eb;
   text-align: left;
   padding: 14px 16px;
-  border: none;
   border-radius: 14px;
-  background: transparent;
-  color: white;
-  cursor: pointer;
   font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
 }
 
-.menu-btn:hover,
+.menu-btn:hover {
+  background: var(--nav-hover);
+  color: white;
+}
+
 .menu-btn.active {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--nav-active);
+  color: white;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.22);
 }
 
+/* main */
 .main-area {
   flex: 1;
-  display: flex;
-  flex-direction: column;
+  margin-left: 260px;
+  min-width: 0;
 }
 
 .topbar {
-  height: 90px;
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 18px 28px;
+  height: 92px;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(229, 231, 235, 0.9);
+  padding: 0 30px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .topbar h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
 }
 
 .sub-title {
-  margin: 6px 0 0;
-  color: #6b7280;
+  margin: 5px 0 0;
   font-size: 14px;
+  color: var(--muted);
 }
 
 .topbar-right {
@@ -174,63 +244,143 @@ body {
 }
 
 .user-card {
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
   padding: 10px 14px;
+  box-shadow: 0 4px 15px rgba(15, 23, 42, 0.04);
 }
 
 .user-label {
   display: block;
+  margin-bottom: 2px;
+  color: var(--muted);
   font-size: 12px;
-  color: #6b7280;
 }
 
 .logout-btn {
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 12px 18px;
-  background: #ef4444;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
   color: white;
+  font-weight: 700;
+  font-size: 14px;
   cursor: pointer;
+  box-shadow: 0 10px 20px rgba(239, 68, 68, 0.18);
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
+.logout-btn:hover {
+  opacity: 0.96;
+  transform: translateY(-1px);
+}
+
+/* content */
 .content {
-  padding: 24px;
+  padding: 28px;
 }
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(3, minmax(220px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(3, minmax(240px, 1fr));
+  gap: 22px;
 }
 
 .card {
-  background: white;
-  border-radius: 20px;
-  padding: 22px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-  min-height: 160px;
+  background: var(--panel);
+  border: 1px solid rgba(229, 231, 235, 0.7);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: var(--shadow);
 }
 
 .card h3 {
-  margin-top: 0;
-  margin-bottom: 14px;
+  margin: 0 0 16px;
+  font-size: 1.15rem;
 }
 
-@media (max-width: 900px) {
-  .sidebar {
-    width: 220px;
-  }
+.card p {
+  margin: 0 0 12px;
+  color: #374151;
+  line-height: 1.7;
+}
 
+.page-section > .card {
+  max-width: 980px;
+}
+
+/* responsive */
+@media (max-width: 1024px) {
   .cards {
     grid-template-columns: 1fr;
   }
+}
 
-  .topbar {
-    height: auto;
+@media (max-width: 860px) {
+  .sidebar {
+    width: 88px;
+    padding: 18px 12px;
+  }
+
+  .brand {
     flex-direction: column;
     align-items: flex-start;
+    gap: 10px;
+  }
+
+  .brand h2,
+  .brand p {
+    display: none;
+  }
+
+  .menu-btn {
+    text-align: center;
+    padding: 12px 8px;
+    font-size: 13px;
+  }
+
+  .main-area {
+    margin-left: 88px;
+  }
+
+  .topbar {
+    padding: 16px 18px;
+    height: auto;
+    align-items: flex-start;
+    flex-direction: column;
     gap: 14px;
+  }
+
+  .topbar-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .content {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 520px) {
+  .login-box {
+    padding: 28px 22px 24px;
+    border-radius: 22px;
+  }
+
+  .login-box h1 {
+    font-size: 1.8rem;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .main-area {
+    margin-left: 0;
+  }
+
+  .topbar h1 {
+    font-size: 1.6rem;
   }
 }
