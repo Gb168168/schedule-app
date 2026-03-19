@@ -775,4 +775,86 @@ body {
   border: 2px solid #2563eb;
   background: #eff6ff;
 }
+  .calendar-wrap {
+  position: relative;
+}
+
+.schedule-popover {
+  position: absolute;
+  z-index: 50;
+  width: 360px;
+  max-width: calc(100vw - 48px);
+  background: #ffffff;
+  border: 1px solid #dbe2ea;
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+  padding: 16px;
+  animation: popoverIn 0.16s ease;
+}
+
+@keyframes popoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.schedule-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.schedule-popover-header h4 {
+  margin: 0;
+}
+
+.schedule-popover .selected-date-box {
+  margin-bottom: 12px;
+}
+
+.schedule-popover .selected-date-box p {
+  margin: 0;
+  color: #374151;
+}
+
+.calendar-day {
+  cursor: pointer;
+  transition: 0.2s ease;
+  position: relative;
+}
+
+.calendar-day:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.calendar-day.selected {
+  border: 2px solid #2563eb;
+  background: #eff6ff;
+}
+
+.schedule-popover .list-item {
+  padding: 12px;
+}
+
+.schedule-popover .list-item h4 {
+  font-size: 15px;
+}
+
+.schedule-popover .list-item p {
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .schedule-popover {
+    width: min(92vw, 360px);
+  }
+}
 }
