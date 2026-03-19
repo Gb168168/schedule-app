@@ -25,8 +25,12 @@ const users = [
   }
 ];
 
-function normalizeEmployeeId(value) {
-  return value.trim().toUpperCase();
+function normalizeCredential(value) {
+  return value
+    .normalize("NFKC")
+    .trim()
+    .replace(/\s+/g, "")
+    .toUpperCase();
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -58,11 +62,11 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   function login() {
-    const employeeId = normalizeEmployeeId(employeeIdInput.value);
-    const password = passwordInput.value.trim();
+    const employeeId = normalizeCredential(employeeIdInput.value);
+    const password = normalizeCredential(passwordInput.value);
 
-  const user = users.find(
-      (u) => normalizeEmployeeId(u.employeeId) === employeeId && u.password === password
+   const user = users.find(
+      (u) => normalizeCredential(u.employeeId) === employeeId && normalizeCredential(u.password) === password
     );
     
     if (!user) {
