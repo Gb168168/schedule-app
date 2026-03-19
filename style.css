@@ -383,4 +383,95 @@ body {
   .topbar h1 {
     font-size: 1.6rem;
   }
+  .form-grid {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.form-grid input,
+.form-grid select,
+.form-grid textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #d6dce5;
+  border-radius: 14px;
+  background: #f8fafc;
+  font-size: 15px;
+  outline: none;
+}
+
+.form-grid textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.primary-btn {
+  border: none;
+  border-radius: 14px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.list-wrap {
+  display: grid;
+  gap: 14px;
+}
+
+.list-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: #f8fafc;
+  padding: 16px;
+}
+
+.list-item h4 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.list-item p {
+  margin: 6px 0;
+  color: #374151;
+}
+
+.item-meta {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 10px;
+}
+
+.item-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+}
+
+.small-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.delete-btn {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
 }
