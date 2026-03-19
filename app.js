@@ -99,10 +99,10 @@ document.addEventListener("DOMContentLoaded", function () {
     userRegion.textContent = user.region;
     userDepartment.textContent = user.department;
 
-    staffName.textContent = user.name;
-    staffRole.textContent = user.role;
-    staffRegion.textContent = user.region;
-    staffDepartment.textContent = user.department;
+    if (staffName) staffName.textContent = user.name;
+    if (staffRole) staffRole.textContent = user.role;
+    if (staffRegion) staffRegion.textContent = user.region;
+    if (staffDepartment) staffDepartment.textContent = user.department;
   }
 
   function renderAnnouncements() {
@@ -123,6 +123,7 @@ document.addEventListener("DOMContentLoaded", function () {
             <div class="item-meta">發布者：${item.author}｜時間：${item.createdAt}</div>
             <p>${item.content}</p>
             <div class="item-actions">
+              <button class="small-btn edit-btn" onclick="editAnnouncement('${item.id}')">編輯</button>
               <button class="small-btn delete-btn" onclick="deleteAnnouncement('${item.id}')">刪除</button>
             </div>
           </div>
@@ -152,11 +153,19 @@ document.addEventListener("DOMContentLoaded", function () {
         let actionButtons = "";
 
         if (isAdmin(currentUser) && item.status === "待審核") {
-          actionButtons = `
-            <div class="item-actions">
-              <button class="small-btn approve-btn" onclick="approveLeave('${item.id}')">核准</button>
-              <button class="small-btn reject-btn" onclick="rejectLeave('${item.id}')">駁回</button>
-            </div>
+          actionButtons += `
+            <button class="small-btn approve-btn" onclick="approveLeave('${item.id}')">核准</button>
+            <button class="small-btn reject-btn" onclick="rejectLeave('${item.id}')">駁回</button>
+          `;
+        }
+
+        if (
+          currentUser &&
+          item.userName === currentUser.name &&
+          item.status === "待審核"
+        ) {
+          actionButtons += `
+            <button class="small-btn cancel-btn" onclick="cancelLeave('${item.id}')">取消請假</button>
           `;
         }
 
@@ -171,7 +180,7 @@ document.addEventListener("DOMContentLoaded", function () {
             <p>日期：${item.startDate} ~ ${item.endDate}</p>
             <p>原因：${item.reason}</p>
             <p><span class="status-badge status-${item.status}">${item.status}</span></p>
-            ${actionButtons}
+            ${actionButtons ? `<div class="item-actions">${actionButtons}</div>` : ""}
           </div>
         `;
       })
@@ -205,6 +214,43 @@ document.addEventListener("DOMContentLoaded", function () {
       })
       .join("");
   }
+
+  window.editAnnouncement = function (id) {
+    const item = announcements.find(function (announcement) {
+      return announcement.id === id;
+    });
+
+    if (!item) return;
+
+    const newTitle = prompt("請輸入新的公告標題：", item.title);
+    if (newTitle === null) return;
+
+    const newContent = prompt("請輸入新的公告內容：", item.content);
+    if (newContent === null) return;
+
+    const title = newTitle.trim();
+    const content = newContent.trim();
+
+    if (!title || !content) {
+      alert("公告標題和內容不能為空");
+      return;
+    }
+
+    announcements = announcements.map(function (announcement) {
+      if (announcement.id === id) {
+        return {
+          ...announcement,
+          title: title,
+          content: content,
+          createdAt: new Date().toLocaleString()
+        };
+      }
+      return announcement;
+    });
+
+    saveData(STORAGE_KEYS.announcements, announcements);
+    renderAnnouncements();
+  };
 
   window.deleteAnnouncement = function (id) {
     announcements = announcements.filter(function (item) {
@@ -245,6 +291,23 @@ document.addEventListener("DOMContentLoaded", function () {
         return {
           ...item,
           status: "已駁回",
+          reviewedBy: currentUser ? currentUser.name : "",
+          reviewedAt: new Date().toLocaleString()
+        };
+      }
+      return item;
+    });
+
+    saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
+    renderLeaves();
+  };
+
+  window.cancelLeave = function (id) {
+    leaveRequests = leaveRequests.map(function (item) {
+      if (item.id === id) {
+        return {
+          ...item,
+          status: "已取消",
           reviewedBy: currentUser ? currentUser.name : "",
           reviewedAt: new Date().toLocaleString()
         };
