@@ -33,6 +33,20 @@ function normalizeCredential(value) {
     .toUpperCase();
 }
 
+ function findUserByCredential(employeeId, password) {
+  const normalizedEmployeeId = normalizeCredential(employeeId);
+  const normalizedPassword = normalizeCredential(password);
+
+  return users.find((user) => {
+    const exactMatch = user.employeeId === employeeId && user.password === password;
+    const normalizedMatch =
+      normalizeCredential(user.employeeId) === normalizedEmployeeId &&
+      normalizeCredential(user.password) === normalizedPassword;
+
+    return exactMatch || normalizedMatch;
+  });
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   const loginPage = document.getElementById("login-page");
   const mainPage = document.getElementById("main-page");
