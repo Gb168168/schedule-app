@@ -9,13 +9,13 @@
 <body>
   <!-- 登入頁 -->
   <div id="login-page" class="page">
-    <div class="login-box">
+    <form id="login-form" class="login-box">
       <h1>班表系統登入</h1>
-      <input id="employeeId" type="text" placeholder="員工編號" />
-      <input id="password" type="password" placeholder="密碼" />
-      <button id="login-btn">登入</button>
+      <input id="employeeId" type="text" placeholder="員工編號" autocomplete="username" />
+      <input id="password" type="password" placeholder="密碼" autocomplete="current-password" />
+      <button id="login-btn" type="submit">登入</button>
       <p id="login-error" class="error-text"></p>
-    </div>
+    </form>
   </div>
 
   <!-- 系統首頁 -->
