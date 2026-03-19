@@ -115,12 +115,12 @@ document.addEventListener("DOMContentLoaded", function () {
   const calendarTitle = document.getElementById("calendar-title");
   const prevMonthBtn = document.getElementById("prev-month");
   const nextMonthBtn = document.getElementById("next-month");
-  const scheduleModal = document.getElementById("schedule-modal");
-  const scheduleModalBackdrop = document.getElementById("schedule-modal-backdrop");
-  const scheduleModalClose = document.getElementById("schedule-modal-close");
+  const schedulePopover = document.getElementById("schedule-popover");
+  const schedulePopoverClose = document.getElementById("schedule-popover-close");
   const selectedDateText = document.getElementById("selected-date-text");
   const selectedDateScheduleList = document.getElementById("selected-date-schedule-list");
   const scheduleCancelBtn = document.getElementById("schedule-cancel-btn");
+  const calendarWrap = document.querySelector(".calendar-wrap");
 
   function updateUserInfo(user) {
     if (currentUserName) currentUserName.textContent = user.name;
@@ -197,22 +197,10 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     leaveStats.innerHTML = `
-      <div class="stat-card">
-        <h4>特休</h4>
-        <p>${stats["特休"]}</p>
-      </div>
-      <div class="stat-card">
-        <h4>病假</h4>
-        <p>${stats["病假"]}</p>
-      </div>
-      <div class="stat-card">
-        <h4>事假</h4>
-        <p>${stats["事假"]}</p>
-      </div>
-      <div class="stat-card">
-        <h4>待審核</h4>
-        <p>${stats["待審核"]}</p>
-      </div>
+      <div class="stat-card"><h4>特休</h4><p>${stats["特休"]}</p></div>
+      <div class="stat-card"><h4>病假</h4><p>${stats["病假"]}</p></div>
+      <div class="stat-card"><h4>事假</h4><p>${stats["事假"]}</p></div>
+      <div class="stat-card"><h4>待審核</h4><p>${stats["待審核"]}</p></div>
     `;
   }
 
@@ -245,11 +233,7 @@ document.addEventListener("DOMContentLoaded", function () {
           `;
         }
 
-        if (
-          currentUser &&
-          item.userName === currentUser.name &&
-          item.status === "待審核"
-        ) {
+        if (currentUser && item.userName === currentUser.name && item.status === "待審核") {
           actionButtons += `
             <button class="small-btn cancel-btn" onclick="cancelLeave('${item.id}')">取消請假</button>
           `;
@@ -277,7 +261,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!selectedDateScheduleList) return;
 
     if (!selectedScheduleDate) {
-      selectedDateScheduleList.innerHTML = `<div class="list-item"><p>請先點選月曆日期。</p></div>`;
+      selectedDateScheduleList.innerHTML = `<div class="list-item"><p>請先點選日期。</p></div>`;
       return;
     }
 
@@ -307,11 +291,35 @@ document.addEventListener("DOMContentLoaded", function () {
       .join("");
   }
 
-  function openScheduleEditor(dateString) {
+  function positionSchedulePopover(targetElement) {
+    if (!schedulePopover || !calendarWrap || !targetElement) return;
+
+    const wrapRect = calendarWrap.getBoundingClientRect();
+    const cellRect = targetElement.getBoundingClientRect();
+
+    const popoverWidth = 360;
+    const gap = 12;
+
+    let left = cellRect.left - wrapRect.left;
+    let top = cellRect.bottom - wrapRect.top + gap;
+
+    if (left + popoverWidth > wrapRect.width - 8) {
+      left = wrapRect.width - popoverWidth - 8;
+    }
+
+    if (left < 8) {
+      left = 8;
+    }
+
+    schedulePopover.style.left = `${left}px`;
+    schedulePopover.style.top = `${top}px`;
+  }
+
+  function openSchedulePopover(dateString, targetElement) {
     selectedScheduleDate = dateString;
     editingScheduleId = null;
 
-    if (scheduleModal) scheduleModal.classList.remove("hidden");
+    if (schedulePopover) schedulePopover.classList.remove("hidden");
     if (selectedDateText) selectedDateText.textContent = dateString;
     if (scheduleDate) scheduleDate.value = dateString;
     if (scheduleTitle) scheduleTitle.value = "";
@@ -319,10 +327,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     renderSchedules();
     renderCalendar();
+
+    requestAnimationFrame(function () {
+      positionSchedulePopover(targetElement);
+    });
   }
 
-  function closeScheduleEditor() {
-    if (scheduleModal) scheduleModal.classList.add("hidden");
+  function closeSchedulePopover() {
+    if (schedulePopover) schedulePopover.classList.add("hidden");
     editingScheduleId = null;
   }
 
@@ -355,7 +367,6 @@ document.addEventListener("DOMContentLoaded", function () {
       cellDate.setDate(firstCellDate.getDate() + i);
 
       const cellDateString = formatDate(cellDate);
-
       const daySchedules = schedules.filter(function (item) {
         return item.date === cellDateString;
       });
@@ -367,30 +378,35 @@ document.addEventListener("DOMContentLoaded", function () {
       cells.push(`
         <div
           class="calendar-day ${isOtherMonth ? "other-month" : ""} ${isToday ? "today" : ""} ${isSelected ? "selected" : ""}"
-          onclick="selectCalendarDate('${cellDateString}')"
+          data-date="${cellDateString}"
         >
           <div class="calendar-day-number">${cellDate.getDate()}</div>
           <div class="calendar-events">
-            ${daySchedules
-              .map(function (schedule) {
-                return `<div class="calendar-event">${schedule.title}</div>`;
-              })
-              .join("")}
+            ${daySchedules.map(function (schedule) {
+              return `<div class="calendar-event">${schedule.title}</div>`;
+            }).join("")}
           </div>
         </div>
       `);
     }
 
     calendarGrid.innerHTML = cells.join("");
+
+    const dayCells = calendarGrid.querySelectorAll(".calendar-day");
+    dayCells.forEach(function (cell) {
+      cell.addEventListener("click", function (event) {
+        const dateString = cell.dataset.date;
+        openSchedulePopover(dateString, cell);
+        event.stopPropagation();
+      });
+    });
   }
 
   window.startEditAnnouncement = function (id) {
     if (!isAdmin(currentUser)) return;
-
     const item = announcements.find(function (announcement) {
       return announcement.id === id;
     });
-
     if (!item) return;
 
     editingAnnouncementId = id;
@@ -402,33 +418,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
   window.deleteAnnouncement = function (id) {
     if (!isAdmin(currentUser)) return;
-
     announcements = announcements.filter(function (item) {
       return item.id !== id;
     });
-
     saveData(STORAGE_KEYS.announcements, announcements);
 
     if (editingAnnouncementId === id) {
       hideAnnouncementEditor();
     }
-
     renderAnnouncements();
   };
 
   window.approveLeave = function (id) {
     leaveRequests = leaveRequests.map(function (item) {
       if (item.id === id) {
-        return {
-          ...item,
-          status: "已核准",
-          reviewedBy: currentUser ? currentUser.name : "",
-          reviewedAt: new Date().toLocaleString()
-        };
+        return { ...item, status: "已核准", reviewedBy: currentUser ? currentUser.name : "", reviewedAt: new Date().toLocaleString() };
       }
       return item;
     });
-
     saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
     renderLeaves();
   };
@@ -436,16 +443,10 @@ document.addEventListener("DOMContentLoaded", function () {
   window.rejectLeave = function (id) {
     leaveRequests = leaveRequests.map(function (item) {
       if (item.id === id) {
-        return {
-          ...item,
-          status: "已駁回",
-          reviewedBy: currentUser ? currentUser.name : "",
-          reviewedAt: new Date().toLocaleString()
-        };
+        return { ...item, status: "已駁回", reviewedBy: currentUser ? currentUser.name : "", reviewedAt: new Date().toLocaleString() };
       }
       return item;
     });
-
     saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
     renderLeaves();
   };
@@ -453,35 +454,24 @@ document.addEventListener("DOMContentLoaded", function () {
   window.cancelLeave = function (id) {
     leaveRequests = leaveRequests.map(function (item) {
       if (item.id === id) {
-        return {
-          ...item,
-          status: "已取消",
-          reviewedBy: currentUser ? currentUser.name : "",
-          reviewedAt: new Date().toLocaleString()
-        };
+        return { ...item, status: "已取消", reviewedBy: currentUser ? currentUser.name : "", reviewedAt: new Date().toLocaleString() };
       }
       return item;
     });
-
     saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
     renderLeaves();
-  };
-
-  window.selectCalendarDate = function (dateString) {
-    openScheduleEditor(dateString);
   };
 
   window.editSchedule = function (id) {
     const item = schedules.find(function (schedule) {
       return schedule.id === id;
     });
-
     if (!item) return;
 
     selectedScheduleDate = item.date;
     editingScheduleId = id;
 
-    if (scheduleModal) scheduleModal.classList.remove("hidden");
+    if (schedulePopover) schedulePopover.classList.remove("hidden");
     if (selectedDateText) selectedDateText.textContent = item.date;
     if (scheduleDate) scheduleDate.value = item.date;
     if (scheduleTitle) scheduleTitle.value = item.title;
@@ -489,17 +479,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
     renderSchedules();
     renderCalendar();
+
+    const targetCell = calendarGrid ? calendarGrid.querySelector(`[data-date="${item.date}"]`) : null;
+    requestAnimationFrame(function () {
+      positionSchedulePopover(targetCell);
+    });
   };
 
   window.deleteSchedule = function (id) {
-    const target = schedules.find(function (item) {
-      return item.id === id;
-    });
-
     schedules = schedules.filter(function (item) {
       return item.id !== id;
     });
-
     saveData(STORAGE_KEYS.schedules, schedules);
 
     if (editingScheduleId === id) {
@@ -511,8 +501,11 @@ document.addEventListener("DOMContentLoaded", function () {
     renderSchedules();
     renderCalendar();
 
-    if (target && selectedScheduleDate === target.date) {
-      renderSchedules();
+    const targetCell = calendarGrid ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`) : null;
+    if (targetCell && schedulePopover && !schedulePopover.classList.contains("hidden")) {
+      requestAnimationFrame(function () {
+        positionSchedulePopover(targetCell);
+      });
     }
   };
 
@@ -578,7 +571,7 @@ document.addEventListener("DOMContentLoaded", function () {
       localStorage.removeItem(STORAGE_KEYS.currentUser);
 
       hideAnnouncementEditor();
-      if (scheduleModal) scheduleModal.classList.add("hidden");
+      closeSchedulePopover();
 
       if (mainPage) mainPage.classList.add("hidden");
       if (loginPage) loginPage.classList.remove("hidden");
@@ -651,12 +644,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       announcements = announcements.map(function (item) {
         if (item.id === editingAnnouncementId) {
-          return {
-            ...item,
-            title: title,
-            content: content,
-            createdAt: new Date().toLocaleString()
-          };
+          return { ...item, title: title, content: content, createdAt: new Date().toLocaleString() };
         }
         return item;
       });
@@ -727,12 +715,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (editingScheduleId) {
         schedules = schedules.map(function (item) {
           if (item.id === editingScheduleId) {
-            return {
-              ...item,
-              date: date,
-              title: title,
-              content: content
-            };
+            return { ...item, date: date, title: title, content: content };
           }
           return item;
         });
@@ -748,12 +731,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
       saveData(STORAGE_KEYS.schedules, schedules);
       editingScheduleId = null;
-
       if (scheduleTitle) scheduleTitle.value = "";
       if (scheduleContent) scheduleContent.value = "";
 
       renderSchedules();
       renderCalendar();
+
+      const targetCell = calendarGrid ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`) : null;
+      requestAnimationFrame(function () {
+        positionSchedulePopover(targetCell);
+      });
     });
   }
 
@@ -763,22 +750,37 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  if (scheduleModalClose) {
-    scheduleModalClose.addEventListener("click", function () {
-      closeScheduleEditor();
+  if (schedulePopoverClose) {
+    schedulePopoverClose.addEventListener("click", function (event) {
+      event.stopPropagation();
+      closeSchedulePopover();
     });
   }
 
-  if (scheduleModalBackdrop) {
-    scheduleModalBackdrop.addEventListener("click", function () {
-      closeScheduleEditor();
-    });
-  }
+  document.addEventListener("click", function (event) {
+    if (!schedulePopover || schedulePopover.classList.contains("hidden")) return;
+
+    const clickedInsidePopover = schedulePopover.contains(event.target);
+    const clickedDayCell = event.target.closest(".calendar-day");
+
+    if (!clickedInsidePopover && !clickedDayCell) {
+      closeSchedulePopover();
+    }
+  });
+
+  window.addEventListener("resize", function () {
+    if (!schedulePopover || schedulePopover.classList.contains("hidden")) return;
+    const targetCell = calendarGrid ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`) : null;
+    if (targetCell) {
+      positionSchedulePopover(targetCell);
+    }
+  });
 
   if (prevMonthBtn) {
     prevMonthBtn.addEventListener("click", function () {
       calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1);
       renderCalendar();
+      closeSchedulePopover();
     });
   }
 
@@ -786,6 +788,7 @@ document.addEventListener("DOMContentLoaded", function () {
     nextMonthBtn.addEventListener("click", function () {
       calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1);
       renderCalendar();
+      closeSchedulePopover();
     });
   }
 
