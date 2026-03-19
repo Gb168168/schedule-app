@@ -25,6 +25,9 @@ const STORAGE_KEYS = {
 };
 
 let currentUser = null;
+let editingAnnouncementId = null;
+let calendarDate = new Date();
+
 let announcements = loadData(STORAGE_KEYS.announcements, [
   {
     id: Date.now().toString() + "_a",
@@ -34,6 +37,7 @@ let announcements = loadData(STORAGE_KEYS.announcements, [
     createdAt: new Date().toLocaleString()
   }
 ]);
+
 let leaveRequests = loadData(STORAGE_KEYS.leaveRequests, []);
 let schedules = loadData(STORAGE_KEYS.schedules, []);
 
@@ -52,6 +56,13 @@ function saveData(key, value) {
 
 function isAdmin(user) {
   return user && user.role === "管理員";
+}
+
+function formatDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -80,18 +91,29 @@ document.addEventListener("DOMContentLoaded", function () {
   const announcementContent = document.getElementById("announcement-content");
   const announcementList = document.getElementById("announcement-list");
 
+  const announcementEditBox = document.getElementById("announcement-edit-box");
+  const announcementEditForm = document.getElementById("announcement-edit-form");
+  const announcementEditTitle = document.getElementById("announcement-edit-title");
+  const announcementEditContent = document.getElementById("announcement-edit-content");
+  const announcementCancelEdit = document.getElementById("announcement-cancel-edit");
+
   const leaveForm = document.getElementById("leave-form");
   const leaveType = document.getElementById("leave-type");
   const leaveStart = document.getElementById("leave-start");
   const leaveEnd = document.getElementById("leave-end");
   const leaveReason = document.getElementById("leave-reason");
   const leaveList = document.getElementById("leave-list");
+  const leaveStats = document.getElementById("leave-stats");
 
   const scheduleForm = document.getElementById("schedule-form");
   const scheduleDate = document.getElementById("schedule-date");
   const scheduleTitle = document.getElementById("schedule-title");
   const scheduleContent = document.getElementById("schedule-content");
   const scheduleList = document.getElementById("schedule-list");
+  const calendarGrid = document.getElementById("calendar-grid");
+  const calendarTitle = document.getElementById("calendar-title");
+  const prevMonthBtn = document.getElementById("prev-month");
+  const nextMonthBtn = document.getElementById("next-month");
 
   function updateUserInfo(user) {
     currentUserName.textContent = user.name;
@@ -103,6 +125,12 @@ document.addEventListener("DOMContentLoaded", function () {
     if (staffRole) staffRole.textContent = user.role;
     if (staffRegion) staffRegion.textContent = user.region;
     if (staffDepartment) staffDepartment.textContent = user.department;
+  }
+
+  function hideAnnouncementEditor() {
+    editingAnnouncementId = null;
+    announcementEditBox.classList.add("hidden");
+    announcementEditForm.reset();
   }
 
   function renderAnnouncements() {
@@ -117,19 +145,68 @@ document.addEventListener("DOMContentLoaded", function () {
       .slice()
       .reverse()
       .map(function (item) {
+        let actions = "";
+
+        if (isAdmin(currentUser)) {
+          actions = `
+            <div class="item-actions">
+              <button class="small-btn edit-btn" onclick="startEditAnnouncement('${item.id}')">編輯</button>
+              <button class="small-btn delete-btn" onclick="deleteAnnouncement('${item.id}')">刪除</button>
+            </div>
+          `;
+        }
+
         return `
           <div class="list-item">
             <h4>${item.title}</h4>
             <div class="item-meta">發布者：${item.author}｜時間：${item.createdAt}</div>
             <p>${item.content}</p>
-            <div class="item-actions">
-              <button class="small-btn edit-btn" onclick="editAnnouncement('${item.id}')">編輯</button>
-              <button class="small-btn delete-btn" onclick="deleteAnnouncement('${item.id}')">刪除</button>
-            </div>
+            ${actions}
           </div>
         `;
       })
       .join("");
+  }
+
+  function renderLeaveStats() {
+    if (!leaveStats) return;
+
+    const visibleLeaves = isAdmin(currentUser)
+      ? leaveRequests
+      : leaveRequests.filter(function (item) {
+          return currentUser && item.userName === currentUser.name;
+        });
+
+    const stats = {
+      特休: 0,
+      病假: 0,
+      事假: 0,
+      待審核: 0
+    };
+
+    visibleLeaves.forEach(function (item) {
+      if (stats[item.type] !== undefined) stats[item.type] += 1;
+      if (item.status === "待審核") stats["待審核"] += 1;
+    });
+
+    leaveStats.innerHTML = `
+      <div class="stat-card">
+        <h4>特休</h4>
+        <p>${stats["特休"]}</p>
+      </div>
+      <div class="stat-card">
+        <h4>病假</h4>
+        <p>${stats["病假"]}</p>
+      </div>
+      <div class="stat-card">
+        <h4>事假</h4>
+        <p>${stats["事假"]}</p>
+      </div>
+      <div class="stat-card">
+        <h4>待審核</h4>
+        <p>${stats["待審核"]}</p>
+      </div>
+    `;
   }
 
   function renderLeaves() {
@@ -140,6 +217,8 @@ document.addEventListener("DOMContentLoaded", function () {
       : leaveRequests.filter(function (item) {
           return currentUser && item.userName === currentUser.name;
         });
+
+    renderLeaveStats();
 
     if (visibleLeaves.length === 0) {
       leaveList.innerHTML = `<div class="list-item"><p>目前沒有請假申請。</p></div>`;
@@ -215,48 +294,80 @@ document.addEventListener("DOMContentLoaded", function () {
       .join("");
   }
 
-  window.editAnnouncement = function (id) {
+  function renderCalendar() {
+    if (!calendarGrid || !calendarTitle) return;
+
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+
+    calendarTitle.textContent = `${year} 年 ${month + 1} 月`;
+
+    const firstDay = new Date(year, month, 1);
+    const startDay = firstDay.getDay();
+    const firstCellDate = new Date(year, month, 1 - startDay);
+
+    const todayString = formatDate(new Date());
+
+    const cells = [];
+
+    for (let i = 0; i < 42; i++) {
+      const cellDate = new Date(firstCellDate);
+      cellDate.setDate(firstCellDate.getDate() + i);
+
+      const cellDateString = formatDate(cellDate);
+
+      const daySchedules = schedules.filter(function (item) {
+        return item.date === cellDateString;
+      });
+
+      const isOtherMonth = cellDate.getMonth() !== month;
+      const isToday = cellDateString === todayString;
+
+      cells.push(`
+        <div class="calendar-day ${isOtherMonth ? "other-month" : ""} ${isToday ? "today" : ""}">
+          <div class="calendar-day-number">${cellDate.getDate()}</div>
+          <div class="calendar-events">
+            ${daySchedules
+              .map(function (schedule) {
+                return `<div class="calendar-event">${schedule.title}</div>`;
+              })
+              .join("")}
+          </div>
+        </div>
+      `);
+    }
+
+    calendarGrid.innerHTML = cells.join("");
+  }
+
+  window.startEditAnnouncement = function (id) {
+    if (!isAdmin(currentUser)) return;
+
     const item = announcements.find(function (announcement) {
       return announcement.id === id;
     });
 
     if (!item) return;
 
-    const newTitle = prompt("請輸入新的公告標題：", item.title);
-    if (newTitle === null) return;
-
-    const newContent = prompt("請輸入新的公告內容：", item.content);
-    if (newContent === null) return;
-
-    const title = newTitle.trim();
-    const content = newContent.trim();
-
-    if (!title || !content) {
-      alert("公告標題和內容不能為空");
-      return;
-    }
-
-    announcements = announcements.map(function (announcement) {
-      if (announcement.id === id) {
-        return {
-          ...announcement,
-          title: title,
-          content: content,
-          createdAt: new Date().toLocaleString()
-        };
-      }
-      return announcement;
-    });
-
-    saveData(STORAGE_KEYS.announcements, announcements);
-    renderAnnouncements();
+    editingAnnouncementId = id;
+    announcementEditTitle.value = item.title;
+    announcementEditContent.value = item.content;
+    announcementEditBox.classList.remove("hidden");
+    announcementEditTitle.focus();
   };
 
   window.deleteAnnouncement = function (id) {
+    if (!isAdmin(currentUser)) return;
+
     announcements = announcements.filter(function (item) {
       return item.id !== id;
     });
     saveData(STORAGE_KEYS.announcements, announcements);
+
+    if (editingAnnouncementId === id) {
+      hideAnnouncementEditor();
+    }
+
     renderAnnouncements();
   };
 
@@ -266,6 +377,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     saveData(STORAGE_KEYS.schedules, schedules);
     renderSchedules();
+    renderCalendar();
   };
 
   window.approveLeave = function (id) {
@@ -331,6 +443,7 @@ document.addEventListener("DOMContentLoaded", function () {
     renderAnnouncements();
     renderLeaves();
     renderSchedules();
+    renderCalendar();
   }
 
   function restoreLogin() {
@@ -343,15 +456,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (!matchedUser) return;
 
-    currentUser = matchedUser;
-    updateUserInfo(matchedUser);
-
-    loginPage.classList.add("hidden");
-    mainPage.classList.remove("hidden");
-
-    renderAnnouncements();
-    renderLeaves();
-    renderSchedules();
+    setLoggedInUser(matchedUser);
   }
 
   loginForm.addEventListener("submit", function (event) {
@@ -375,7 +480,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   logoutBtn.addEventListener("click", function () {
     currentUser = null;
+    editingAnnouncementId = null;
     localStorage.removeItem(STORAGE_KEYS.currentUser);
+
+    hideAnnouncementEditor();
 
     mainPage.classList.add("hidden");
     loginPage.classList.remove("hidden");
@@ -407,7 +515,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   announcementForm.addEventListener("submit", function (event) {
     event.preventDefault();
-    event.stopPropagation();
 
     const title = announcementTitle.value.trim();
     const content = announcementContent.value.trim();
@@ -428,6 +535,40 @@ document.addEventListener("DOMContentLoaded", function () {
     saveData(STORAGE_KEYS.announcements, announcements);
     announcementForm.reset();
     renderAnnouncements();
+  });
+
+  announcementEditForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+
+    if (!editingAnnouncementId) return;
+
+    const title = announcementEditTitle.value.trim();
+    const content = announcementEditContent.value.trim();
+
+    if (!title || !content) {
+      alert("請填寫完整公告內容");
+      return;
+    }
+
+    announcements = announcements.map(function (item) {
+      if (item.id === editingAnnouncementId) {
+        return {
+          ...item,
+          title: title,
+          content: content,
+          createdAt: new Date().toLocaleString()
+        };
+      }
+      return item;
+    });
+
+    saveData(STORAGE_KEYS.announcements, announcements);
+    hideAnnouncementEditor();
+    renderAnnouncements();
+  });
+
+  announcementCancelEdit.addEventListener("click", function () {
+    hideAnnouncementEditor();
   });
 
   leaveForm.addEventListener("submit", function (event) {
@@ -489,10 +630,22 @@ document.addEventListener("DOMContentLoaded", function () {
     saveData(STORAGE_KEYS.schedules, schedules);
     scheduleForm.reset();
     renderSchedules();
+    renderCalendar();
+  });
+
+  prevMonthBtn.addEventListener("click", function () {
+    calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1);
+    renderCalendar();
+  });
+
+  nextMonthBtn.addEventListener("click", function () {
+    calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1);
+    renderCalendar();
   });
 
   renderAnnouncements();
   renderLeaves();
   renderSchedules();
+  renderCalendar();
   restoreLogin();
 });
