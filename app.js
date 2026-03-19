@@ -17,9 +17,15 @@ const users = [
   }
 ];
 
-let currentUser = null;
+const STORAGE_KEYS = {
+  announcements: "shift_announcements",
+  leaveRequests: "shift_leave_requests",
+  schedules: "shift_schedules",
+  currentUser: "shift_current_user"
+};
 
-let announcements = [
+let currentUser = null;
+let announcements = loadData(STORAGE_KEYS.announcements, [
   {
     id: Date.now().toString() + "_a",
     title: "系統公告",
@@ -27,10 +33,22 @@ let announcements = [
     author: "系統管理員",
     createdAt: new Date().toLocaleString()
   }
-];
+]);
+let leaveRequests = loadData(STORAGE_KEYS.leaveRequests, []);
+let schedules = loadData(STORAGE_KEYS.schedules, []);
 
-let leaveRequests = [];
-let schedules = [];
+function loadData(key, defaultValue) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : defaultValue;
+  } catch (error) {
+    return defaultValue;
+  }
+}
+
+function saveData(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
 
 document.addEventListener("DOMContentLoaded", function () {
   const loginPage = document.getElementById("login-page");
@@ -125,8 +143,6 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    schedules.innerHTML = "";
-
     scheduleList.innerHTML = schedules
       .slice()
       .sort(function (a, b) {
@@ -151,6 +167,7 @@ document.addEventListener("DOMContentLoaded", function () {
     announcements = announcements.filter(function (item) {
       return item.id !== id;
     });
+    saveData(STORAGE_KEYS.announcements, announcements);
     renderAnnouncements();
   };
 
@@ -158,8 +175,39 @@ document.addEventListener("DOMContentLoaded", function () {
     schedules = schedules.filter(function (item) {
       return item.id !== id;
     });
+    saveData(STORAGE_KEYS.schedules, schedules);
     renderSchedules();
   };
+
+  function setLoggedInUser(user) {
+    currentUser = user;
+    currentUserName.textContent = user.name;
+    userRole.textContent = user.role;
+    userRegion.textContent = user.region;
+    userDepartment.textContent = user.department;
+
+    loginPage.classList.add("hidden");
+    mainPage.classList.remove("hidden");
+
+    localStorage.setItem(STORAGE_KEYS.currentUser, user.employeeId);
+
+    renderAnnouncements();
+    renderLeaves();
+    renderSchedules();
+  }
+
+  function restoreLogin() {
+    const savedEmployeeId = localStorage.getItem(STORAGE_KEYS.currentUser);
+    if (!savedEmployeeId) return;
+
+    const matchedUser = users.find(function (u) {
+      return u.employeeId === savedEmployeeId;
+    });
+
+    if (matchedUser) {
+      setLoggedInUser(matchedUser);
+    }
+  }
 
   loginForm.addEventListener("submit", function (event) {
     event.preventDefault();
@@ -176,23 +224,14 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    currentUser = user;
     loginError.textContent = "";
-    currentUserName.textContent = user.name;
-    userRole.textContent = user.role;
-    userRegion.textContent = user.region;
-    userDepartment.textContent = user.department;
-
-    loginPage.classList.add("hidden");
-    mainPage.classList.remove("hidden");
-
-    renderAnnouncements();
-    renderLeaves();
-    renderSchedules();
+    setLoggedInUser(user);
   });
 
   logoutBtn.addEventListener("click", function () {
     currentUser = null;
+    localStorage.removeItem(STORAGE_KEYS.currentUser);
+
     mainPage.classList.add("hidden");
     loginPage.classList.remove("hidden");
     loginForm.reset();
@@ -232,6 +271,7 @@ document.addEventListener("DOMContentLoaded", function () {
       createdAt: new Date().toLocaleString()
     });
 
+    saveData(STORAGE_KEYS.announcements, announcements);
     announcementForm.reset();
     renderAnnouncements();
   });
@@ -251,6 +291,7 @@ document.addEventListener("DOMContentLoaded", function () {
       status: "待審核"
     });
 
+    saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
     leaveForm.reset();
     renderLeaves();
   });
@@ -266,7 +307,13 @@ document.addEventListener("DOMContentLoaded", function () {
       author: currentUser ? currentUser.name : "未知使用者"
     });
 
+    saveData(STORAGE_KEYS.schedules, schedules);
     scheduleForm.reset();
     renderSchedules();
   });
+
+  renderAnnouncements();
+  renderLeaves();
+  renderSchedules();
+  restoreLogin();
 });
