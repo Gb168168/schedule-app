@@ -16,6 +16,7 @@
   --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 }
 
+/* 基本 */
 html,
 body {
   margin: 0;
@@ -33,7 +34,7 @@ body {
   display: none !important;
 }
 
-/* login */
+/* 登入頁 */
 .login-page {
   min-height: 100vh;
   display: flex;
@@ -108,12 +109,13 @@ body {
   font-size: 14px;
 }
 
-/* app */
+/* 系統主架構 */
 .app-shell {
   min-height: 100vh;
   display: flex;
 }
 
+/* 左側欄 */
 .sidebar {
   width: 260px;
   background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
@@ -192,6 +194,7 @@ body {
   box-shadow: 0 10px 20px rgba(37, 99, 235, 0.22);
 }
 
+/* 主內容區 */
 .main-area {
   flex: 1;
   margin-left: 260px;
@@ -285,7 +288,7 @@ body {
   max-width: 980px;
 }
 
-/* forms */
+/* 表單 */
 .form-grid {
   display: grid;
   gap: 12px;
@@ -320,7 +323,7 @@ body {
   cursor: pointer;
 }
 
-/* list */
+/* 清單 */
 .list-wrap {
   display: grid;
   gap: 14px;
@@ -370,6 +373,16 @@ body {
   color: #b91c1c;
 }
 
+.edit-btn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.cancel-btn {
+  background: #e5e7eb;
+  color: #374151;
+}
+
 .approve-btn {
   background: #dcfce7;
   color: #166534;
@@ -380,6 +393,7 @@ body {
   color: #b91c1c;
 }
 
+/* 狀態標籤 */
 .status-badge {
   display: inline-block;
   padding: 4px 10px;
@@ -406,6 +420,151 @@ body {
 .status-已取消 {
   background: #e5e7eb;
   color: #374151;
+}
+
+/* 公告編輯區 */
+.edit-box {
+  margin-bottom: 24px;
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.edit-box h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+/* 請假統計卡 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 18px;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.stat-card h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.stat-card p {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+}
+
+/* 月曆工具列 */
+.calendar-toolbar {
+  margin-top: 18px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.calendar-toolbar h4 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+/* 星期列 */
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.calendar-weekdays div {
+  background: #eef2ff;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  text-align: center;
+  font-weight: 700;
+  color: #475569;
+  padding: 10px 0;
+}
+
+/* 月曆主體 */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.calendar-day {
+  min-height: 130px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.calendar-day.other-month {
+  opacity: 0.35;
+}
+
+.calendar-day.today {
+  border: 2px solid #2563eb;
+  background: #eff6ff;
+}
+
+.calendar-day-number {
+  font-weight: 800;
+  font-size: 14px;
+  color: #111827;
+}
+
+.calendar-events {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.calendar-event {
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* RWD */
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  }
+
+  .calendar-day {
+    min-height: 110px;
+  }
 }
 
 @media (max-width: 1024px) {
@@ -459,6 +618,27 @@ body {
   }
 }
 
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-weekdays,
+  .calendar-grid {
+    gap: 6px;
+  }
+
+  .calendar-day {
+    min-height: 90px;
+    padding: 8px;
+  }
+
+  .calendar-event {
+    font-size: 11px;
+    padding: 4px 6px;
+  }
+}
+
 @media (max-width: 520px) {
   .login-box {
     padding: 28px 22px 24px;
@@ -479,161 +659,5 @@ body {
 
   .topbar h1 {
     font-size: 1.6rem;
-  }
-  .edit-btn {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.cancel-btn {
-  background: #e5e7eb;
-  color: #374151;
-}
-  .edit-box {
-  margin-bottom: 24px;
-  padding: 18px;
-  border: 1px solid #e5e7eb;
-  border-radius: 18px;
-  background: #f8fafc;
-}
-
-.edit-box h4 {
-  margin-top: 0;
-  margin-bottom: 12px;
-}
-
-.edit-btn {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.cancel-btn {
-  background: #e5e7eb;
-  color: #374151;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(140px, 1fr));
-  gap: 14px;
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 18px;
-  padding: 16px;
-}
-
-.stat-card h4 {
-  margin: 0 0 8px;
-  font-size: 14px;
-  color: #6b7280;
-}
-
-.stat-card p {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 800;
-  color: #111827;
-}
-
-.calendar-toolbar {
-  margin-top: 12px;
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.calendar-toolbar h4 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.calendar-weekdays,
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 10px;
-}
-
-.calendar-weekdays {
-  margin-bottom: 10px;
-}
-
-.calendar-weekdays div {
-  text-align: center;
-  font-weight: 700;
-  color: #6b7280;
-  padding: 8px 0;
-}
-
-.calendar-day {
-  min-height: 110px;
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.calendar-day.other-month {
-  opacity: 0.35;
-}
-
-.calendar-day.today {
-  border: 2px solid #2563eb;
-  background: #eff6ff;
-}
-
-.calendar-day-number {
-  font-weight: 800;
-  font-size: 14px;
-}
-
-.calendar-events {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.calendar-event {
-  font-size: 12px;
-  line-height: 1.4;
-  padding: 6px 8px;
-  border-radius: 10px;
-  background: #dbeafe;
-  color: #1d4ed8;
-  word-break: break-word;
-}
-
-@media (max-width: 900px) {
-  .stats-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .calendar-weekdays,
-  .calendar-grid {
-    gap: 6px;
-  }
-
-  .calendar-day {
-    min-height: 90px;
-    padding: 8px;
-  }
-}
-
-@media (max-width: 640px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .calendar-event {
-    font-size: 11px;
   }
 }
