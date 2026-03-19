@@ -695,4 +695,7 @@ body {
   border: 2px solid #1d4ed8;
   background: #dbeafe;
 }
+  #schedule-editor-panel.hidden {
+  display: none !important;
+}
 }
