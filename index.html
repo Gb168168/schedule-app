@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-2</title>
+  <title>班表系統</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -11,8 +11,8 @@
   <div id="login-page" class="login-page">
     <form id="login-form" class="login-box">
       <h1>班表系統登入</h1>
-      <input id="employeeId" type="text" placeholder="員工編號" required />
-      <input id="password" type="password" placeholder="密碼" required />
+      <input id="employeeId" type="text" placeholder="員工編號" autocomplete="username" required />
+      <input id="password" type="password" placeholder="密碼" autocomplete="current-password" required />
       <button type="submit">登入</button>
       <p class="login-hint">測試帳號：GoldBricks / GoldBricks、GB080202 / GB080202</p>
       <p id="login-error" class="error-text"></p>
@@ -31,11 +31,11 @@
       </div>
 
       <nav class="menu">
-        <button class="menu-btn active" data-page="home">首頁</button>
-        <button class="menu-btn" data-page="announcement">公告欄</button>
-        <button class="menu-btn" data-page="staff">人員管理</button>
-        <button class="menu-btn" data-page="leave">請假</button>
-        <button class="menu-btn" data-page="schedule">排程表</button>
+        <button class="menu-btn active" data-page="home" type="button">首頁</button>
+        <button class="menu-btn" data-page="announcement" type="button">公告欄</button>
+        <button class="menu-btn" data-page="staff" type="button">人員資訊</button>
+        <button class="menu-btn" data-page="leave" type="button">請假</button>
+        <button class="menu-btn" data-page="schedule" type="button">排程表</button>
       </nav>
     </aside>
 
@@ -56,6 +56,7 @@
       </header>
 
       <main class="content">
+        <!-- 首頁 -->
         <section id="page-home" class="page-section">
           <div class="cards">
             <div class="card">
@@ -68,65 +69,81 @@
             <div class="card">
               <h3>系統狀態</h3>
               <p>你已成功登入系統。</p>
-              <p>可透過左側選單切換功能頁面。</p>
+              <p>可透過左側選單切換頁面。</p>
             </div>
 
             <div class="card">
-              <h3>快速公告</h3>
-              <p>目前尚無最新公告。</p>
+              <h3>使用說明</h3>
+              <p>公告欄可發布通知。</p>
+              <p>請假頁可送出請假申請。</p>
+              <p>排程表可新增每日排程。</p>
             </div>
           </div>
         </section>
 
-       <section id="page-announcement" class="page-section hidden">
-  <div class="card">
-    <h3>公告欄</h3>
+        <!-- 公告欄 -->
+        <section id="page-announcement" class="page-section hidden">
+          <div class="card">
+            <h3>公告欄</h3>
 
-    <form id="announcement-form" class="form-grid">
-      <input id="announcement-title" type="text" placeholder="公告標題" required />
-      <textarea id="announcement-content" placeholder="公告內容" required></textarea>
-      <button type="submit" class="primary-btn">新增公告</button>
-    </form>
+            <form id="announcement-form" class="form-grid">
+              <input id="announcement-title" type="text" placeholder="公告標題" required />
+              <textarea id="announcement-content" placeholder="公告內容" required></textarea>
+              <button type="submit" class="primary-btn">新增公告</button>
+            </form>
 
-    <div id="announcement-list" class="list-wrap"></div>
-  </div>
-</section>
+            <div id="announcement-list" class="list-wrap"></div>
+          </div>
+        </section>
 
-<section id="page-leave" class="page-section hidden">
-  <div class="card">
-    <h3>請假管理</h3>
+        <!-- 人員資訊 -->
+        <section id="page-staff" class="page-section hidden">
+          <div class="card">
+            <h3>人員資訊</h3>
+            <p>姓名：<span id="staff-name"></span></p>
+            <p>權限：<span id="staff-role"></span></p>
+            <p>區域：<span id="staff-region"></span></p>
+            <p>部門：<span id="staff-department"></span></p>
+          </div>
+        </section>
 
-    <form id="leave-form" class="form-grid">
-      <select id="leave-type" required>
-        <option value="特休">特休</option>
-        <option value="病假">病假</option>
-        <option value="事假">事假</option>
-      </select>
+        <!-- 請假 -->
+        <section id="page-leave" class="page-section hidden">
+          <div class="card">
+            <h3>請假管理</h3>
 
-      <input id="leave-start" type="date" required />
-      <input id="leave-end" type="date" required />
-      <textarea id="leave-reason" placeholder="請假原因" required></textarea>
-      <button type="submit" class="primary-btn">送出請假申請</button>
-    </form>
+            <form id="leave-form" class="form-grid">
+              <select id="leave-type" required>
+                <option value="特休">特休</option>
+                <option value="病假">病假</option>
+                <option value="事假">事假</option>
+              </select>
 
-    <div id="leave-list" class="list-wrap"></div>
-  </div>
-</section>
+              <input id="leave-start" type="date" required />
+              <input id="leave-end" type="date" required />
+              <textarea id="leave-reason" placeholder="請假原因" required></textarea>
+              <button type="submit" class="primary-btn">送出請假申請</button>
+            </form>
 
-<section id="page-schedule" class="page-section hidden">
-  <div class="card">
-    <h3>排程表</h3>
+            <div id="leave-list" class="list-wrap"></div>
+          </div>
+        </section>
 
-    <form id="schedule-form" class="form-grid">
-      <input id="schedule-date" type="date" required />
-      <input id="schedule-title" type="text" placeholder="排程標題" required />
-      <textarea id="schedule-content" placeholder="排程內容" required></textarea>
-      <button type="submit" class="primary-btn">新增排程</button>
-    </form>
+        <!-- 排程表 -->
+        <section id="page-schedule" class="page-section hidden">
+          <div class="card">
+            <h3>排程表</h3>
 
-    <div id="schedule-list" class="list-wrap"></div>
-  </div>
-</section>
+            <form id="schedule-form" class="form-grid">
+              <input id="schedule-date" type="date" required />
+              <input id="schedule-title" type="text" placeholder="排程標題" required />
+              <textarea id="schedule-content" placeholder="排程內容" required></textarea>
+              <button type="submit" class="primary-btn">新增排程</button>
+            </form>
+
+            <div id="schedule-list" class="list-wrap"></div>
+          </div>
+        </section>
       </main>
     </div>
   </div>
