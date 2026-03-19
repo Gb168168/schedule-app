@@ -165,17 +165,28 @@
     </div>
 
     <div id="calendar-grid" class="calendar-grid"></div>
+  </div>
 
-    <div id="schedule-editor-panel" class="schedule-editor-panel hidden">
+  <!-- 浮動排程編輯視窗 -->
+  <div id="schedule-modal" class="modal hidden">
+    <div class="modal-backdrop" id="schedule-modal-backdrop"></div>
+
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>排程編輯</h3>
+        <button type="button" id="schedule-modal-close" class="small-btn cancel-btn">關閉</button>
+      </div>
+
       <div class="selected-date-box">
         <h4>已選日期：<span id="selected-date-text">--</span></h4>
-        <p>點選月曆日期後，可新增或編輯該日排程。</p>
+        <p>你可以新增、編輯或刪除該日期的排程。</p>
       </div>
 
       <form id="schedule-form" class="form-grid">
         <input id="schedule-date" type="date" required readonly />
         <input id="schedule-title" type="text" placeholder="排程標題" required />
         <textarea id="schedule-content" placeholder="排程內容" required></textarea>
+
         <div class="item-actions">
           <button type="submit" class="primary-btn">儲存排程</button>
           <button type="button" id="schedule-cancel-btn" class="small-btn cancel-btn">清空</button>
