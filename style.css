@@ -5,83 +5,68 @@
 body {
   margin: 0;
   font-family: Arial, "Microsoft JhengHei", sans-serif;
-  background: #f3f4f6;
-  color: #111827;
+  background: #f5f6fa;
 }
 
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 .page {
   min-height: 100vh;
   display: flex;
-  align-items: center;
   justify-content: center;
-  padding: 24px;
+  align-items: center;
 }
 
 .login-box {
-  width: 100%;
-  max-width: 360px;
-  background: white;
-  padding: 32px;
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  width: 360px;
+  background: #fff;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
 .login-box h1 {
   margin-top: 0;
-  margin-bottom: 24px;
-  font-size: 28px;
+  text-align: center;
 }
 
 .login-box input {
   width: 100%;
-  padding: 12px 14px;
   margin-bottom: 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
+  padding: 10px;
   font-size: 16px;
 }
 
 .login-box button {
   width: 100%;
-  padding: 12px;
-  border: none;
-  border-radius: 10px;
-  background: #111827;
-  color: white;
+  padding: 10px;
   font-size: 16px;
   cursor: pointer;
 }
 
 .login-hint {
-  margin: 12px 0 0;
-  color: #4b5563;
   font-size: 14px;
+  color: #666;
 }
 
 .error-text {
-  min-height: 24px;
-  margin-top: 12px;
-  color: #dc2626;
-  font-size: 14px;
+  color: red;
+  min-height: 20px;
 }
 
 .topbar {
-  height: 80px;
-  background: white;
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
-  border-bottom: 1px solid #e5e7eb;
+  align-items: center;
+  background: #1f2937;
+  color: white;
+  padding: 16px 24px;
 }
 
 .topbar h1 {
   margin: 0;
-  font-size: 24px;
 }
 
 .topbar-right {
@@ -90,41 +75,26 @@ body {
   gap: 12px;
 }
 
-.topbar-right button {
-  border: none;
-  background: #111827;
-  color: white;
-  padding: 10px 14px;
-  border-radius: 10px;
-  cursor: pointer;
-}
-
 .layout {
   display: flex;
-  min-height: calc(100vh - 80px);
+  min-height: calc(100vh - 68px);
 }
 
 .sidebar {
-  width: 240px;
-  background: #0f172a;
-  padding: 20px;
+  width: 220px;
+  background: #e5e7eb;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .menu-btn {
-  border: none;
-  border-radius: 12px;
-  padding: 14px 16px;
-  text-align: left;
-  background: #1e293b;
-  color: white;
+  padding: 10px;
   cursor: pointer;
-  font-size: 16px;
 }
 
 .content {
   flex: 1;
-  padding: 32px;
+  padding: 24px;
 }
