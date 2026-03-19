@@ -3,136 +3,59 @@ const users = [
     employeeId: "GoldBricks",
     password: "GoldBricks",
     name: "GoldBricks",
-    role: "admin",
-    region: "全部",
-    department: "全部"
+    role: "管理員",
+    region: "北區",
+    department: "資訊部"
   },
   {
     employeeId: "GB080202",
     password: "GB080202",
-    name: "邱淑芬",
-    role: "管理員",
-    region: "台中區",
-    department: "管理部"
-  },
-  {
-    employeeId: "GB211201",
-    password: "GB211201",
-    name: "林佳瑩",
-    role: "管理員",
-    region: "台中區",
-    department: "管理部"
+    name: "GB080202",
+    role: "一般員工",
+    region: "中區",
+    department: "排班部"
   }
 ];
 
-function normalizeCredential(value) {
- return String(value ?? "")
-    .normalize("NFKC")
-    .trim()
-    .replace(/\s+/g, "")
-    .toUpperCase();
-}
+const loginPage = document.getElementById("login-page");
+const mainPage = document.getElementById("main-page");
+const loginForm = document.getElementById("login-form");
+const loginError = document.getElementById("login-error");
 
- function findUserByCredential(employeeId, password) {
-  const normalizedEmployeeId = normalizeCredential(employeeId);
-  const normalizedPassword = normalizeCredential(password);
+const currentUserName = document.getElementById("current-user-name");
+const userRole = document.getElementById("user-role");
+const userRegion = document.getElementById("user-region");
+const userDepartment = document.getElementById("user-department");
+const logoutBtn = document.getElementById("logout-btn");
 
-  return users.find((user) => {
-    const exactMatch = user.employeeId === employeeId && user.password === password;
-    const normalizedMatch =
-      normalizeCredential(user.employeeId) === normalizedEmployeeId &&
-      normalizeCredential(user.password) === normalizedPassword;
+loginForm.addEventListener("submit", function (event) {
+  event.preventDefault();
 
-    return exactMatch || normalizedMatch;
-  });
-}
+  const employeeId = document.getElementById("employeeId").value.trim();
+  const password = document.getElementById("password").value.trim();
 
-window.addEventListener("DOMContentLoaded", () => {
-  const loginPage = document.getElementById("login-page");
-  const mainPage = document.getElementById("main-page");
-  const loginForm = document.getElementById("login-form");
-  const logoutBtn = document.getElementById("logout-btn");
-  const loginError = document.getElementById("login-error");
-  const employeeIdInput = document.getElementById("employeeId");
-  const passwordInput = document.getElementById("password");
+  const user = users.find(
+    u => u.employeeId === employeeId && u.password === password
+  );
 
-  function showMainPage(user) {
-    loginPage.classList.add("hidden");
-    mainPage.classList.remove("hidden");
-
-    document.getElementById("current-user-name").textContent = user.name;
-    document.getElementById("user-role").textContent = user.role;
-    document.getElementById("user-region").textContent = user.region;
-    document.getElementById("user-department").textContent = user.department;
-  }
-
-  function showLoginPage() {
-    mainPage.classList.add("hidden");
-    loginPage.classList.remove("hidden");
-  }
-
-  function clearLoginError() {
-    loginError.textContent = "";
-  }
-
-  function login() {
-    const employeeId = employeeIdInput.value.trim();
-    const password = passwordInput.value.trim();
-
-    if (!employeeId || !password) {
-      loginError.textContent = "請輸入帳號與密碼";
-      return;
-    }
-
-    const user = findUserByCredential(employeeId, password);
- 
-    if (!user) {
-      loginError.textContent = "帳號或密碼錯誤";
-      return;
-    }
-
-    localStorage.setItem("currentUser", JSON.stringify(user));
-    clearLoginError();
-    showMainPage(user);
-  }
-
-  function logout() {
-    localStorage.removeItem("currentUser");
-    employeeIdInput.value = "";
-    passwordInput.value = "";
-    clearLoginError();
-    showLoginPage();
-  }
-
-  loginForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    login();
-  });
-  logoutBtn.addEventListener("click", logout);
-  employeeIdInput.addEventListener("input", clearLoginError);
-  passwordInput.addEventListener("input", clearLoginError);
-
-  const savedUser = localStorage.getItem("currentUser");
-  if (!savedUser) {
-    showLoginPage();
+  if (!user) {
+    loginError.textContent = "帳號或密碼錯誤";
     return;
   }
 
-  let parsedUser;
-  try {
-    parsedUser = JSON.parse(savedUser);
-  } catch {
-    localStorage.removeItem("currentUser");
-    showLoginPage();
-    return;
-  }
-  
-  const matchedUser = findUserByCredential(parsedUser.employeeId, parsedUser.password);
-  if (!matchedUser) {
-    localStorage.removeItem("currentUser");
-    showLoginPage();
-    return;
-  }
+  loginError.textContent = "";
+  currentUserName.textContent = user.name;
+  userRole.textContent = user.role;
+  userRegion.textContent = user.region;
+  userDepartment.textContent = user.department;
 
-  showMainPage(matchedUser);
+  loginPage.classList.add("hidden");
+  mainPage.classList.remove("hidden");
+});
+
+logoutBtn.addEventListener("click", function () {
+  mainPage.classList.add("hidden");
+  loginPage.classList.remove("hidden");
+  loginForm.reset();
+  loginError.textContent = "";
 });
