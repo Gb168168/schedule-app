@@ -50,6 +50,10 @@ function saveData(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+function isAdmin(user) {
+  return user && user.role === "管理員";
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   const loginPage = document.getElementById("login-page");
   const mainPage = document.getElementById("main-page");
@@ -61,6 +65,11 @@ document.addEventListener("DOMContentLoaded", function () {
   const userRole = document.getElementById("user-role");
   const userRegion = document.getElementById("user-region");
   const userDepartment = document.getElementById("user-department");
+
+  const staffName = document.getElementById("staff-name");
+  const staffRole = document.getElementById("staff-role");
+  const staffRegion = document.getElementById("staff-region");
+  const staffDepartment = document.getElementById("staff-department");
 
   const pageTitle = document.getElementById("page-title");
   const menuButtons = document.querySelectorAll(".menu-btn");
@@ -83,6 +92,18 @@ document.addEventListener("DOMContentLoaded", function () {
   const scheduleTitle = document.getElementById("schedule-title");
   const scheduleContent = document.getElementById("schedule-content");
   const scheduleList = document.getElementById("schedule-list");
+
+  function updateUserInfo(user) {
+    currentUserName.textContent = user.name;
+    userRole.textContent = user.role;
+    userRegion.textContent = user.region;
+    userDepartment.textContent = user.department;
+
+    staffName.textContent = user.name;
+    staffRole.textContent = user.role;
+    staffRegion.textContent = user.region;
+    staffDepartment.textContent = user.department;
+  }
 
   function renderAnnouncements() {
     if (!announcementList) return;
@@ -113,22 +134,44 @@ document.addEventListener("DOMContentLoaded", function () {
   function renderLeaves() {
     if (!leaveList) return;
 
-    if (leaveRequests.length === 0) {
+    const visibleLeaves = isAdmin(currentUser)
+      ? leaveRequests
+      : leaveRequests.filter(function (item) {
+          return currentUser && item.userName === currentUser.name;
+        });
+
+    if (visibleLeaves.length === 0) {
       leaveList.innerHTML = `<div class="list-item"><p>目前沒有請假申請。</p></div>`;
       return;
     }
 
-    leaveList.innerHTML = leaveRequests
+    leaveList.innerHTML = visibleLeaves
       .slice()
       .reverse()
       .map(function (item) {
+        let actionButtons = "";
+
+        if (isAdmin(currentUser) && item.status === "待審核") {
+          actionButtons = `
+            <div class="item-actions">
+              <button class="small-btn approve-btn" onclick="approveLeave('${item.id}')">核准</button>
+              <button class="small-btn reject-btn" onclick="rejectLeave('${item.id}')">駁回</button>
+            </div>
+          `;
+        }
+
         return `
           <div class="list-item">
             <h4>${item.userName} - ${item.type}</h4>
-            <div class="item-meta">部門：${item.department}｜區域：${item.region}</div>
+            <div class="item-meta">
+              部門：${item.department}｜區域：${item.region}
+              ${item.reviewedBy ? `｜審核人：${item.reviewedBy}` : ""}
+              ${item.reviewedAt ? `｜審核時間：${item.reviewedAt}` : ""}
+            </div>
             <p>日期：${item.startDate} ~ ${item.endDate}</p>
             <p>原因：${item.reason}</p>
-            <p><span class="status-badge">${item.status}</span></p>
+            <p><span class="status-badge status-${item.status}">${item.status}</span></p>
+            ${actionButtons}
           </div>
         `;
       })
@@ -179,12 +222,43 @@ document.addEventListener("DOMContentLoaded", function () {
     renderSchedules();
   };
 
+  window.approveLeave = function (id) {
+    leaveRequests = leaveRequests.map(function (item) {
+      if (item.id === id) {
+        return {
+          ...item,
+          status: "已核准",
+          reviewedBy: currentUser ? currentUser.name : "",
+          reviewedAt: new Date().toLocaleString()
+        };
+      }
+      return item;
+    });
+
+    saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
+    renderLeaves();
+  };
+
+  window.rejectLeave = function (id) {
+    leaveRequests = leaveRequests.map(function (item) {
+      if (item.id === id) {
+        return {
+          ...item,
+          status: "已駁回",
+          reviewedBy: currentUser ? currentUser.name : "",
+          reviewedAt: new Date().toLocaleString()
+        };
+      }
+      return item;
+    });
+
+    saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
+    renderLeaves();
+  };
+
   function setLoggedInUser(user) {
     currentUser = user;
-    currentUserName.textContent = user.name;
-    userRole.textContent = user.role;
-    userRegion.textContent = user.region;
-    userDepartment.textContent = user.department;
+    updateUserInfo(user);
 
     loginPage.classList.add("hidden");
     mainPage.classList.remove("hidden");
@@ -204,9 +278,17 @@ document.addEventListener("DOMContentLoaded", function () {
       return u.employeeId === savedEmployeeId;
     });
 
-    if (matchedUser) {
-      setLoggedInUser(matchedUser);
-    }
+    if (!matchedUser) return;
+
+    currentUser = matchedUser;
+    updateUserInfo(matchedUser);
+
+    loginPage.classList.add("hidden");
+    mainPage.classList.remove("hidden");
+
+    renderAnnouncements();
+    renderLeaves();
+    renderSchedules();
   }
 
   loginForm.addEventListener("submit", function (event) {
@@ -262,11 +344,20 @@ document.addEventListener("DOMContentLoaded", function () {
 
   announcementForm.addEventListener("submit", function (event) {
     event.preventDefault();
+    event.stopPropagation();
+
+    const title = announcementTitle.value.trim();
+    const content = announcementContent.value.trim();
+
+    if (!title || !content) {
+      alert("請填寫完整公告內容");
+      return;
+    }
 
     announcements.push({
       id: Date.now().toString(),
-      title: announcementTitle.value.trim(),
-      content: announcementContent.value.trim(),
+      title: title,
+      content: content,
       author: currentUser ? currentUser.name : "未知使用者",
       createdAt: new Date().toLocaleString()
     });
@@ -279,16 +370,32 @@ document.addEventListener("DOMContentLoaded", function () {
   leaveForm.addEventListener("submit", function (event) {
     event.preventDefault();
 
+    const startDate = leaveStart.value;
+    const endDate = leaveEnd.value;
+    const reason = leaveReason.value.trim();
+
+    if (!startDate || !endDate || !reason) {
+      alert("請填寫完整請假資料");
+      return;
+    }
+
+    if (startDate > endDate) {
+      alert("開始日期不能晚於結束日期");
+      return;
+    }
+
     leaveRequests.push({
       id: Date.now().toString(),
       userName: currentUser ? currentUser.name : "未知使用者",
       department: currentUser ? currentUser.department : "",
       region: currentUser ? currentUser.region : "",
       type: leaveType.value,
-      startDate: leaveStart.value,
-      endDate: leaveEnd.value,
-      reason: leaveReason.value.trim(),
-      status: "待審核"
+      startDate: startDate,
+      endDate: endDate,
+      reason: reason,
+      status: "待審核",
+      reviewedBy: "",
+      reviewedAt: ""
     });
 
     saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
@@ -299,11 +406,20 @@ document.addEventListener("DOMContentLoaded", function () {
   scheduleForm.addEventListener("submit", function (event) {
     event.preventDefault();
 
+    const date = scheduleDate.value;
+    const title = scheduleTitle.value.trim();
+    const content = scheduleContent.value.trim();
+
+    if (!date || !title || !content) {
+      alert("請填寫完整排程資料");
+      return;
+    }
+
     schedules.push({
       id: Date.now().toString(),
-      date: scheduleDate.value,
-      title: scheduleTitle.value.trim(),
-      content: scheduleContent.value.trim(),
+      date: date,
+      title: title,
+      content: content,
       author: currentUser ? currentUser.name : "未知使用者"
     });
 
