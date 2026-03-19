@@ -3,47 +3,108 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-4</title>
+  <title>班表系統-1</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <!-- 登入頁 -->
-  <div id="login-page" class="page">
+  <div id="login-page" class="login-page">
     <form id="login-form" class="login-box">
       <h1>班表系統登入</h1>
-      <input id="employeeId" type="text" placeholder="員工編號" autocomplete="username" required />
-      <input id="password" type="password" placeholder="密碼" autocomplete="current-password" required />
-      <button id="login-btn" type="submit">登入</button>
+      <input id="employeeId" type="text" placeholder="員工編號" required />
+      <input id="password" type="password" placeholder="密碼" required />
+      <button type="submit">登入</button>
       <p class="login-hint">測試帳號：GoldBricks / GoldBricks、GB080202 / GB080202</p>
       <p id="login-error" class="error-text"></p>
     </form>
   </div>
 
-  <!-- 系統首頁 -->
-  <div id="main-page" class="hidden">
-    <header class="topbar">
-      <h1>班表系統</h1>
-      <div class="topbar-right">
-        <span>目前登入：<span id="current-user-name"></span></span>
-        <button id="logout-btn" type="button">登出</button>
+  <!-- 主系統 -->
+  <div id="main-page" class="hidden app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">GB</div>
+        <div>
+          <h2>班表系統</h2>
+          <p>Shift System</p>
+        </div>
       </div>
-    </header>
 
-    <div class="layout">
-      <aside class="sidebar">
-        <button class="menu-btn" type="button">首頁</button>
-        <button class="menu-btn" type="button">公告欄</button>
-        <button class="menu-btn" type="button">人員管理</button>
-        <button class="menu-btn" type="button">請假</button>
-        <button class="menu-btn" type="button">排程表</button>
-      </aside>
+      <nav class="menu">
+        <button class="menu-btn active" data-page="home">首頁</button>
+        <button class="menu-btn" data-page="announcement">公告欄</button>
+        <button class="menu-btn" data-page="staff">人員管理</button>
+        <button class="menu-btn" data-page="leave">請假</button>
+        <button class="menu-btn" data-page="schedule">排程表</button>
+      </nav>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <div>
+          <h1 id="page-title">首頁</h1>
+          <p class="sub-title">歡迎使用班表管理系統</p>
+        </div>
+
+        <div class="topbar-right">
+          <div class="user-card">
+            <span class="user-label">目前登入</span>
+            <strong id="current-user-name"></strong>
+          </div>
+          <button id="logout-btn" type="button" class="logout-btn">登出</button>
+        </div>
+      </header>
 
       <main class="content">
-        <h2>首頁</h2>
-        <p>你已成功登入系統。</p>
-        <p>權限：<span id="user-role"></span></p>
-        <p>區域：<span id="user-region"></span></p>
-        <p>部門：<span id="user-department"></span></p>
+        <section id="page-home" class="page-section">
+          <div class="cards">
+            <div class="card">
+              <h3>使用者資訊</h3>
+              <p>權限：<span id="user-role"></span></p>
+              <p>區域：<span id="user-region"></span></p>
+              <p>部門：<span id="user-department"></span></p>
+            </div>
+
+            <div class="card">
+              <h3>系統狀態</h3>
+              <p>你已成功登入系統。</p>
+              <p>可透過左側選單切換功能頁面。</p>
+            </div>
+
+            <div class="card">
+              <h3>快速公告</h3>
+              <p>目前尚無最新公告。</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="page-announcement" class="page-section hidden">
+          <div class="card">
+            <h3>公告欄</h3>
+            <p>這裡之後可以放公司公告、系統通知、活動資訊。</p>
+          </div>
+        </section>
+
+        <section id="page-staff" class="page-section hidden">
+          <div class="card">
+            <h3>人員管理</h3>
+            <p>這裡之後可以做員工清單、新增員工、編輯部門等功能。</p>
+          </div>
+        </section>
+
+        <section id="page-leave" class="page-section hidden">
+          <div class="card">
+            <h3>請假管理</h3>
+            <p>這裡之後可以做請假申請、假單審核、假別統計。</p>
+          </div>
+        </section>
+
+        <section id="page-schedule" class="page-section hidden">
+          <div class="card">
+            <h3>排程表</h3>
+            <p>這裡之後可以做班表、排班、值班設定。</p>
+          </div>
+        </section>
       </main>
     </div>
   </div>
