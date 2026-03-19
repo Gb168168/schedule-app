@@ -56,6 +56,12 @@ body {
   cursor: pointer;
 }
 
+.login-hint {
+  margin: 12px 0 0;
+  color: #4b5563;
+  font-size: 14px;
+}
+
 .error-text {
   min-height: 24px;
   margin-top: 12px;
