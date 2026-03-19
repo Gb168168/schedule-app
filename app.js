@@ -25,10 +25,14 @@ const users = [
   }
 ];
 
+function normalizeEmployeeId(value) {
+  return value.trim().toUpperCase();
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   const loginPage = document.getElementById("login-page");
   const mainPage = document.getElementById("main-page");
-  const loginBtn = document.getElementById("login-btn");
+  const loginForm = document.getElementById("login-form");
   const logoutBtn = document.getElementById("logout-btn");
   const loginError = document.getElementById("login-error");
   const employeeIdInput = document.getElementById("employeeId");
@@ -49,15 +53,17 @@ window.addEventListener("DOMContentLoaded", () => {
     loginPage.classList.remove("hidden");
   }
 
-  function login() {
-  const employeeId = employeeIdInput.value.trim();
-  const password = passwordInput.value.trim();
+  function clearLoginError() {
+    loginError.textContent = "";
+  }
 
-  console.log(employeeId, password);
+  function login() {
+    const employeeId = normalizeEmployeeId(employeeIdInput.value);
+    const password = passwordInput.value.trim();
 
   const user = users.find(
-    (u) => u.employeeId === employeeId && u.password === password
-  );
+      (u) => normalizeEmployeeId(u.employeeId) === employeeId && u.password === password
+    );
     
     if (!user) {
       loginError.textContent = "帳號或密碼錯誤";
@@ -65,7 +71,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     localStorage.setItem("currentUser", JSON.stringify(user));
-    loginError.textContent = "";
+    clearLoginError();
     showMainPage(user);
   }
 
@@ -77,14 +83,13 @@ window.addEventListener("DOMContentLoaded", () => {
     showLoginPage();
   }
 
-  loginBtn.addEventListener("click", login);
-  logoutBtn.addEventListener("click", logout);
-
-  passwordInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      login();
-    }
+  loginForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    login();
   });
+  logoutBtn.addEventListener("click", logout);
+  employeeIdInput.addEventListener("input", clearLoginError);
+  passwordInput.addEventListener("input", clearLoginError);
 
   const savedUser = localStorage.getItem("currentUser");
   if (savedUser) {
