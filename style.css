@@ -660,4 +660,39 @@ body {
   .topbar h1 {
     font-size: 1.6rem;
   }
+  .schedule-editor-panel {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  background: #f8fafc;
+}
+
+.selected-date-box {
+  margin-bottom: 16px;
+}
+
+.selected-date-box h4 {
+  margin: 0 0 8px;
+}
+
+.selected-date-box p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.calendar-day {
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.calendar-day:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
+.calendar-day.selected {
+  border: 2px solid #1d4ed8;
+  background: #dbeafe;
+}
 }
