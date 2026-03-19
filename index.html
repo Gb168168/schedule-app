@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-1</title>
+  <title>班表系統-2</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -78,33 +78,55 @@
           </div>
         </section>
 
-        <section id="page-announcement" class="page-section hidden">
-          <div class="card">
-            <h3>公告欄</h3>
-            <p>這裡之後可以放公司公告、系統通知、活動資訊。</p>
-          </div>
-        </section>
+       <section id="page-announcement" class="page-section hidden">
+  <div class="card">
+    <h3>公告欄</h3>
 
-        <section id="page-staff" class="page-section hidden">
-          <div class="card">
-            <h3>人員管理</h3>
-            <p>這裡之後可以做員工清單、新增員工、編輯部門等功能。</p>
-          </div>
-        </section>
+    <form id="announcement-form" class="form-grid">
+      <input id="announcement-title" type="text" placeholder="公告標題" required />
+      <textarea id="announcement-content" placeholder="公告內容" required></textarea>
+      <button type="submit" class="primary-btn">新增公告</button>
+    </form>
 
-        <section id="page-leave" class="page-section hidden">
-          <div class="card">
-            <h3>請假管理</h3>
-            <p>這裡之後可以做請假申請、假單審核、假別統計。</p>
-          </div>
-        </section>
+    <div id="announcement-list" class="list-wrap"></div>
+  </div>
+</section>
 
-        <section id="page-schedule" class="page-section hidden">
-          <div class="card">
-            <h3>排程表</h3>
-            <p>這裡之後可以做班表、排班、值班設定。</p>
-          </div>
-        </section>
+<section id="page-leave" class="page-section hidden">
+  <div class="card">
+    <h3>請假管理</h3>
+
+    <form id="leave-form" class="form-grid">
+      <select id="leave-type" required>
+        <option value="特休">特休</option>
+        <option value="病假">病假</option>
+        <option value="事假">事假</option>
+      </select>
+
+      <input id="leave-start" type="date" required />
+      <input id="leave-end" type="date" required />
+      <textarea id="leave-reason" placeholder="請假原因" required></textarea>
+      <button type="submit" class="primary-btn">送出請假申請</button>
+    </form>
+
+    <div id="leave-list" class="list-wrap"></div>
+  </div>
+</section>
+
+<section id="page-schedule" class="page-section hidden">
+  <div class="card">
+    <h3>排程表</h3>
+
+    <form id="schedule-form" class="form-grid">
+      <input id="schedule-date" type="date" required />
+      <input id="schedule-title" type="text" placeholder="排程標題" required />
+      <textarea id="schedule-content" placeholder="排程內容" required></textarea>
+      <button type="submit" class="primary-btn">新增排程</button>
+    </form>
+
+    <div id="schedule-list" class="list-wrap"></div>
+  </div>
+</section>
       </main>
     </div>
   </div>
