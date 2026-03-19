@@ -480,4 +480,13 @@ body {
   .topbar h1 {
     font-size: 1.6rem;
   }
+  .edit-btn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.cancel-btn {
+  background: #e5e7eb;
+  color: #374151;
+}
 }
