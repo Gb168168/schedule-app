@@ -698,4 +698,81 @@ body {
   #schedule-editor-panel.hidden {
   display: none !important;
 }
+  .modal {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.modal-panel {
+  position: relative;
+  z-index: 2;
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  margin: 24px auto;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+  animation: modalPop 0.18s ease;
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.modal-header h3 {
+  margin: 0;
+}
+
+.selected-date-box {
+  margin-bottom: 16px;
+}
+
+.selected-date-box h4 {
+  margin: 0 0 8px;
+}
+
+.selected-date-box p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.calendar-day {
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.calendar-day:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.calendar-day.selected {
+  border: 2px solid #2563eb;
+  background: #eff6ff;
+}
 }
