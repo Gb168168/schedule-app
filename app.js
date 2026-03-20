@@ -297,8 +297,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const wrapRect = calendarWrap.getBoundingClientRect();
     const cellRect = targetElement.getBoundingClientRect();
 
-    const popoverWidth = 360;
     const gap = 12;
+    const popoverWidth = schedulePopover.offsetWidth || 360;
+    const popoverHeight = schedulePopover.offsetHeight || 420;
 
     let left = cellRect.left - wrapRect.left;
     let top = cellRect.bottom - wrapRect.top + gap;
@@ -311,6 +312,17 @@ document.addEventListener("DOMContentLoaded", function () {
       left = 8;
     }
 
+    const wrapVisibleBottom = calendarWrap.scrollTop + calendarWrap.clientHeight;
+    const estimatedBottom = top + popoverHeight;
+
+    if (estimatedBottom > wrapRect.height && cellRect.top - wrapRect.top > popoverHeight) {
+      top = cellRect.top - wrapRect.top - popoverHeight - gap;
+    }
+
+    if (top < 8) {
+      top = 8;
+    }
+
     schedulePopover.style.left = `${left}px`;
     schedulePopover.style.top = `${top}px`;
   }
@@ -319,7 +331,6 @@ document.addEventListener("DOMContentLoaded", function () {
     selectedScheduleDate = dateString;
     editingScheduleId = null;
 
-    if (schedulePopover) schedulePopover.classList.remove("hidden");
     if (selectedDateText) selectedDateText.textContent = dateString;
     if (scheduleDate) scheduleDate.value = dateString;
     if (scheduleTitle) scheduleTitle.value = "";
@@ -327,6 +338,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     renderSchedules();
     renderCalendar();
+
+    if (schedulePopover) {
+      schedulePopover.classList.remove("hidden");
+    }
 
     requestAnimationFrame(function () {
       positionSchedulePopover(targetElement);
@@ -382,9 +397,11 @@ document.addEventListener("DOMContentLoaded", function () {
         >
           <div class="calendar-day-number">${cellDate.getDate()}</div>
           <div class="calendar-events">
-            ${daySchedules.map(function (schedule) {
-              return `<div class="calendar-event">${schedule.title}</div>`;
-            }).join("")}
+            ${daySchedules
+              .map(function (schedule) {
+                return `<div class="calendar-event">${schedule.title}</div>`;
+              })
+              .join("")}
           </div>
         </div>
       `);
@@ -404,9 +421,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   window.startEditAnnouncement = function (id) {
     if (!isAdmin(currentUser)) return;
+
     const item = announcements.find(function (announcement) {
       return announcement.id === id;
     });
+
     if (!item) return;
 
     editingAnnouncementId = id;
@@ -418,24 +437,33 @@ document.addEventListener("DOMContentLoaded", function () {
 
   window.deleteAnnouncement = function (id) {
     if (!isAdmin(currentUser)) return;
+
     announcements = announcements.filter(function (item) {
       return item.id !== id;
     });
+
     saveData(STORAGE_KEYS.announcements, announcements);
 
     if (editingAnnouncementId === id) {
       hideAnnouncementEditor();
     }
+
     renderAnnouncements();
   };
 
   window.approveLeave = function (id) {
     leaveRequests = leaveRequests.map(function (item) {
       if (item.id === id) {
-        return { ...item, status: "已核准", reviewedBy: currentUser ? currentUser.name : "", reviewedAt: new Date().toLocaleString() };
+        return {
+          ...item,
+          status: "已核准",
+          reviewedBy: currentUser ? currentUser.name : "",
+          reviewedAt: new Date().toLocaleString()
+        };
       }
       return item;
     });
+
     saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
     renderLeaves();
   };
@@ -443,10 +471,16 @@ document.addEventListener("DOMContentLoaded", function () {
   window.rejectLeave = function (id) {
     leaveRequests = leaveRequests.map(function (item) {
       if (item.id === id) {
-        return { ...item, status: "已駁回", reviewedBy: currentUser ? currentUser.name : "", reviewedAt: new Date().toLocaleString() };
+        return {
+          ...item,
+          status: "已駁回",
+          reviewedBy: currentUser ? currentUser.name : "",
+          reviewedAt: new Date().toLocaleString()
+        };
       }
       return item;
     });
+
     saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
     renderLeaves();
   };
@@ -454,10 +488,16 @@ document.addEventListener("DOMContentLoaded", function () {
   window.cancelLeave = function (id) {
     leaveRequests = leaveRequests.map(function (item) {
       if (item.id === id) {
-        return { ...item, status: "已取消", reviewedBy: currentUser ? currentUser.name : "", reviewedAt: new Date().toLocaleString() };
+        return {
+          ...item,
+          status: "已取消",
+          reviewedBy: currentUser ? currentUser.name : "",
+          reviewedAt: new Date().toLocaleString()
+        };
       }
       return item;
     });
+
     saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
     renderLeaves();
   };
@@ -466,12 +506,12 @@ document.addEventListener("DOMContentLoaded", function () {
     const item = schedules.find(function (schedule) {
       return schedule.id === id;
     });
+
     if (!item) return;
 
     selectedScheduleDate = item.date;
     editingScheduleId = id;
 
-    if (schedulePopover) schedulePopover.classList.remove("hidden");
     if (selectedDateText) selectedDateText.textContent = item.date;
     if (scheduleDate) scheduleDate.value = item.date;
     if (scheduleTitle) scheduleTitle.value = item.title;
@@ -480,7 +520,14 @@ document.addEventListener("DOMContentLoaded", function () {
     renderSchedules();
     renderCalendar();
 
-    const targetCell = calendarGrid ? calendarGrid.querySelector(`[data-date="${item.date}"]`) : null;
+    if (schedulePopover) {
+      schedulePopover.classList.remove("hidden");
+    }
+
+    const targetCell = calendarGrid
+      ? calendarGrid.querySelector(`[data-date="${item.date}"]`)
+      : null;
+
     requestAnimationFrame(function () {
       positionSchedulePopover(targetCell);
     });
@@ -490,6 +537,7 @@ document.addEventListener("DOMContentLoaded", function () {
     schedules = schedules.filter(function (item) {
       return item.id !== id;
     });
+
     saveData(STORAGE_KEYS.schedules, schedules);
 
     if (editingScheduleId === id) {
@@ -501,7 +549,10 @@ document.addEventListener("DOMContentLoaded", function () {
     renderSchedules();
     renderCalendar();
 
-    const targetCell = calendarGrid ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`) : null;
+    const targetCell = calendarGrid
+      ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`)
+      : null;
+
     if (targetCell && schedulePopover && !schedulePopover.classList.contains("hidden")) {
       requestAnimationFrame(function () {
         positionSchedulePopover(targetCell);
@@ -644,7 +695,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
       announcements = announcements.map(function (item) {
         if (item.id === editingAnnouncementId) {
-          return { ...item, title: title, content: content, createdAt: new Date().toLocaleString() };
+          return {
+            ...item,
+            title: title,
+            content: content,
+            createdAt: new Date().toLocaleString()
+          };
         }
         return item;
       });
@@ -715,7 +771,12 @@ document.addEventListener("DOMContentLoaded", function () {
       if (editingScheduleId) {
         schedules = schedules.map(function (item) {
           if (item.id === editingScheduleId) {
-            return { ...item, date: date, title: title, content: content };
+            return {
+              ...item,
+              date: date,
+              title: title,
+              content: content
+            };
           }
           return item;
         });
@@ -731,13 +792,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
       saveData(STORAGE_KEYS.schedules, schedules);
       editingScheduleId = null;
+
       if (scheduleTitle) scheduleTitle.value = "";
       if (scheduleContent) scheduleContent.value = "";
 
       renderSchedules();
       renderCalendar();
 
-      const targetCell = calendarGrid ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`) : null;
+      const targetCell = calendarGrid
+        ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`)
+        : null;
+
       requestAnimationFrame(function () {
         positionSchedulePopover(targetCell);
       });
@@ -770,7 +835,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   window.addEventListener("resize", function () {
     if (!schedulePopover || schedulePopover.classList.contains("hidden")) return;
-    const targetCell = calendarGrid ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`) : null;
+
+    const targetCell = calendarGrid
+      ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`)
+      : null;
+
     if (targetCell) {
       positionSchedulePopover(targetCell);
     }
