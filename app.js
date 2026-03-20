@@ -17,11 +17,12 @@ const REGIONS = ["新竹區", "台中區", "嘉義區"];
 const DEPARTMENTS = ["管理部", "TSE", "FAE", "新場", "倉管", "RD", "線上客服"];
 const DEFAULT_ATTENDANCE_SETTINGS = {
   offices: [
-    { name: "新竹總部", lat: 24.8039, lng: 120.9647, radiusMeters: 150 },
-    { name: "台中區", lat: 24.1477, lng: 120.6736, radiusMeters: 150 }
+    { name: "新竹區", lat: 24.8039, lng: 120.9647, radiusMeters: 500 },
+    { name: "台中區", lat: 24.17779, lng: 120.713161, radiusMeters: 500 },
+    { name: "嘉義區", lat: 23.4801, lng: 120.4491, radiusMeters: 500 }
   ],
-  allowedIpRanges: ["203.66.10.25", "203.66.10.26"],
-  requireWifi: true
+ allowedIpRanges: [],
+ requireWifi: false
 };
 
 const firebaseConfig = window.__FIREBASE_CONFIG__;
@@ -248,7 +249,8 @@ document.addEventListener("DOMContentLoaded", function () {
     attendanceSettingsSummary.innerHTML = `
       <p><strong>Firestore：</strong>settings/attendance</p>
       <p><strong>據點：</strong>${attendanceSettings.offices.map((office) => `${office.name}（${office.radiusMeters}m）`).join("、")}</p>
-      <p><strong>IP 白名單：</strong>${attendanceSettings.allowedIpRanges.join("、") || "未設定"}</p>
+      <p><strong>定位打卡：</strong>使用座標比對 500 公尺內允許打卡</p>
+      <p><strong>IP 白名單：</strong>${attendanceSettings.allowedIpRanges.join("、") || "未使用"}</p>
       <p><strong>需要 Wi‑Fi：</strong>${attendanceSettings.requireWifi ? "是" : "否"}</p>
     `;
     if (attendanceRequireWifi) attendanceRequireWifi.textContent = attendanceSettings.requireWifi ? "是" : "否";
@@ -341,19 +343,58 @@ document.addEventListener("DOMContentLoaded", function () {
       const networkType = getNetworkType();
 
       if (!matchedOffice) {
+        const payload = {
+          employeeId: currentUser.employeeId,
+          employeeName: currentUser.name,
+          type,
+          lat,
+          lng,
+          distanceMeters: null,
+          status: "rejected",
+          reason: "超出允許範圍",
+          networkType,
+          createdAtClient: new Date().toISOString()
+        };
+
+        try {
+          await submitAttendanceToBackend(payload);
+        } catch (submitError) {
+          console.warn("寫入拒絕打卡紀錄失敗", submitError);
+        }
+
         lastAttendanceAttempt = {
           lat,
           lng,
           networkType,
           badgeKind: "fail",
           badgeText: "位置不符",
-          message: "目前位置不在任何公司據點半徑內，無法打卡。"
+          message: "目前位置不在任何公司據點 500 公尺半徑內，無法打卡。"
         };
         renderAttendanceAttempt();
         return;
       }
 
       if (attendanceSettings.requireWifi && !isWifiNetwork(networkType)) {
+         const payload = {
+          employeeId: currentUser.employeeId,
+          employeeName: currentUser.name,
+          type,
+          lat,
+          lng,
+          officeName: matchedOffice.name,
+          distanceMeters: matchedOffice.distanceMeters,
+          status: "rejected",
+          reason: `此據點要求 Wi‑Fi 打卡，目前偵測到的 networkType 為 ${networkType}`,
+          networkType,
+          createdAtClient: new Date().toISOString()
+        };
+
+        try {
+          await submitAttendanceToBackend(payload);
+        } catch (submitError) {
+          console.warn("寫入拒絕打卡紀錄失敗", submitError);
+        }
+
         lastAttendanceAttempt = {
           lat,
           lng,
@@ -372,11 +413,14 @@ document.addEventListener("DOMContentLoaded", function () {
         employeeId: currentUser.employeeId,
         employeeName: currentUser.name,
         type,
+        officeName: matchedOffice.name,
         lat,
         lng,
-        officeName: matchedOffice.name,
+        distanceMeters: matchedOffice.distanceMeters,
+        status: "success",
         networkType,
-        requireWifi: attendanceSettings.requireWifi
+        requireWifi: attendanceSettings.requireWifi,
+        createdAtClient: new Date().toISOString()
       };
 
       const response = await submitAttendanceToBackend(payload);
