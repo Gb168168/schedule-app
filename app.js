@@ -167,8 +167,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     announcementList.innerHTML = announcements
-      .slice()
-      .reverse()
       .map(function (item) {
         let actions = "";
 
