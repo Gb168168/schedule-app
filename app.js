@@ -854,6 +854,12 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+   if (schedulePopover) {
+    schedulePopover.addEventListener("click", function (event) {
+      event.stopPropagation();
+    });
+  }
+
   document.addEventListener("click", function (event) {
     if (!schedulePopover || schedulePopover.classList.contains("hidden")) return;
 
