@@ -166,7 +166,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function startAnnouncementsListener() {
     if (!db) return;
 
-    const q = query(collection(db, "announcements"), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "announcements"), orderBy("createdAtClient", "desc"));
 
     onSnapshot(q, function (snapshot) {
       announcements = snapshot.docs.map(function (docItem) {
