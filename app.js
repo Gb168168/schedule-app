@@ -595,7 +595,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     localStorage.setItem(STORAGE_KEYS.currentUser, user.employeeId);
 
-    renderAnnouncements();
     renderLeaves();
     renderSchedules();
     renderCalendar();
@@ -703,7 +702,8 @@ document.addEventListener("DOMContentLoaded", function () {
           title: title,
           content: content,
           author: author,
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
+          createdAtClient: new Date()
         });
 
         announcementForm.reset();
