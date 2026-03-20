@@ -606,4 +606,13 @@ button {
   .schedule-popover {
     width: min(92vw, 360px);
   }
+  .schedule-top-actions {
+  margin-bottom: 14px;
+}
+
+#schedule-editor-box {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
 }
