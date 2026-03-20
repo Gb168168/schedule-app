@@ -416,22 +416,22 @@ document.addEventListener("DOMContentLoaded", function () {
     if (announcementEditTitle) announcementEditTitle.focus();
   };
 
-  window.deleteAnnouncement = function (id) {
-    if (!isAdmin(currentUser)) return;
+  window.deleteAnnouncement = async function (id) {
+  if (!isAdmin(currentUser)) return;
+  if (!db) return;
 
-    announcements = announcements.filter(function (item) {
-      return item.id !== id;
-    });
-
-    saveData(STORAGE_KEYS.announcements, announcements);
+  try {
+    await deleteDoc(doc(db, "announcements", id));
 
     if (editingAnnouncementId === id) {
       hideAnnouncementEditor();
     }
-
-    renderAnnouncements();
-  };
-
+  } catch (error) {
+    console.error("刪除公告失敗", error);
+    alert("刪除公告失敗，請稍後再試。");
+  }
+};
+  
   window.approveLeave = function (id) {
     leaveRequests = leaveRequests.map(function (item) {
       if (item.id === id) {
