@@ -1,3 +1,10 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+
+const firebaseConfig = window.__FIREBASE_CONFIG__;
+const firebaseApp = firebaseConfig ? initializeApp(firebaseConfig) : null;
+const db = firebaseApp ? getFirestore(firebaseApp) : null;
+
 const users = [
   {
     employeeId: "GoldBricks",
@@ -648,7 +655,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   if (announcementForm) {
-    announcementForm.addEventListener("submit", function (event) {
+    announcementForm.addEventListener("submit", async function (event) {
       event.preventDefault();
 
       const title = announcementTitle ? announcementTitle.value.trim() : "";
@@ -659,17 +666,35 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      announcements.push({
-        id: Date.now().toString(),
-        title: title,
-        content: content,
-        author: currentUser ? currentUser.name : "未知使用者",
-        createdAt: new Date().toLocaleString()
-      });
+      if (!db) {
+        alert("尚未設定 Firebase，無法將公告儲存到雲端。請先提供 Firebase 設定。\n可在 index.html 先設定 window.__FIREBASE_CONFIG__。");
+        return;
+      }
 
-      saveData(STORAGE_KEYS.announcements, announcements);
-      announcementForm.reset();
-      renderAnnouncements();
+      try {
+        const author = currentUser ? currentUser.name : "未知使用者";
+        const createdAt = new Date();
+        const docRef = await addDoc(collection(db, "announcements"), {
+          title: title,
+          content: content,
+          author: author,
+          createdAt: createdAt
+        });
+
+        announcements.push({
+          id: docRef.id,
+          title: title,
+          content: content,
+          author: author,
+          createdAt: createdAt.toLocaleString()
+        });
+
+        announcementForm.reset();
+        renderAnnouncements();
+      } catch (error) {
+        console.error("新增公告失敗", error);
+        alert("公告雲端儲存失敗，請稍後再試。");
+      }
     });
   }
 
