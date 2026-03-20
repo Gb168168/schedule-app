@@ -39,7 +39,6 @@ const users = [
 const STORAGE_KEYS = {
   announcements: "shift_announcements",
   leaveRequests: "shift_leave_requests",
-  schedules: "shift_schedules",
   currentUser: "shift_current_user"
 };
 
@@ -52,7 +51,7 @@ let editingScheduleId = null;
 let announcements = [];
 
 let leaveRequests = [];
-let schedules = loadData(STORAGE_KEYS.schedules, []);
+let schedules = [];
 
 function loadData(key, defaultValue) {
   try {
