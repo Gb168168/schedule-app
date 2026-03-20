@@ -9,11 +9,20 @@ import {
   query,
   orderBy,
   onSnapshot,
-  serverTimestamp
+  serverTimestamp,
+  getDoc
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
 const REGIONS = ["新竹區", "台中區", "嘉義區"];
 const DEPARTMENTS = ["管理部", "TSE", "FAE", "新場", "倉管", "RD", "線上客服"];
+const DEFAULT_ATTENDANCE_SETTINGS = {
+  offices: [
+    { name: "新竹總部", lat: 24.8039, lng: 120.9647, radiusMeters: 150 },
+    { name: "台中區", lat: 24.1477, lng: 120.6736, radiusMeters: 150 }
+  ],
+  allowedIpRanges: ["203.66.10.25", "203.66.10.26"],
+  requireWifi: true
+};
 
 const firebaseConfig = window.__FIREBASE_CONFIG__;
 const firebaseApp = firebaseConfig ? initializeApp(firebaseConfig) : null;
@@ -49,6 +58,8 @@ let announcements = [];
 let leaveRequests = [];
 let schedules = [];
 let employees = [];
+let attendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS };
+let lastAttendanceAttempt = null;
 
 function isAdmin(user) {
   return user && user.role === "管理員";
@@ -77,6 +88,82 @@ function createEmployee(employeeData) {
   });
 }
 
+function getDistanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function findMatchedOffice(userLat, userLng, offices) {
+  for (const office of offices) {
+    const distance = getDistanceMeters(userLat, userLng, office.lat, office.lng);
+    if (distance <= office.radiusMeters) {
+      return { ...office, distanceMeters: Math.round(distance) };
+    }
+  }
+  return null;
+}
+
+function getNetworkType() {
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  return connection?.type || connection?.effectiveType || "unknown";
+}
+
+function normalizeNetworkType(networkType) {
+  return String(networkType || "unknown").toLowerCase();
+}
+
+function isWifiNetwork(networkType) {
+  const normalized = normalizeNetworkType(networkType);
+  return normalized === "wifi" || normalized === "ethernet";
+}
+
+function getCurrentPositionAsync() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("此裝置不支援定位功能"));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0
+    });
+  });
+}
+
+async function fetchAttendanceSettings() {
+  if (!db) {
+    attendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS };
+    return attendanceSettings;
+  }
+
+  const settingsRef = doc(db, "settings", "attendance");
+  const snapshot = await getDoc(settingsRef);
+  if (!snapshot.exists()) {
+    attendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS };
+    return attendanceSettings;
+  }
+
+  const data = snapshot.data();
+  attendanceSettings = {
+    offices: Array.isArray(data.offices) && data.offices.length > 0 ? data.offices : DEFAULT_ATTENDANCE_SETTINGS.offices,
+    allowedIpRanges: Array.isArray(data.allowedIpRanges) ? data.allowedIpRanges : DEFAULT_ATTENDANCE_SETTINGS.allowedIpRanges,
+    requireWifi: typeof data.requireWifi === "boolean" ? data.requireWifi : DEFAULT_ATTENDANCE_SETTINGS.requireWifi
+  };
+  return attendanceSettings;
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   const loginPage = document.getElementById("login-page");
   const mainPage = document.getElementById("main-page");
@@ -88,6 +175,17 @@ document.addEventListener("DOMContentLoaded", function () {
   const userRole = document.getElementById("user-role");
   const userRegion = document.getElementById("user-region");
   const userDepartment = document.getElementById("user-department");
+
+  const attendanceStatusBadge = document.getElementById("attendance-status-badge");
+  const attendanceSettingsSummary = document.getElementById("attendance-settings-summary");
+  const attendanceResult = document.getElementById("attendance-result");
+  const attendanceLocation = document.getElementById("attendance-location");
+  const attendanceOffice = document.getElementById("attendance-office");
+  const attendanceNetworkType = document.getElementById("attendance-network-type");
+  const attendanceRequireWifi = document.getElementById("attendance-require-wifi");
+  const clockInBtn = document.getElementById("clock-in-btn");
+  const clockOutBtn = document.getElementById("clock-out-btn");
+  const refreshAttendanceSettingsBtn = document.getElementById("refresh-attendance-settings-btn");
 
   const employeeForm = document.getElementById("employee-form");
   const employeeList = document.getElementById("employee-list");
@@ -139,9 +237,174 @@ document.addEventListener("DOMContentLoaded", function () {
   const scheduleEditorBox = document.getElementById("schedule-editor-box");
   const scheduleEditorTitle = document.getElementById("schedule-editor-title");
 
+  function setAttendanceBadge(kind, text) {
+    if (!attendanceStatusBadge) return;
+    attendanceStatusBadge.className = `status-badge status-${kind}`;
+    attendanceStatusBadge.textContent = text;
+  }
+
+  function renderAttendanceSettingsSummary() {
+    if (!attendanceSettingsSummary) return;
+    attendanceSettingsSummary.innerHTML = `
+      <p><strong>Firestore：</strong>settings/attendance</p>
+      <p><strong>據點：</strong>${attendanceSettings.offices.map((office) => `${office.name}（${office.radiusMeters}m）`).join("、")}</p>
+      <p><strong>IP 白名單：</strong>${attendanceSettings.allowedIpRanges.join("、") || "未設定"}</p>
+      <p><strong>需要 Wi‑Fi：</strong>${attendanceSettings.requireWifi ? "是" : "否"}</p>
+    `;
+    if (attendanceRequireWifi) attendanceRequireWifi.textContent = attendanceSettings.requireWifi ? "是" : "否";
+  }
+
+  function renderAttendanceAttempt() {
+    if (!lastAttendanceAttempt) return;
+    if (attendanceLocation) {
+      attendanceLocation.textContent = lastAttendanceAttempt.lat && lastAttendanceAttempt.lng
+        ? `${lastAttendanceAttempt.lat.toFixed(6)}, ${lastAttendanceAttempt.lng.toFixed(6)}`
+        : "-";
+    }
+    if (attendanceOffice) {
+      attendanceOffice.textContent = lastAttendanceAttempt.officeName
+        ? `${lastAttendanceAttempt.officeName}${lastAttendanceAttempt.distanceMeters !== undefined ? `（距離 ${lastAttendanceAttempt.distanceMeters}m）` : ""}`
+        : "未匹配";
+    }
+    if (attendanceNetworkType) attendanceNetworkType.textContent = lastAttendanceAttempt.networkType || "unknown";
+    if (attendanceResult) attendanceResult.innerHTML = `<p>${lastAttendanceAttempt.message}</p>`;
+    setAttendanceBadge(lastAttendanceAttempt.badgeKind, lastAttendanceAttempt.badgeText);
+  }
+
+  async function refreshAttendanceSettings(showFeedback = false) {
+    try {
+      await fetchAttendanceSettings();
+      renderAttendanceSettingsSummary();
+      if (showFeedback) {
+        lastAttendanceAttempt = {
+          badgeKind: "success",
+          badgeText: "設定已更新",
+          message: "已重新讀取 Firestore 的 settings/attendance 設定。"
+        };
+        renderAttendanceAttempt();
+      }
+    } catch (error) {
+      console.error("讀取打卡設定失敗", error);
+      attendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS };
+      renderAttendanceSettingsSummary();
+      lastAttendanceAttempt = {
+        badgeKind: "fail",
+        badgeText: "設定讀取失敗",
+        message: "無法讀取 Firestore 設定，已改用前端預設打卡設定。"
+      };
+      renderAttendanceAttempt();
+    }
+  }
+
+  async function submitAttendanceToBackend(payload) {
+    const apiUrl = window.__ATTENDANCE_API_URL__;
+    if (!apiUrl) {
+      throw new Error("尚未設定 window.__ATTENDANCE_API_URL__，請將 Cloud Function / API URL 寫入 index.html。");
+    }
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (error) {
+      throw new Error("後端回傳格式錯誤，無法解析 JSON。");
+    }
+
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.message || "打卡失敗");
+    }
+
+    return data;
+  }
+
+  async function handleAttendance(type) {
+    if (!currentUser) {
+      alert("請先登入後再打卡。");
+      return;
+    }
+
+    const actionText = type === "clockIn" ? "上班打卡" : "下班打卡";
+    setAttendanceBadge("pending", "檢查中");
+    if (attendanceResult) attendanceResult.innerHTML = `<p>${actionText}檢查中，請稍候…</p>`;
+
+    try {
+      await refreshAttendanceSettings();
+      const position = await getCurrentPositionAsync();
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const matchedOffice = findMatchedOffice(lat, lng, attendanceSettings.offices);
+      const networkType = getNetworkType();
+
+      if (!matchedOffice) {
+        lastAttendanceAttempt = {
+          lat,
+          lng,
+          networkType,
+          badgeKind: "fail",
+          badgeText: "位置不符",
+          message: "目前位置不在任何公司據點半徑內，無法打卡。"
+        };
+        renderAttendanceAttempt();
+        return;
+      }
+
+      if (attendanceSettings.requireWifi && !isWifiNetwork(networkType)) {
+        lastAttendanceAttempt = {
+          lat,
+          lng,
+          officeName: matchedOffice.name,
+          distanceMeters: matchedOffice.distanceMeters,
+          networkType,
+          badgeKind: "fail",
+          badgeText: "網路不符",
+          message: `此據點要求 Wi‑Fi 打卡，目前偵測到的 networkType 為 ${networkType}。`
+        };
+        renderAttendanceAttempt();
+        return;
+      }
+
+      const payload = {
+        employeeId: currentUser.employeeId,
+        employeeName: currentUser.name,
+        type,
+        lat,
+        lng,
+        officeName: matchedOffice.name,
+        networkType,
+        requireWifi: attendanceSettings.requireWifi
+      };
+
+      const response = await submitAttendanceToBackend(payload);
+      lastAttendanceAttempt = {
+        lat,
+        lng,
+        officeName: matchedOffice.name,
+        distanceMeters: matchedOffice.distanceMeters,
+        networkType,
+        badgeKind: "success",
+        badgeText: type === "clockIn" ? "上班完成" : "下班完成",
+        message: `${actionText}成功：${response.message || "已完成打卡"}`
+      };
+      renderAttendanceAttempt();
+    } catch (error) {
+      console.error(`${actionText}失敗`, error);
+      lastAttendanceAttempt = {
+        badgeKind: "fail",
+        badgeText: "打卡失敗",
+        message: `${actionText}失敗：${error.message}`
+      };
+      renderAttendanceAttempt();
+    }
+  }
+
   function populateFixedOptions() {
     if (employeeRegionSelect) {
-     employeeRegionSelect.innerHTML = `<option value="">請選擇地區</option>${REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("")}`;
+      employeeRegionSelect.innerHTML = `<option value="">請選擇地區</option>${REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("")}`;
     }
 
     if (employeeDepartmentSelect) {
@@ -158,7 +421,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function syncAdminPermissionState() {
-   if (!adminCheckbox || !adminScopePanel) return;
+     if (!adminCheckbox || !adminScopePanel) return;
 
     adminScopePanel.classList.toggle("hidden", !adminCheckbox.checked);
 
@@ -277,7 +540,7 @@ document.addEventListener("DOMContentLoaded", function () {
          </div>`
         : "";
 
-     return `<div class="list-item"><h4>${item.title}</h4><div class="item-meta">發布者：${item.author}｜時間：${item.createdAt}</div><p>${item.content}</p>${actions}</div>`;
+      return `<div class="list-item"><h4>${item.title}</h4><div class="item-meta">發布者：${item.author}｜時間：${item.createdAt}</div><p>${item.content}</p>${actions}</div>`;
     }).join("");
   }
 
@@ -306,13 +569,13 @@ document.addEventListener("DOMContentLoaded", function () {
     const stats = { 特休: 0, 病假: 0, 事假: 0, 待審核: 0 };
     visibleLeaves.forEach(function (item) {
       if (stats[item.type] !== undefined) stats[item.type] += 1;
-      if (item.status === "待審核") stats["待審核"] += 1;
+      if (item.status === "待審核") stats.待審核 += 1;
     });
     leaveStats.innerHTML = `
-      <div class="stat-card"><h4>特休</h4><p>${stats["特休"]}</p></div>
-      <div class="stat-card"><h4>病假</h4><p>${stats["病假"]}</p></div>
-      <div class="stat-card"><h4>事假</h4><p>${stats["事假"]}</p></div>
-      <div class="stat-card"><h4>待審核</h4><p>${stats["待審核"]}</p></div>
+      <div class="stat-card"><h4>特休</h4><p>${stats.特休}</p></div>
+      <div class="stat-card"><h4>病假</h4><p>${stats.病假}</p></div>
+      <div class="stat-card"><h4>事假</h4><p>${stats.事假}</p></div>
+      <div class="stat-card"><h4>待審核</h4><p>${stats.待審核}</p></div>
     `;
   }
 
@@ -409,7 +672,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const todayString = formatDate(new Date());
     const cells = [];
 
-   for (let i = 0; i < 35; i += 1) {
+    for (let i = 0; i < 35; i += 1) {
       const cellDate = new Date(firstCellDate);
       cellDate.setDate(firstCellDate.getDate() + i);
       const cellDateString = formatDate(cellDate);
@@ -668,7 +931,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (employeeData.permissions.admin) {
         employeeData.permissions.leaveApprove = true;
-        } else {
+      } else {
         employeeData.manageScopes = { regions: [], departments: [] };
       }
 
@@ -736,7 +999,10 @@ document.addEventListener("DOMContentLoaded", function () {
   if (schedulePopoverClose) schedulePopoverClose.addEventListener("click", closeSchedulePopover);
   if (prevMonthBtn) prevMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() - 1); renderCalendar(); });
   if (nextMonthBtn) nextMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() + 1); renderCalendar(); });
-
+  if (clockInBtn) clockInBtn.addEventListener("click", function () { handleAttendance("clockIn"); });
+  if (clockOutBtn) clockOutBtn.addEventListener("click", function () { handleAttendance("clockOut"); });
+  if (refreshAttendanceSettingsBtn) refreshAttendanceSettingsBtn.addEventListener("click", function () { refreshAttendanceSettings(true); });
+  
   document.addEventListener("click", function (event) {
     if (!schedulePopover || schedulePopover.classList.contains("hidden")) return;
     if (schedulePopover.contains(event.target)) return;
@@ -778,5 +1044,7 @@ document.addEventListener("DOMContentLoaded", function () {
   startScheduleListener();
   startEmployeesListener();
   restoreLogin();
+  renderAttendanceSettingsSummary();
+  refreshAttendanceSettings();
   renderCalendar();
 });
