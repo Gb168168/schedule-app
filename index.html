@@ -140,63 +140,61 @@
         </div>
       </section>
 
-      <section id="page-schedule" class="page-section hidden">
-        <div class="card">
-          <h3>排程表</h3>
+  <section id="page-schedule" class="page-section hidden">
+  <div class="card">
+    <h3>排程表</h3>
 
-          <div class="calendar-wrap">
-            <div class="calendar-toolbar">
-              <button type="button" id="prev-month" class="small-btn">上個月</button>
-              <h4 id="calendar-title"></h4>
-              <button type="button" id="next-month" class="small-btn">下個月</button>
-            </div>
+    <div class="calendar-wrap">
+      <div class="calendar-toolbar">
+        <button type="button" id="prev-month" class="small-btn">上個月</button>
+        <h4 id="calendar-title"></h4>
+        <button type="button" id="next-month" class="small-btn">下個月</button>
+      </div>
 
-            <div class="calendar-weekdays">
-              <div>日</div>
-              <div>一</div>
-              <div>二</div>
-              <div>三</div>
-              <div>四</div>
-              <div>五</div>
-              <div>六</div>
-            </div>
+      <div class="calendar-weekdays">
+        <div>日</div>
+        <div>一</div>
+        <div>二</div>
+        <div>三</div>
+        <div>四</div>
+        <div>五</div>
+        <div>六</div>
+      </div>
 
-            <div id="calendar-grid" class="calendar-grid"></div>
+      <div id="calendar-grid" class="calendar-grid"></div>
 
-            <div id="schedule-popover" class="schedule-popover hidden">
-              <div class="schedule-popover-header">
-                <h4>當日排程</h4>
-                <button type="button" id="schedule-popover-close" class="small-btn cancel-btn">×</button>
-              </div>
-
-              <div class="selected-date-box">
-                <p>日期：<strong id="selected-date-text">--</strong></p>
-              </div>
-
-              <div class="item-actions schedule-top-actions">
-                <button type="button" id="schedule-add-btn" class="primary-btn">+ 新增</button>
-              </div>
-
-              <div id="selected-date-schedule-list" class="list-wrap"></div>
-
-              <div id="schedule-editor-box" class="hidden">
-                <h4 id="schedule-editor-title">新增排程</h4>
-                <form id="schedule-form" class="form-grid">
-                  <input id="schedule-date" type="date" required readonly />
-                  <input id="schedule-title" type="text" placeholder="排程標題" required />
-                  <textarea id="schedule-content" placeholder="排程內容" required></textarea>
-                  <div class="item-actions">
-                    <button type="submit" class="primary-btn">儲存排程</button>
-                    <button type="button" id="schedule-cancel-btn" class="small-btn cancel-btn">取消</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
+      <div id="schedule-popover" class="schedule-popover hidden">
+        <div class="schedule-popover-header">
+          <h4>當日排程</h4>
+          <button type="button" id="schedule-popover-close" class="small-btn cancel-btn">×</button>
         </div>
-      </section>
-    </section>
+
+        <div class="selected-date-box">
+          <p>日期：<strong id="selected-date-text">--</strong></p>
+        </div>
+
+        <div class="item-actions schedule-top-actions">
+          <button type="button" id="schedule-add-btn" class="primary-btn">+ 新增</button>
+        </div>
+
+        <div id="selected-date-schedule-list" class="list-wrap"></div>
+
+        <div id="schedule-editor-box" class="hidden">
+          <h4 id="schedule-editor-title">新增排程</h4>
+          <form id="schedule-form" class="form-grid">
+            <input id="schedule-date" type="date" required readonly />
+            <input id="schedule-title" type="text" placeholder="排程標題" required />
+            <textarea id="schedule-content" placeholder="排程內容" required></textarea>
+            <div class="item-actions">
+              <button type="submit" class="primary-btn">儲存排程</button>
+              <button type="button" id="schedule-cancel-btn" class="small-btn cancel-btn">取消</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
+</section>
 
   <script src="app.js"></script>
 </body>
