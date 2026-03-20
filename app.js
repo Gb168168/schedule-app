@@ -363,7 +363,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const todayString = formatDate(new Date());
     const cells = [];
 
-    for (let i = 0; i < 42; i++) {
+    for (let i = 0; i < 35; i++) {
       const cellDate = new Date(firstCellDate);
       cellDate.setDate(firstCellDate.getDate() + i);
 
