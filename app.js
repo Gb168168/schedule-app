@@ -214,7 +214,7 @@ document.addEventListener("DOMContentLoaded", function () {
           `;
         }
 
-        return `
+      return `
           <div class="list-item">
             <h4>${item.title}</h4>
             <div class="item-meta">發布者：${item.author}｜時間：${item.createdAt}</div>
@@ -229,7 +229,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function startLeaveListener() {
     if (!db) return;
 
-    const q = query(collection(db, "leaveRequests"), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "leaveRequests"), orderBy("createdAtClient", "desc"));
 
     onSnapshot(q, function (snapshot) {
       leaveRequests = snapshot.docs.map(function (docItem) {
@@ -289,13 +289,10 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    leaveList.innerHTML = visibleLeaves
-      .slice()
-      .reverse()
-      .map(function (item) {
-        let actionButtons = "";
+      leaveList.innerHTML = visibleLeaves.map(function (item) {
+      let actionButtons = "";
 
-        if (isAdmin(currentUser) && item.status === "待審核") {
+       if (isAdmin(currentUser) && item.status === "待審核") {
           actionButtons += `
             <button type="button" class="small-btn approve-btn" onclick="approveLeave('${item.id}')">核准</button>
             <button type="button" class="small-btn reject-btn" onclick="rejectLeave('${item.id}')">駁回</button>
@@ -308,7 +305,7 @@ document.addEventListener("DOMContentLoaded", function () {
           `;
         }
 
-        return `
+      return `
           <div class="list-item">
             <h4>${item.userName} - ${item.type}</h4>
             <div class="item-meta">
@@ -349,7 +346,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     selectedDateScheduleList.innerHTML = selectedSchedules
       .map(function (item) {
-        return `
+      return `
          <div class="list-item schedule-list-item">
             <div class="schedule-item-main">
               <h4>${item.title}</h4>
@@ -434,7 +431,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <div class="calendar-day-number">${cellDate.getDate()}</div>
           <div class="calendar-events">
             ${daySchedules.map(function (schedule) {
-              return `<div class="calendar-event">${schedule.title}</div>`;
+            return `<div class="calendar-event">${schedule.title}</div>`;
             }).join("")}
           </div>
         </div>
