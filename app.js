@@ -144,7 +144,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function showScheduleEditor(mode) {
-    if (scheduleEditorBox) scheduleEditorBox.classList.remove("hidden");
+    if (scheduleEditorBox) {
+      scheduleEditorBox.classList.remove("hidden");
+    }
+
     if (scheduleEditorTitle) {
       scheduleEditorTitle.textContent = mode === "edit" ? "編輯排程" : "新增排程";
     }
@@ -152,7 +155,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function hideScheduleEditor() {
     editingScheduleId = null;
-    if (scheduleEditorBox) scheduleEditorBox.classList.add("hidden");
+
+    if (scheduleEditorBox) {
+      scheduleEditorBox.classList.add("hidden");
+    }
+
     if (scheduleTitle) scheduleTitle.value = "";
     if (scheduleContent) scheduleContent.value = "";
     if (scheduleDate && selectedScheduleDate) scheduleDate.value = selectedScheduleDate;
@@ -175,8 +182,8 @@ document.addEventListener("DOMContentLoaded", function () {
         if (isAdmin(currentUser)) {
           actions = `
             <div class="item-actions">
-              <button class="small-btn edit-btn" onclick="startEditAnnouncement('${item.id}')">編輯</button>
-              <button class="small-btn delete-btn" onclick="deleteAnnouncement('${item.id}')">刪除</button>
+              <button type="button" class="small-btn edit-btn" onclick="startEditAnnouncement('${item.id}')">編輯</button>
+              <button type="button" class="small-btn delete-btn" onclick="deleteAnnouncement('${item.id}')">刪除</button>
             </div>
           `;
         }
@@ -246,14 +253,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (isAdmin(currentUser) && item.status === "待審核") {
           actionButtons += `
-            <button class="small-btn approve-btn" onclick="approveLeave('${item.id}')">核准</button>
-            <button class="small-btn reject-btn" onclick="rejectLeave('${item.id}')">駁回</button>
+            <button type="button" class="small-btn approve-btn" onclick="approveLeave('${item.id}')">核准</button>
+            <button type="button" class="small-btn reject-btn" onclick="rejectLeave('${item.id}')">駁回</button>
           `;
         }
 
         if (currentUser && item.userName === currentUser.name && item.status === "待審核") {
           actionButtons += `
-            <button class="small-btn cancel-btn" onclick="cancelLeave('${item.id}')">取消請假</button>
+            <button type="button" class="small-btn cancel-btn" onclick="cancelLeave('${item.id}')">取消請假</button>
           `;
         }
 
@@ -300,8 +307,8 @@ document.addEventListener("DOMContentLoaded", function () {
             <div class="item-meta">日期：${item.date}｜建立者：${item.author}</div>
             <p>${item.content}</p>
             <div class="item-actions">
-              <button class="small-btn edit-btn" onclick="editSchedule('${item.id}')">編輯</button>
-              <button class="small-btn delete-btn" onclick="deleteSchedule('${item.id}')">刪除</button>
+              <button type="button" class="small-btn edit-btn" onclick="editSchedule('${item.id}')">編輯</button>
+              <button type="button" class="small-btn delete-btn" onclick="deleteSchedule('${item.id}')">刪除</button>
             </div>
           </div>
         `;
@@ -344,18 +351,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function openSchedulePopover(dateString, targetElement) {
     selectedScheduleDate = dateString;
-    editingScheduleId = null;
 
     if (selectedDateText) selectedDateText.textContent = dateString;
     if (scheduleDate) scheduleDate.value = dateString;
 
     hideScheduleEditor();
     renderSchedules();
-    renderCalendar();
 
     if (schedulePopover) {
       schedulePopover.classList.remove("hidden");
     }
+
+    renderCalendar();
 
     requestAnimationFrame(function () {
       positionSchedulePopover(targetElement);
@@ -375,503 +382,4 @@ document.addEventListener("DOMContentLoaded", function () {
 
     calendarTitle.textContent = `${year} 年 ${month + 1} 月`;
 
-    const firstDay = new Date(year, month, 1);
-    const startDay = firstDay.getDay();
-    const firstCellDate = new Date(year, month, 1 - startDay);
-
-    const todayString = formatDate(new Date());
-    const cells = [];
-
-    for (let i = 0; i < 42; i++) {
-      const cellDate = new Date(firstCellDate);
-      cellDate.setDate(firstCellDate.getDate() + i);
-
-      const cellDateString = formatDate(cellDate);
-      const daySchedules = schedules.filter(function (item) {
-        return item.date === cellDateString;
-      });
-
-      const isOtherMonth = cellDate.getMonth() !== month;
-      const isToday = cellDateString === todayString;
-      const isSelected = cellDateString === selectedScheduleDate;
-
-      cells.push(`
-        <div
-          class="calendar-day ${isOtherMonth ? "other-month" : ""} ${isToday ? "today" : ""} ${isSelected ? "selected" : ""}"
-          data-date="${cellDateString}"
-        >
-          <div class="calendar-day-number">${cellDate.getDate()}</div>
-          <div class="calendar-events">
-            ${daySchedules.map(function (schedule) {
-              return `<div class="calendar-event">${schedule.title}</div>`;
-            }).join("")}
-          </div>
-        </div>
-      `);
-    }
-
-    calendarGrid.innerHTML = cells.join("");
-
-    const dayCells = calendarGrid.querySelectorAll(".calendar-day");
-    dayCells.forEach(function (cell) {
-      cell.addEventListener("click", function (event) {
-        const dateString = cell.dataset.date;
-        openSchedulePopover(dateString, cell);
-        event.stopPropagation();
-      });
-    });
-  }
-
-  window.startEditAnnouncement = function (id) {
-    if (!isAdmin(currentUser)) return;
-
-    const item = announcements.find(function (announcement) {
-      return announcement.id === id;
-    });
-
-    if (!item) return;
-
-    editingAnnouncementId = id;
-    if (announcementEditTitle) announcementEditTitle.value = item.title;
-    if (announcementEditContent) announcementEditContent.value = item.content;
-    if (announcementEditBox) announcementEditBox.classList.remove("hidden");
-    if (announcementEditTitle) announcementEditTitle.focus();
-  };
-
-  window.deleteAnnouncement = function (id) {
-    if (!isAdmin(currentUser)) return;
-
-    announcements = announcements.filter(function (item) {
-      return item.id !== id;
-    });
-
-    saveData(STORAGE_KEYS.announcements, announcements);
-
-    if (editingAnnouncementId === id) {
-      hideAnnouncementEditor();
-    }
-
-    renderAnnouncements();
-  };
-
-  window.approveLeave = function (id) {
-    leaveRequests = leaveRequests.map(function (item) {
-      if (item.id === id) {
-        return {
-          ...item,
-          status: "已核准",
-          reviewedBy: currentUser ? currentUser.name : "",
-          reviewedAt: new Date().toLocaleString()
-        };
-      }
-      return item;
-    });
-
-    saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
-    renderLeaves();
-  };
-
-  window.rejectLeave = function (id) {
-    leaveRequests = leaveRequests.map(function (item) {
-      if (item.id === id) {
-        return {
-          ...item,
-          status: "已駁回",
-          reviewedBy: currentUser ? currentUser.name : "",
-          reviewedAt: new Date().toLocaleString()
-        };
-      }
-      return item;
-    });
-
-    saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
-    renderLeaves();
-  };
-
-  window.cancelLeave = function (id) {
-    leaveRequests = leaveRequests.map(function (item) {
-      if (item.id === id) {
-        return {
-          ...item,
-          status: "已取消",
-          reviewedBy: currentUser ? currentUser.name : "",
-          reviewedAt: new Date().toLocaleString()
-        };
-      }
-      return item;
-    });
-
-    saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
-    renderLeaves();
-  };
-
-  window.editSchedule = function (id) {
-    const item = schedules.find(function (schedule) {
-      return schedule.id === id;
-    });
-
-    if (!item) return;
-
-    selectedScheduleDate = item.date;
-    editingScheduleId = id;
-
-    if (selectedDateText) selectedDateText.textContent = item.date;
-    if (scheduleDate) scheduleDate.value = item.date;
-    if (scheduleTitle) scheduleTitle.value = item.title;
-    if (scheduleContent) scheduleContent.value = item.content;
-
-    showScheduleEditor("edit");
-    renderSchedules();
-    renderCalendar();
-
-    if (schedulePopover) {
-      schedulePopover.classList.remove("hidden");
-    }
-
-    const targetCell = calendarGrid
-      ? calendarGrid.querySelector(`[data-date="${item.date}"]`)
-      : null;
-
-    requestAnimationFrame(function () {
-      positionSchedulePopover(targetCell);
-    });
-  };
-
-  window.deleteSchedule = function (id) {
-    schedules = schedules.filter(function (item) {
-      return item.id !== id;
-    });
-
-    saveData(STORAGE_KEYS.schedules, schedules);
-
-    if (editingScheduleId === id) {
-      hideScheduleEditor();
-    }
-
-    renderSchedules();
-    renderCalendar();
-
-    const targetCell = calendarGrid
-      ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`)
-      : null;
-
-    if (targetCell && schedulePopover && !schedulePopover.classList.contains("hidden")) {
-      requestAnimationFrame(function () {
-        positionSchedulePopover(targetCell);
-      });
-    }
-  };
-
-  function setLoggedInUser(user) {
-    currentUser = user;
-    updateUserInfo(user);
-
-    if (loginPage) loginPage.classList.add("hidden");
-    if (mainPage) mainPage.classList.remove("hidden");
-
-    localStorage.setItem(STORAGE_KEYS.currentUser, user.employeeId);
-
-    renderAnnouncements();
-    renderLeaves();
-    renderSchedules();
-    renderCalendar();
-  }
-
-  function restoreLogin() {
-    const savedEmployeeId = localStorage.getItem(STORAGE_KEYS.currentUser);
-    if (!savedEmployeeId) return;
-
-    const matchedUser = users.find(function (u) {
-      return u.employeeId === savedEmployeeId;
-    });
-
-    if (!matchedUser) return;
-
-    setLoggedInUser(matchedUser);
-  }
-
-  if (loginForm) {
-    loginForm.addEventListener("submit", function (event) {
-      event.preventDefault();
-
-      const employeeIdInput = document.getElementById("employeeId");
-      const passwordInput = document.getElementById("password");
-
-      const employeeId = employeeIdInput ? employeeIdInput.value.trim() : "";
-      const password = passwordInput ? passwordInput.value.trim() : "";
-
-      const user = users.find(function (u) {
-        return u.employeeId === employeeId && u.password === password;
-      });
-
-      if (!user) {
-        if (loginError) loginError.textContent = "帳號或密碼錯誤";
-        return;
-      }
-
-      if (loginError) loginError.textContent = "";
-      setLoggedInUser(user);
-    });
-  }
-
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", function () {
-      currentUser = null;
-      editingAnnouncementId = null;
-      editingScheduleId = null;
-      selectedScheduleDate = "";
-
-      localStorage.removeItem(STORAGE_KEYS.currentUser);
-
-      hideAnnouncementEditor();
-      closeSchedulePopover();
-
-      if (mainPage) mainPage.classList.add("hidden");
-      if (loginPage) loginPage.classList.remove("hidden");
-      if (loginForm) loginForm.reset();
-      if (loginError) loginError.textContent = "";
-    });
-  }
-
-  menuButtons.forEach(function (button) {
-    button.addEventListener("click", function () {
-      const targetPage = button.dataset.page;
-
-      menuButtons.forEach(function (btn) {
-        btn.classList.remove("active");
-      });
-      button.classList.add("active");
-
-      pageSections.forEach(function (section) {
-        section.classList.add("hidden");
-      });
-
-      const targetSection = document.getElementById("page-" + targetPage);
-      if (targetSection) {
-        targetSection.classList.remove("hidden");
-      }
-
-      if (pageTitle) pageTitle.textContent = button.textContent;
-    });
-  });
-
-  if (announcementForm) {
-    announcementForm.addEventListener("submit", function (event) {
-      event.preventDefault();
-
-      const title = announcementTitle ? announcementTitle.value.trim() : "";
-      const content = announcementContent ? announcementContent.value.trim() : "";
-
-      if (!title || !content) {
-        alert("請填寫完整公告內容");
-        return;
-      }
-
-      announcements.push({
-        id: Date.now().toString(),
-        title: title,
-        content: content,
-        author: currentUser ? currentUser.name : "未知使用者",
-        createdAt: new Date().toLocaleString()
-      });
-
-      saveData(STORAGE_KEYS.announcements, announcements);
-      announcementForm.reset();
-      renderAnnouncements();
-    });
-  }
-
-  if (announcementEditForm) {
-    announcementEditForm.addEventListener("submit", function (event) {
-      event.preventDefault();
-
-      if (!editingAnnouncementId) return;
-
-      const title = announcementEditTitle ? announcementEditTitle.value.trim() : "";
-      const content = announcementEditContent ? announcementEditContent.value.trim() : "";
-
-      if (!title || !content) {
-        alert("請填寫完整公告內容");
-        return;
-      }
-
-      announcements = announcements.map(function (item) {
-        if (item.id === editingAnnouncementId) {
-          return {
-            ...item,
-            title: title,
-            content: content,
-            createdAt: new Date().toLocaleString()
-          };
-        }
-        return item;
-      });
-
-      saveData(STORAGE_KEYS.announcements, announcements);
-      hideAnnouncementEditor();
-      renderAnnouncements();
-    });
-  }
-
-  if (announcementCancelEdit) {
-    announcementCancelEdit.addEventListener("click", function () {
-      hideAnnouncementEditor();
-    });
-  }
-
-  if (leaveForm) {
-    leaveForm.addEventListener("submit", function (event) {
-      event.preventDefault();
-
-      const startDate = leaveStart ? leaveStart.value : "";
-      const endDate = leaveEnd ? leaveEnd.value : "";
-      const reason = leaveReason ? leaveReason.value.trim() : "";
-
-      if (!startDate || !endDate || !reason) {
-        alert("請填寫完整請假資料");
-        return;
-      }
-
-      if (startDate > endDate) {
-        alert("開始日期不能晚於結束日期");
-        return;
-      }
-
-      leaveRequests.push({
-        id: Date.now().toString(),
-        userName: currentUser ? currentUser.name : "未知使用者",
-        department: currentUser ? currentUser.department : "",
-        region: currentUser ? currentUser.region : "",
-        type: leaveType ? leaveType.value : "特休",
-        startDate: startDate,
-        endDate: endDate,
-        reason: reason,
-        status: "待審核",
-        reviewedBy: "",
-        reviewedAt: ""
-      });
-
-      saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
-      leaveForm.reset();
-      renderLeaves();
-    });
-  }
-
-  if (scheduleAddBtn) {
-    scheduleAddBtn.addEventListener("click", function () {
-      editingScheduleId = null;
-      if (scheduleDate) scheduleDate.value = selectedScheduleDate;
-      if (scheduleTitle) scheduleTitle.value = "";
-      if (scheduleContent) scheduleContent.value = "";
-      showScheduleEditor("add");
-    });
-  }
-
-  if (scheduleForm) {
-    scheduleForm.addEventListener("submit", function (event) {
-      event.preventDefault();
-
-      const date = scheduleDate ? scheduleDate.value : "";
-      const title = scheduleTitle ? scheduleTitle.value.trim() : "";
-      const content = scheduleContent ? scheduleContent.value.trim() : "";
-
-      if (!date || !title || !content) {
-        alert("請填寫完整排程資料");
-        return;
-      }
-
-      if (editingScheduleId) {
-        schedules = schedules.map(function (item) {
-          if (item.id === editingScheduleId) {
-            return {
-              ...item,
-              date: date,
-              title: title,
-              content: content
-            };
-          }
-          return item;
-        });
-      } else {
-        schedules.push({
-          id: Date.now().toString(),
-          date: date,
-          title: title,
-          content: content,
-          author: currentUser ? currentUser.name : "未知使用者"
-        });
-      }
-
-      saveData(STORAGE_KEYS.schedules, schedules);
-      hideScheduleEditor();
-      renderSchedules();
-      renderCalendar();
-
-      const targetCell = calendarGrid
-        ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`)
-        : null;
-
-      requestAnimationFrame(function () {
-        positionSchedulePopover(targetCell);
-      });
-    });
-  }
-
-  if (scheduleCancelBtn) {
-    scheduleCancelBtn.addEventListener("click", function () {
-      hideScheduleEditor();
-    });
-  }
-
-  if (schedulePopoverClose) {
-    schedulePopoverClose.addEventListener("click", function (event) {
-      event.stopPropagation();
-      closeSchedulePopover();
-    });
-  }
-
-  document.addEventListener("click", function (event) {
-    if (!schedulePopover || schedulePopover.classList.contains("hidden")) return;
-
-    const clickedInsidePopover = schedulePopover.contains(event.target);
-    const clickedDayCell = event.target.closest(".calendar-day");
-
-    if (!clickedInsidePopover && !clickedDayCell) {
-      closeSchedulePopover();
-    }
-  });
-
-  window.addEventListener("resize", function () {
-    if (!schedulePopover || schedulePopover.classList.contains("hidden")) return;
-
-    const targetCell = calendarGrid
-      ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`)
-      : null;
-
-    if (targetCell) {
-      positionSchedulePopover(targetCell);
-    }
-  });
-
-  if (prevMonthBtn) {
-    prevMonthBtn.addEventListener("click", function () {
-      calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1);
-      renderCalendar();
-      closeSchedulePopover();
-    });
-  }
-
-  if (nextMonthBtn) {
-    nextMonthBtn.addEventListener("click", function () {
-      calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1);
-      renderCalendar();
-      closeSchedulePopover();
-    });
-  }
-
-  renderAnnouncements();
-  renderLeaves();
-  renderSchedules();
-  renderCalendar();
-  restoreLogin();
-});
+    const first
