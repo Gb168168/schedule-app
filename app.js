@@ -37,15 +37,7 @@ let calendarDate = new Date();
 let selectedScheduleDate = "";
 let editingScheduleId = null;
 
-let announcements = loadData(STORAGE_KEYS.announcements, [
-  {
-    id: Date.now().toString() + "_a",
-    title: "系統公告",
-    content: "歡迎使用班表系統。",
-    author: "系統管理員",
-    createdAt: new Date().toLocaleString()
-  }
-]);
+let announcements = [];
 
 let leaveRequests = loadData(STORAGE_KEYS.leaveRequests, []);
 let schedules = loadData(STORAGE_KEYS.schedules, []);
