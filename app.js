@@ -303,7 +303,7 @@ document.addEventListener("DOMContentLoaded", function () {
          <div class="list-item schedule-list-item">
             <div class="schedule-item-main">
               <h4>${item.title}</h4>
-              <div class="item-meta">日期：${item.date}｜建立者：${item.author}</div>
+              <div class="item-meta">日期：${item.date}｜   建立者：${item.author}</div>
               <p>${item.content}</p>
             </div>
             <div class="item-actions schedule-item-actions">
