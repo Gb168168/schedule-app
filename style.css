@@ -565,9 +565,32 @@ textarea {
   margin-bottom: 12px;
 }
 
+
 .selected-date-box p {
   margin: 0;
   color: #374151;
+}
+
+.schedule-list-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.schedule-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.schedule-item-actions {
+  flex-shrink: 0;
+  justify-content: flex-end;
+}
+
+.schedule-item-main h4,
+.schedule-item-main p {
+  margin-top: 0;
 }
 
 .schedule-top-actions {
@@ -616,6 +639,15 @@ textarea {
 }
 
 @media (max-width: 768px) {
+  .schedule-list-item {
+    flex-direction: column;
+  }
+
+  .schedule-item-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
   .content-header {
     padding: 20px;
     flex-direction: column;
