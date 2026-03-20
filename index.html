@@ -57,7 +57,7 @@
           </div>
         </div>
 
-        <div class="content-grid">
+        <div class="content-grid home-grid">
           <div class="card">
             <h3>使用者資訊</h3>
             <p>權限：<span id="user-role"></span></p>
@@ -65,6 +65,43 @@
             <p>部門：<span id="user-department"></span></p>
           </div>
 
+           <div class="card attendance-card">
+            <div class="section-header-row">
+              <div>
+                <h3>出勤打卡</h3>
+                <p class="helper-text">定位、網路類型與公司據點檢查通過後才會送出。</p>
+              </div>
+              <span id="attendance-status-badge" class="status-badge status-pending">待操作</span>
+            </div>
+
+            <div id="attendance-settings-summary" class="attendance-summary">
+              <p>尚未讀取打卡設定。</p>
+            </div>
+
+            <div class="attendance-actions">
+              <button id="clock-in-btn" type="button" class="primary-btn">上班打卡</button>
+              <button id="clock-out-btn" type="button" class="secondary-btn">下班打卡</button>
+              <button id="refresh-attendance-settings-btn" type="button" class="small-btn">重新讀取設定</button>
+            </div>
+
+            <div id="attendance-result" class="attendance-result">
+              <p>系統會依序檢查：登入者 → 定位權限 → 公司據點 → 網路型態 → 後端 IP 白名單。</p>
+            </div>
+
+            <div class="attendance-meta-grid">
+              <div>
+                <h4>本次偵測</h4>
+                <p>座標：<span id="attendance-location">-</span></p>
+                <p>匹配據點：<span id="attendance-office">-</span></p>
+              </div>
+              <div>
+                <h4>連線資訊</h4>
+                <p>networkType：<span id="attendance-network-type">-</span></p>
+                <p>requireWifi：<span id="attendance-require-wifi">-</span></p>
+              </div>
+            </div>
+          </div>
+          
           <div class="card">
             <h3>系統狀態</h3>
             <p>你已成功登入系統。</p>
@@ -117,7 +154,7 @@
       </section>
 
       <section id="page-staff" class="page-section hidden">
-        <div class="content-grid staff-grid"
+        <div class="content-grid staff-grid">
           <div class="card">
             <h3>新增員工</h3>
             <form id="employee-form" class="form-grid employee-form">
@@ -168,16 +205,16 @@
             </form>
           </div>
 
-       <div class="card staff-list-card">
+          <div class="card staff-list-card">
             <div class="section-header-row">
               <div>
                 <h3>員工列表</h3>
                 <p class="helper-text">右側顯示已建置的員工資料。</p>
               </div>
             </div>
-          <div id="employee-list" class="list-wrap"></div>
+            <div id="employee-list" class="list-wrap"></div>
           </div>
-         </div>
+        </div>
       </section>
 
       <section id="page-leave" class="page-section hidden">
@@ -224,44 +261,52 @@
             </div>
 
            <div id="calendar-grid" class="calendar-grid"></div>
-
-            <div id="schedule-popover" class="schedule-popover hidden">
-              <div class="schedule-popover-header">
-                <h4>當日排程</h4>
-                <button type="button" id="schedule-popover-close" class="small-btn cancel-btn">×</button>
-              </div>
-
-              <div class="selected-date-box">
-                <p>日期：<strong id="selected-date-text">--</strong></p>
-              </div>
-
-              <div id="selected-date-schedule-list" class="list-wrap"></div>
-
-              <div class="item-actions schedule-top-actions">
-                <button type="button" id="schedule-add-btn" class="primary-btn">+ 新增</button>
-              </div>
-
-              <div id="schedule-editor-box" class="hidden">
-                <h4 id="schedule-editor-title">新增排程</h4>
-                <form id="schedule-form" class="form-grid">
-                  <label class="field-label"><span>日期</span><input id="schedule-date" type="date" required readonly /></label>
-                  <label class="field-label"><span>排程標題</span><input id="schedule-title" type="text" required /></label>
-                  <label class="field-label"><span>排程內容</span><textarea id="schedule-content" required></textarea></label>
-                  <div class="item-actions">
-                    <button type="submit" class="primary-btn">儲存排程</button>
-                    <button type="button" id="schedule-cancel-btn" class="small-btn cancel-btn">取消</button>
-                  </div>
-                </form>
-              </div>
-            </div>
           </div>
         </div>
       </section>
     </section>
   </div>
 
+  <div id="schedule-popover" class="schedule-popover hidden">
+    <div class="schedule-popover-header">
+      <div>
+        <h3 id="selected-date-text">-</h3>
+        <p>當日排程與操作</p>
+      </div>
+      <button type="button" id="schedule-popover-close" class="small-btn">關閉</button>
+    </div>
+
+           <div id="selected-date-schedule-list" class="list-wrap"></div>
+
+      <div class="popover-actions">
+      <button type="button" id="schedule-add-btn" class="primary-btn">新增排程</button>
+       </div>
+
+              <div id="schedule-editor-box" class="schedule-editor-box hidden">
+      <h4 id="schedule-editor-title">新增排程</h4>
+      <form id="schedule-form" class="form-grid">
+        <label class="field-label">
+          <span>日期</span>
+          <input id="schedule-date" type="date" required />
+        </label>
+        <label class="field-label">
+          <span>標題</span>
+          <input id="schedule-title" type="text" required />
+        </label>
+        <label class="field-label">
+          <span>內容</span>
+          <textarea id="schedule-content" required></textarea>
+        </label>
+        <div class="item-actions">
+          <button type="submit" class="primary-btn">儲存排程</button>
+          <button type="button" id="schedule-cancel-btn" class="small-btn cancel-btn">取消</button>
+        </div>
+     </form>
+    </div>
+  </div>
+
   <script>
-    window.__FIREBASE_CONFIG__ = {
+     window.__FIREBASE_CONFIG__ = window.__FIREBASE_CONFIG__ || {
       apiKey: "AIzaSyAmPIQMfAR1BmvJbjx3L002ibVu2kXA3uM",
       authDomain: "schedule-app-5845b.firebaseapp.com",
       projectId: "schedule-app-5845b",
@@ -269,6 +314,7 @@
       messagingSenderId: "1046564647922",
       appId: "1:1046564647922:web:965bb01618c8b6b992b16b"
     };
+    window.__ATTENDANCE_API_URL__ = window.__ATTENDANCE_API_URL__ || "";
   </script>
   <script type="module" src="app.js"></script>
 </body>
