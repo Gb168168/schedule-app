@@ -822,3 +822,120 @@ textarea {
     width: min(92vw, 360px);
   }
 }
+
+.home-grid {
+  align-items: start;
+}
+
+.attendance-card {
+  grid-column: span 2;
+}
+
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.helper-text {
+  margin: 6px 0 0;
+  color: var(--text-soft);
+  font-size: 14px;
+}
+
+.attendance-summary,
+.attendance-result {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+}
+
+.attendance-summary p,
+.attendance-result p {
+  margin: 0 0 8px;
+}
+
+.attendance-summary p:last-child,
+.attendance-result p:last-child {
+  margin-bottom: 0;
+}
+
+.attendance-actions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.secondary-btn,
+.small-btn,
+.primary-btn {
+  border-radius: var(--radius-sm);
+  padding: 12px 18px;
+  font-weight: 700;
+}
+
+.primary-btn {
+  background: linear-gradient(135deg, var(--blue-1), var(--blue-2));
+  color: #fff;
+}
+
+.secondary-btn {
+  background: #0f172a;
+  color: #fff;
+}
+
+.small-btn {
+  background: #e2e8f0;
+  color: var(--text);
+}
+
+.attendance-meta-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.attendance-meta-grid > div {
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.attendance-meta-grid h4 {
+  margin: 0 0 12px;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-success,
+.status-active,
+.status-已核准 {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-fail,
+.status-已駁回,
+.status-已取消 {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+@media (max-width: 960px) {
+  .attendance-card {
+    grid-column: span 1;
+  }
+
+  .attendance-meta-grid {
+    grid-template-columns: 1fr;
+  }
+}
