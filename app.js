@@ -226,6 +226,24 @@ document.addEventListener("DOMContentLoaded", function () {
       .join("");
   }
 
+  function startLeaveListener() {
+    if (!db) return;
+
+    const q = query(collection(db, "leaveRequests"), orderBy("createdAt", "desc"));
+
+    onSnapshot(q, function (snapshot) {
+      leaveRequests = snapshot.docs.map(function (docItem) {
+        const data = docItem.data();
+        return {
+          id: docItem.id,
+          ...data
+        };
+      });
+
+      renderLeaves();
+    });
+  }
+
   function renderLeaveStats() {
     if (!leaveStats) return;
 
@@ -467,55 +485,34 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 };
   
-  window.approveLeave = function (id) {
-    leaveRequests = leaveRequests.map(function (item) {
-      if (item.id === id) {
-        return {
-          ...item,
-          status: "已核准",
-          reviewedBy: currentUser ? currentUser.name : "",
-          reviewedAt: new Date().toLocaleString()
-        };
-      }
-      return item;
+window.approveLeave = async function (id) {
+    if (!db) return;
+  
+    await updateDoc(doc(db, "leaveRequests", id), {
+      status: "已核准",
+      reviewedBy: currentUser.name,
+      reviewedAt: new Date().toLocaleString()
     });
-
-    saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
-    renderLeaves();
   };
 
-  window.rejectLeave = function (id) {
-    leaveRequests = leaveRequests.map(function (item) {
-      if (item.id === id) {
-        return {
-          ...item,
-          status: "已駁回",
-          reviewedBy: currentUser ? currentUser.name : "",
-          reviewedAt: new Date().toLocaleString()
-        };
-      }
-      return item;
-    });
+  window.rejectLeave = async function (id) {
+    if (!db) return;
 
-    saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
-    renderLeaves();
+   await updateDoc(doc(db, "leaveRequests", id), {
+      status: "已駁回",
+      reviewedBy: currentUser.name,
+      reviewedAt: new Date().toLocaleString()
+    });
   };
 
-  window.cancelLeave = function (id) {
-    leaveRequests = leaveRequests.map(function (item) {
-      if (item.id === id) {
-        return {
-          ...item,
-          status: "已取消",
-          reviewedBy: currentUser ? currentUser.name : "",
-          reviewedAt: new Date().toLocaleString()
-        };
-      }
-      return item;
-    });
+ window.cancelLeave = async function (id) {
+    if (!db) return;
 
-    saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
-    renderLeaves();
+   await updateDoc(doc(db, "leaveRequests", id), {
+      status: "已取消",
+      reviewedBy: currentUser.name,
+      reviewedAt: new Date().toLocaleString()
+    });
   };
 
   window.editSchedule = function (id) {
@@ -750,7 +747,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   if (leaveForm) {
-    leaveForm.addEventListener("submit", function (event) {
+     leaveForm.addEventListener("submit", async function (event) {
       event.preventDefault();
 
       const startDate = leaveStart ? leaveStart.value : "";
@@ -767,23 +764,32 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      leaveRequests.push({
-        id: Date.now().toString(),
-        userName: currentUser ? currentUser.name : "未知使用者",
-        department: currentUser ? currentUser.department : "",
-        region: currentUser ? currentUser.region : "",
-        type: leaveType ? leaveType.value : "特休",
-        startDate: startDate,
-        endDate: endDate,
-        reason: reason,
-        status: "待審核",
-        reviewedBy: "",
-        reviewedAt: ""
-      });
+      if (!db) {
+        alert("Firebase 未設定");
+        return;
+      }
 
-      saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
-      leaveForm.reset();
-      renderLeaves();
+      try {
+        await addDoc(collection(db, "leaveRequests"), {
+          userName: currentUser.name,
+          department: currentUser.department,
+          region: currentUser.region,
+          type: leaveType.value,
+          startDate,
+          endDate,
+          reason,
+          status: "待審核",
+          reviewedBy: "",
+          reviewedAt: "",
+          createdAt: serverTimestamp(),
+          createdAtClient: new Date()
+        });
+
+        leaveForm.reset();
+      } catch (error) {
+        console.error("請假新增失敗", error);
+        alert("請假送出失敗");
+      }
     });
   }
 
@@ -900,4 +906,5 @@ document.addEventListener("DOMContentLoaded", function () {
   renderCalendar();
   restoreLogin();
   startAnnouncementsListener();
+  startLeaveListener();
 });
