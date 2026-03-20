@@ -13,6 +13,9 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
+const REGIONS = ["新竹區", "台中區", "嘉義區"];
+const DEPARTMENTS = ["管理部", "TSE", "FAE", "新場", "倉管", "RD", "線上客服"];
+
 const firebaseConfig = window.__FIREBASE_CONFIG__;
 const firebaseApp = firebaseConfig ? initializeApp(firebaseConfig) : null;
 const db = firebaseApp ? getFirestore(firebaseApp) : null;
@@ -23,16 +26,16 @@ const users = [
     password: "GoldBricks",
     name: "GoldBricks",
     role: "管理員",
-    region: "北區",
-    department: "資訊部"
+    region: "台中區",
+    department: "最高權限"
   },
   {
     employeeId: "GB080202",
     password: "GB080202",
-    name: "王小明",
-    role: "一般員工",
-    region: "中區",
-    department: "排班部"
+    name: "邱淑芬",
+    role: "財務副理",
+    region: "台中區",
+    department: "管理部"
   }
 ];
 
@@ -47,18 +50,9 @@ let selectedScheduleDate = "";
 let editingScheduleId = null;
 
 let announcements = [];
-
 let leaveRequests = [];
 let schedules = [];
-
-function loadData(key, defaultValue) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : defaultValue;
-  } catch (error) {
-    return defaultValue;
-  }
-}
+let employees = [];
 
 function isAdmin(user) {
   return user && user.role === "管理員";
@@ -69,6 +63,22 @@ function formatDate(date) {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function formatEmployeePermissions(employee) {
+  const tags = [];
+  if (employee.permissions && employee.permissions.admin) tags.push("管理員");
+  if (employee.permissions && employee.permissions.leaveApprove) tags.push("請假審核");
+  if (employee.permissions && employee.permissions.announcementManage) tags.push("公告管理");
+  return tags.length > 0 ? tags.join("、") : "一般員工";
+}
+
+function createEmployee(employeeData) {
+  return addDoc(collection(db, "employees"), {
+    ...employeeData,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -87,7 +97,15 @@ document.addEventListener("DOMContentLoaded", function () {
   const staffRole = document.getElementById("staff-role");
   const staffRegion = document.getElementById("staff-region");
   const staffDepartment = document.getElementById("staff-department");
-
+  const employeeForm = document.getElementById("employee-form");
+  const employeeList = document.getElementById("employee-list");
+  const employeeDepartmentSelect = document.getElementById("employee-form-department");
+  const employeeRegionSelect = document.getElementById("employee-form-region");
+  const manageRegions = document.getElementById("manage-regions");
+  const manageDepartments = document.getElementById("manage-departments");
+  const adminCheckbox = document.getElementById("permission-admin");
+  const leaveApproveCheckbox = document.getElementById("permission-leave-approve");
+  
   const pageTitle = document.getElementById("page-title");
   const menuButtons = document.querySelectorAll(".menu-btn");
   const pageSections = document.querySelectorAll(".page-section");
@@ -96,7 +114,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const announcementTitle = document.getElementById("announcement-title");
   const announcementContent = document.getElementById("announcement-content");
   const announcementList = document.getElementById("announcement-list");
-
   const announcementEditBox = document.getElementById("announcement-edit-box");
   const announcementEditForm = document.getElementById("announcement-edit-form");
   const announcementEditTitle = document.getElementById("announcement-edit-title");
@@ -124,11 +141,43 @@ document.addEventListener("DOMContentLoaded", function () {
   const selectedDateText = document.getElementById("selected-date-text");
   const selectedDateScheduleList = document.getElementById("selected-date-schedule-list");
   const scheduleCancelBtn = document.getElementById("schedule-cancel-btn");
-  const calendarWrap = document.querySelector(".calendar-wrap");
   const scheduleAddBtn = document.getElementById("schedule-add-btn");
   const scheduleEditorBox = document.getElementById("schedule-editor-box");
   const scheduleEditorTitle = document.getElementById("schedule-editor-title");
 
+  function populateFixedOptions() {
+    if (employeeRegionSelect) {
+      employeeRegionSelect.innerHTML = `<option value="">請選擇地區</option>${REGIONS.map(function (region) {
+        return `<option value="${region}">${region}</option>`;
+      }).join("")}`;
+    }
+
+    if (employeeDepartmentSelect) {
+      employeeDepartmentSelect.innerHTML = `<option value="">請選擇部門</option>${DEPARTMENTS.map(function (department) {
+        return `<option value="${department}">${department}</option>`;
+      }).join("")}`;
+    }
+
+    if (manageRegions) {
+      manageRegions.innerHTML = REGIONS.map(function (region) {
+        return `<label><input type="checkbox" name="manage-regions" value="${region}" /> ${region}</label>`;
+      }).join("");
+    }
+
+    if (manageDepartments) {
+      manageDepartments.innerHTML = DEPARTMENTS.map(function (department) {
+        return `<label><input type="checkbox" name="manage-departments" value="${department}" /> ${department}</label>`;
+      }).join("");
+    }
+  }
+
+  function syncAdminPermissionState() {
+    if (!adminCheckbox || !leaveApproveCheckbox) return;
+    if (adminCheckbox.checked) {
+      leaveApproveCheckbox.checked = true;
+    }
+  }
+  
   function updateUserInfo(user) {
     if (currentUserName) currentUserName.textContent = user.name;
     if (userRole) userRole.textContent = user.role;
@@ -139,6 +188,65 @@ document.addEventListener("DOMContentLoaded", function () {
     if (staffRole) staffRole.textContent = user.role;
     if (staffRegion) staffRegion.textContent = user.region;
     if (staffDepartment) staffDepartment.textContent = user.department;
+  }
+
+  function renderEmployees() {
+    if (!employeeList) return;
+
+    if (employees.length === 0) {
+      employeeList.innerHTML = `<div class="list-item"><p>目前沒有員工資料。</p></div>`;
+      return;
+    }
+
+    employeeList.innerHTML = employees.map(function (employee) {
+      const shifts = [];
+      if (employee.shifts && employee.shifts.morning) shifts.push("早班");
+      if (employee.shifts && employee.shifts.evening) shifts.push("晚班");
+
+      const scopeRegions = employee.manageScopes && employee.manageScopes.regions && employee.manageScopes.regions.length > 0
+        ? employee.manageScopes.regions.join("、")
+        : "未設定";
+      const scopeDepartments = employee.manageScopes && employee.manageScopes.departments && employee.manageScopes.departments.length > 0
+        ? employee.manageScopes.departments.join("、")
+        : "未設定";
+
+      return `
+        <div class="list-item">
+          <div class="employee-card-header">
+            <h4>${employee.name || "未命名員工"}</h4>
+            <span class="status-badge status-${employee.status || "active"}">${employee.status || "active"}</span>
+          </div>
+          <div class="item-meta">員工代號：${employee.employeeId || "-"}｜帳號：${employee.account || "-"}｜Email：${employee.email || "-"}</div>
+          <p>部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}</p>
+          <p>類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}</p>
+          <p>年度特休：${employee.annualLeaveDays || 0} 天｜班別：${shifts.join("、") || "未設定"}｜週休二日 &amp; 國定假日：${employee.weekendsOff ? "是" : "否"}</p>
+          <p>權限：${formatEmployeePermissions(employee)}</p>
+          <p>管理地區：${scopeRegions}</p>
+          <p>管理部門：${scopeDepartments}</p>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function startEmployeesListener() {
+    if (!db) return;
+
+    const q = query(collection(db, "employees"), orderBy("createdAt", "desc"));
+
+    onSnapshot(q, function (snapshot) {
+      employees = snapshot.docs
+        .map(function (docItem) {
+          return {
+            id: docItem.id,
+            ...docItem.data()
+          };
+        })
+        .filter(function (employee) {
+          return !employee.isHidden;
+        });
+
+      renderEmployees();
+    });
   }
 
   function hideAnnouncementEditor() {
@@ -194,29 +302,27 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    announcementList.innerHTML = announcements
-      .map(function (item) {
-        let actions = "";
+    announcementList.innerHTML = announcements.map(function (item) {
+      let actions = "";
 
-        if (isAdmin(currentUser)) {
-          actions = `
-            <div class="item-actions">
-              <button type="button" class="small-btn edit-btn" onclick="startEditAnnouncement('${item.id}')">編輯</button>
-              <button type="button" class="small-btn delete-btn" onclick="deleteAnnouncement('${item.id}')">刪除</button>
-            </div>
-          `;
-        }
-
-      return `
-          <div class="list-item">
-            <h4>${item.title}</h4>
-            <div class="item-meta">發布者：${item.author}｜時間：${item.createdAt}</div>
-            <p>${item.content}</p>
-            ${actions}
+     if (isAdmin(currentUser)) {
+        actions = `
+          <div class="item-actions">
+            <button type="button" class="small-btn edit-btn" onclick="startEditAnnouncement('${item.id}')">編輯</button>
+            <button type="button" class="small-btn delete-btn" onclick="deleteAnnouncement('${item.id}')">刪除</button>
           </div>
         `;
-      })
-      .join("");
+       }
+
+      return `
+        <div class="list-item">
+          <h4>${item.title}</h4>
+          <div class="item-meta">發布者：${item.author}｜時間：${item.createdAt}</div>
+          <p>${item.content}</p>
+          ${actions}
+        </div>
+      `;
+    }).join("");
   }
 
   function startLeaveListener() {
@@ -226,10 +332,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     onSnapshot(q, function (snapshot) {
       leaveRequests = snapshot.docs.map(function (docItem) {
-        const data = docItem.data();
         return {
           id: docItem.id,
-          ...data
+          ...docItem.data()
         };
       });
 
@@ -237,7 +342,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-   function startScheduleListener() {
+  function startScheduleListener() {
     if (!db) return;
 
     const q = query(collection(db, "schedules"), orderBy("createdAtClient", "desc"));
@@ -264,12 +369,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return currentUser && item.userName === currentUser.name;
         });
 
-    const stats = {
-      特休: 0,
-      病假: 0,
-      事假: 0,
-      待審核: 0
-    };
+    const stats = { 特休: 0, 病假: 0, 事假: 0, 待審核: 0 };
 
     visibleLeaves.forEach(function (item) {
       if (stats[item.type] !== undefined) stats[item.type] += 1;
@@ -300,38 +400,37 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-      leaveList.innerHTML = visibleLeaves.map(function (item) {
+    leaveList.innerHTML = visibleLeaves.map(function (item) {
       let actionButtons = "";
 
-       if (isAdmin(currentUser) && item.status === "待審核") {
-          actionButtons += `
-            <button type="button" class="small-btn approve-btn" onclick="approveLeave('${item.id}')">核准</button>
-            <button type="button" class="small-btn reject-btn" onclick="rejectLeave('${item.id}')">駁回</button>
-          `;
-        }
+        if (isAdmin(currentUser) && item.status === "待審核") {
+        actionButtons += `
+          <button type="button" class="small-btn approve-btn" onclick="approveLeave('${item.id}')">核准</button>
+          <button type="button" class="small-btn reject-btn" onclick="rejectLeave('${item.id}')">駁回</button>
+        `;
+      }
 
-        if (currentUser && item.userName === currentUser.name && item.status === "待審核") {
-          actionButtons += `
-            <button type="button" class="small-btn cancel-btn" onclick="cancelLeave('${item.id}')">取消請假</button>
-          `;
-        }
+         if (currentUser && item.userName === currentUser.name && item.status === "待審核") {
+        actionButtons += `
+          <button type="button" class="small-btn cancel-btn" onclick="cancelLeave('${item.id}')">取消請假</button>
+        `;
+      }
 
       return `
-          <div class="list-item">
-            <h4>${item.userName} - ${item.type}</h4>
-            <div class="item-meta">
-              部門：${item.department}｜區域：${item.region}
-              ${item.reviewedBy ? `｜審核人：${item.reviewedBy}` : ""}
-              ${item.reviewedAt ? `｜審核時間：${item.reviewedAt}` : ""}
-            </div>
-            <p>日期：${item.startDate} ~ ${item.endDate}</p>
-            <p>原因：${item.reason}</p>
-            <p><span class="status-badge status-${item.status}">${item.status}</span></p>
-            ${actionButtons ? `<div class="item-actions">${actionButtons}</div>` : ""}
+         <div class="list-item">
+          <h4>${item.userName} - ${item.type}</h4>
+          <div class="item-meta">
+            部門：${item.department}｜區域：${item.region}
+            ${item.reviewedBy ? `｜審核人：${item.reviewedBy}` : ""}
+            ${item.reviewedAt ? `｜審核時間：${item.reviewedAt}` : ""}
           </div>
-        `;
-      })
-      .join("");
+          <p>日期：${item.startDate} ~ ${item.endDate}</p>
+          <p>原因：${item.reason}</p>
+          <p><span class="status-badge status-${item.status}">${item.status}</span></p>
+          ${actionButtons ? `<div class="item-actions">${actionButtons}</div>` : ""}
+        </div>
+      `;
+    }).join("");
   }
 
   function renderSchedules() {
@@ -355,30 +454,27 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    selectedDateScheduleList.innerHTML = selectedSchedules
-      .map(function (item) {
+    selectedDateScheduleList.innerHTML = selectedSchedules.map(function (item) {
       return `
-         <div class="list-item schedule-list-item">
-            <div class="schedule-item-main">
-              <h4>${item.title}</h4>
-              <div class="item-meta">日期：${item.date}｜   建立者：${item.author}</div>
-              <p>${item.content}</p>
-            </div>
-            <div class="item-actions schedule-item-actions">
-              <button type="button" class="small-btn edit-btn" data-action="edit-schedule" data-id="${item.id}">編輯</button>
-              <button type="button" class="small-btn delete-btn" data-action="delete-schedule" data-id="${item.id}">刪除</button>
-            </div>
+        <div class="list-item schedule-list-item">
+          <div class="schedule-item-main">
+            <h4>${item.title}</h4>
+            <div class="item-meta">日期：${item.date}｜建立者：${item.author}</div>
+            <p>${item.content}</p>
           </div>
-        `;
-      })
-      .join("");
+      <div class="item-actions schedule-item-actions">
+            <button type="button" class="small-btn edit-btn" data-action="edit-schedule" data-id="${item.id}">編輯</button>
+            <button type="button" class="small-btn delete-btn" data-action="delete-schedule" data-id="${item.id}">刪除</button>
+          </div>
+        </div>
+      `;
+    }).join("");
   }
 
   function positionSchedulePopover() {
     if (!schedulePopover) return;
-
-   schedulePopover.style.left = "50%";
-   schedulePopover.style.top = "50%";
+    schedulePopover.style.left = "50%";
+    schedulePopover.style.top = "50%";
   }
 
   function openSchedulePopover(dateString) {
@@ -411,7 +507,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const year = calendarDate.getFullYear();
     const month = calendarDate.getMonth();
-
     calendarTitle.textContent = `${year} 年 ${month + 1} 月`;
 
     const firstDay = new Date(year, month, 1);
@@ -435,14 +530,11 @@ document.addEventListener("DOMContentLoaded", function () {
       const isSelected = cellDateString === selectedScheduleDate;
 
       cells.push(`
-        <div
-          class="calendar-day ${isOtherMonth ? "other-month" : ""} ${isToday ? "today" : ""} ${isSelected ? "selected" : ""}"
-          data-date="${cellDateString}"
-        >
+        <div class="calendar-day ${isOtherMonth ? "other-month" : ""} ${isToday ? "today" : ""} ${isSelected ? "selected" : ""}" data-date="${cellDateString}">
           <div class="calendar-day-number">${cellDate.getDate()}</div>
           <div class="calendar-events">
             ${daySchedules.map(function (schedule) {
-            return `<div class="calendar-event">${schedule.title}</div>`;
+              return `<div class="calendar-event">${schedule.title}</div>`;
             }).join("")}
           </div>
         </div>
@@ -455,7 +547,7 @@ document.addEventListener("DOMContentLoaded", function () {
     dayCells.forEach(function (cell) {
       cell.addEventListener("click", function (event) {
         const dateString = cell.dataset.date;
-        openSchedulePopover(dateString, cell);
+        openSchedulePopover(dateString);
         event.stopPropagation();
       });
     });
@@ -478,22 +570,18 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   window.deleteAnnouncement = async function (id) {
-  if (!isAdmin(currentUser)) return;
-  if (!db) return;
+    if (!isAdmin(currentUser) || !db) return;
 
   try {
-    await deleteDoc(doc(db, "announcements", id));
-
-    if (editingAnnouncementId === id) {
-      hideAnnouncementEditor();
+      await deleteDoc(doc(db, "announcements", id));
+      if (editingAnnouncementId === id) hideAnnouncementEditor();
+    } catch (error) {
+      console.error("刪除公告失敗", error);
+      alert("刪除公告失敗，請稍後再試。");
     }
-  } catch (error) {
-    console.error("刪除公告失敗", error);
-    alert("刪除公告失敗，請稍後再試。");
-  }
-};
-  
-window.approveLeave = async function (id) {
+  };
+
+  window.approveLeave = async function (id) {
     if (!db) return;
   
     await updateDoc(doc(db, "leaveRequests", id), {
@@ -506,17 +594,17 @@ window.approveLeave = async function (id) {
   window.rejectLeave = async function (id) {
     if (!db) return;
 
-   await updateDoc(doc(db, "leaveRequests", id), {
+    await updateDoc(doc(db, "leaveRequests", id), {
       status: "已駁回",
       reviewedBy: currentUser.name,
       reviewedAt: new Date().toLocaleString()
     });
   };
 
- window.cancelLeave = async function (id) {
+  window.cancelLeave = async function (id) {
     if (!db) return;
 
-   await updateDoc(doc(db, "leaveRequests", id), {
+    await updateDoc(doc(db, "leaveRequests", id), {
       status: "已取消",
       reviewedBy: currentUser.name,
       reviewedAt: new Date().toLocaleString()
@@ -537,36 +625,29 @@ window.approveLeave = async function (id) {
     if (scheduleDate) scheduleDate.value = item.date;
     if (scheduleTitle) scheduleTitle.value = item.title;
     if (scheduleContent) scheduleContent.value = item.content;
-
-    if (schedulePopover) {
-      schedulePopover.classList.remove("hidden");
-    }
+    if (schedulePopover) schedulePopover.classList.remove("hidden");
 
     showScheduleEditor("edit");
     renderSchedules();
     renderCalendar();
 
     requestAnimationFrame(function () {
-     positionSchedulePopover();
+      positionSchedulePopover();
     });
   };
 
   window.deleteSchedule = async function (id) {
     if (!db) return;
 
-   try {
-     await deleteDoc(doc(db, "schedules", id));
-
-     if (editingScheduleId === id) {
-        hideScheduleEditor();
-      }
+  try {
+      await deleteDoc(doc(db, "schedules", id));
+      if (editingScheduleId === id) hideScheduleEditor();
     } catch (error) {
       console.error("刪除排程失敗", error);
       alert("刪除失敗");
     }
   };
 
-  
   if (selectedDateScheduleList) {
     selectedDateScheduleList.addEventListener("click", function (event) {
       const actionButton = event.target.closest("[data-action]");
@@ -575,13 +656,8 @@ window.approveLeave = async function (id) {
       const scheduleId = actionButton.dataset.id;
       if (!scheduleId) return;
 
-      if (actionButton.dataset.action === "edit-schedule") {
-        window.editSchedule(scheduleId);
-      }
-
-      if (actionButton.dataset.action === "delete-schedule") {
-        window.deleteSchedule(scheduleId);
-      }
+      if (actionButton.dataset.action === "edit-schedule") window.editSchedule(scheduleId);
+      if (actionButton.dataset.action === "delete-schedule") window.deleteSchedule(scheduleId);
     });
   }
 
@@ -608,7 +684,6 @@ window.approveLeave = async function (id) {
     });
 
     if (!matchedUser) return;
-
     setLoggedInUser(matchedUser);
   }
 
@@ -618,7 +693,6 @@ window.approveLeave = async function (id) {
 
       const employeeIdInput = document.getElementById("employeeId");
       const passwordInput = document.getElementById("password");
-
       const employeeId = employeeIdInput ? employeeIdInput.value.trim() : "";
       const password = passwordInput ? passwordInput.value.trim() : "";
 
@@ -644,7 +718,6 @@ window.approveLeave = async function (id) {
       selectedScheduleDate = "";
 
       localStorage.removeItem(STORAGE_KEYS.currentUser);
-
       hideAnnouncementEditor();
       closeSchedulePopover();
 
@@ -669,10 +742,7 @@ window.approveLeave = async function (id) {
       });
 
       const targetSection = document.getElementById("page-" + targetPage);
-      if (targetSection) {
-        targetSection.classList.remove("hidden");
-      }
-
+      if (targetSection) targetSection.classList.remove("hidden");
       if (pageTitle) pageTitle.textContent = button.textContent;
     });
   });
@@ -695,12 +765,10 @@ window.approveLeave = async function (id) {
       }
 
       try {
-        const author = currentUser ? currentUser.name : "未知使用者";
-        
         await addDoc(collection(db, "announcements"), {
-          title: title,
-          content: content,
-          author: author,
+          title,
+          content,
+          author: currentUser ? currentUser.name : "未知使用者",
           createdAt: serverTimestamp(),
           createdAtClient: new Date()
         });
@@ -713,24 +781,23 @@ window.approveLeave = async function (id) {
     });
   }
 
-    if (announcementEditForm) {
-     announcementEditForm.addEventListener("submit", async function (event) {
+  if (announcementEditForm) {
+    announcementEditForm.addEventListener("submit", async function (event) {
       event.preventDefault();
-
-    if (!editingAnnouncementId || !db) return;
+      if (!editingAnnouncementId || !db) return;
 
       const title = announcementEditTitle ? announcementEditTitle.value.trim() : "";
       const content = announcementEditContent ? announcementEditContent.value.trim() : "";
 
-     if (!title || !content) {
+      if (!title || !content) {
         alert("請填寫完整公告內容");
         return;
       }
 
-     try {
+      try {
         await updateDoc(doc(db, "announcements", editingAnnouncementId), {
-          title: title,
-          content: content,
+          title,
+          content,
           updatedAt: serverTimestamp()
         });
 
@@ -748,8 +815,114 @@ window.approveLeave = async function (id) {
     });
   }
 
+  if (employeeForm) {
+    employeeForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+
+      const employeeIdInput = document.getElementById("employee-form-id");
+      const accountInput = document.getElementById("employee-form-account");
+      const nameInput = document.getElementById("employee-form-name");
+      const departmentSelect = document.getElementById("employee-form-department");
+      const titleInput = document.getElementById("employee-form-title");
+      const regionSelect = document.getElementById("employee-form-region");
+      const categoryInput = document.getElementById("employee-form-category");
+      const emailPrefixInput = document.getElementById("employee-form-email-prefix");
+      const phoneInput = document.getElementById("employee-form-phone");
+      const birthdayInput = document.getElementById("employee-form-birthday");
+      const annualLeaveDaysInput = document.getElementById("employee-form-annual-leave-days");
+      const morningCheckbox = document.getElementById("shift-morning");
+      const eveningCheckbox = document.getElementById("shift-evening");
+      const weekendsOffCheckbox = document.getElementById("weekends-off");
+      const announcementManageCheckbox = document.getElementById("permission-announcement-manage");
+
+      const employeeData = {
+        employeeId: employeeIdInput.value.trim(),
+        account: accountInput.value.trim(),
+        name: nameInput.value.trim(),
+        department: departmentSelect.value,
+        title: titleInput.value.trim(),
+        region: regionSelect.value,
+        category: categoryInput.value.trim(),
+        emailPrefix: emailPrefixInput.value.trim(),
+        email: `${emailPrefixInput.value.trim()}@goldbricks.com.tw`,
+        phone: phoneInput.value.trim(),
+        birthday: birthdayInput.value.trim(),
+        annualLeaveDays: Number(annualLeaveDaysInput.value || 0),
+        shifts: {
+          morning: morningCheckbox.checked,
+          evening: eveningCheckbox.checked
+        },
+        weekendsOff: weekendsOffCheckbox.checked,
+        permissions: {
+          announcementManage: announcementManageCheckbox.checked,
+          leaveApprove: leaveApproveCheckbox.checked,
+          admin: adminCheckbox.checked
+        },
+        manageScopes: {
+          regions: Array.from(document.querySelectorAll('input[name="manage-regions"]:checked')).map(function (el) {
+            return el.value;
+          }),
+          departments: Array.from(document.querySelectorAll('input[name="manage-departments"]:checked')).map(function (el) {
+            return el.value;
+          })
+        },
+        status: "active",
+        isHidden: false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      if (!employeeData.employeeId) {
+        alert("請輸入員工代號");
+        return;
+      }
+
+      if (!employeeData.name) {
+        alert("請輸入姓名");
+        return;
+      }
+
+      if (!employeeData.department) {
+        alert("請選擇部門");
+        return;
+      }
+
+      if (!employeeData.region) {
+        alert("請選擇地區");
+        return;
+      }
+
+      if (!employeeData.shifts.morning && !employeeData.shifts.evening) {
+        alert("請至少勾選一個班別");
+        return;
+      }
+
+      if (employeeData.permissions.admin) {
+        employeeData.permissions.leaveApprove = true;
+      }
+
+      if (!db) {
+        alert("Firebase 未設定，無法新增員工。");
+        return;
+      }
+
+      try {
+        await createEmployee(employeeData);
+        employeeForm.reset();
+        populateFixedOptions();
+      } catch (error) {
+        console.error("新增員工失敗", error);
+        alert("新增員工失敗，請稍後再試。");
+      }
+    });
+  }
+
+  if (adminCheckbox) {
+    adminCheckbox.addEventListener("change", syncAdminPermissionState);
+  }
+
   if (leaveForm) {
-     leaveForm.addEventListener("submit", async function (event) {
+    leaveForm.addEventListener("submit", async function (event) {
       event.preventDefault();
 
       const startDate = leaveStart ? leaveStart.value : "";
@@ -825,11 +998,7 @@ window.approveLeave = async function (id) {
 
       try {
         if (editingScheduleId) {
-          await updateDoc(doc(db, "schedules", editingScheduleId), {
-            date,
-            title,
-            content
-          });
+          await updateDoc(doc(db, "schedules", editingScheduleId), { date, title, content });
         } else {
           await addDoc(collection(db, "schedules"), {
             date,
@@ -841,7 +1010,7 @@ window.approveLeave = async function (id) {
           });
         }
 
-         hideScheduleEditor();
+        hideScheduleEditor();
       } catch (error) {
         console.error("排程失敗", error);
         alert("排程儲存失敗");
@@ -862,7 +1031,7 @@ window.approveLeave = async function (id) {
     });
   }
 
-   if (schedulePopover) {
+  if (schedulePopover) {
     schedulePopover.addEventListener("click", function (event) {
       event.stopPropagation();
     });
@@ -881,7 +1050,6 @@ window.approveLeave = async function (id) {
 
   window.addEventListener("resize", function () {
     if (!schedulePopover || schedulePopover.classList.contains("hidden")) return;
-
     positionSchedulePopover();
   });
 
@@ -901,10 +1069,15 @@ window.approveLeave = async function (id) {
     });
   }
 
+  populateFixedOptions();
+  syncAdminPermissionState();
+  renderEmployees();
   renderLeaves();
   renderSchedules();
   renderCalendar();
   restoreLogin();
   startAnnouncementsListener();
+  startLeaveListener();
   startScheduleListener();
+  startEmployeesListener();
 });
