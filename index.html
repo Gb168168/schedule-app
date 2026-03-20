@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- 登入頁 -->
   <div id="login-page" class="login-page">
     <form id="login-form" class="login-box">
       <h1>班表系統登入</h1>
@@ -19,7 +18,6 @@
     </form>
   </div>
 
-  <!-- 主系統 -->
   <div id="main-page" class="main-page hidden">
     <aside class="sidebar">
       <div class="brand">
@@ -47,11 +45,10 @@
         </div>
         <div class="header-right">
           <span>目前登入 <strong id="current-user-name"></strong></span>
-          <button id="logout-btn" class="small-btn">登出</button>
+          <button id="logout-btn" class="small-btn" type="button">登出</button>
         </div>
       </header>
 
-      <!-- 首頁 -->
       <section id="page-home" class="page-section">
         <div class="hero-card">
           <div>
@@ -76,12 +73,11 @@
 
           <div class="card">
             <h3>快速公告</h3>
-            <p>目前尚無最新公告。</p>
+            <p>請到公告欄查看最新資訊。</p>
           </div>
         </div>
       </section>
 
-      <!-- 公告欄 -->
       <section id="page-announcement" class="page-section hidden">
         <div class="card">
           <h3>公告管理</h3>
@@ -108,7 +104,6 @@
         </div>
       </section>
 
-      <!-- 人員資訊 -->
       <section id="page-staff" class="page-section hidden">
         <div class="card">
           <h3>人員資訊</h3>
@@ -123,7 +118,6 @@
         </div>
       </section>
 
-      <!-- 請假 -->
       <section id="page-leave" class="page-section hidden">
         <div class="card">
           <h3>請假管理</h3>
@@ -146,7 +140,6 @@
         </div>
       </section>
 
-      <!-- 排程表 -->
       <section id="page-schedule" class="page-section hidden">
         <div class="card">
           <h3>排程表</h3>
@@ -170,36 +163,40 @@
 
             <div id="calendar-grid" class="calendar-grid"></div>
 
-           <div id="schedule-popover" class="schedule-popover hidden">
-<div id="schedule-popover" class="schedule-popover hidden">
-  <div class="schedule-popover-header">
-    <h4>當日排程</h4>
-    <button type="button" id="schedule-popover-close" class="small-btn cancel-btn">×</button>
-  </div>
+            <div id="schedule-popover" class="schedule-popover hidden">
+              <div class="schedule-popover-header">
+                <h4>當日排程</h4>
+                <button type="button" id="schedule-popover-close" class="small-btn cancel-btn">×</button>
+              </div>
 
-  <div class="selected-date-box">
-    <p>日期：<strong id="selected-date-text">--</strong></p>
-  </div>
+              <div class="selected-date-box">
+                <p>日期：<strong id="selected-date-text">--</strong></p>
+              </div>
 
-  <div class="item-actions schedule-top-actions">
-    <button type="button" id="schedule-add-btn" class="primary-btn">+ 新增</button>
-  </div>
+              <div class="item-actions schedule-top-actions">
+                <button type="button" id="schedule-add-btn" class="primary-btn">+ 新增</button>
+              </div>
 
-  <div id="selected-date-schedule-list" class="list-wrap"></div>
+              <div id="selected-date-schedule-list" class="list-wrap"></div>
 
-  <div id="schedule-editor-box" class="hidden">
-    <h4 id="schedule-editor-title">新增排程</h4>
-    <form id="schedule-form" class="form-grid">
-      <input id="schedule-date" type="date" required readonly />
-      <input id="schedule-title" type="text" placeholder="排程標題" required />
-      <textarea id="schedule-content" placeholder="排程內容" required></textarea>
-      <div class="item-actions">
-        <button type="submit" class="primary-btn">儲存排程</button>
-        <button type="button" id="schedule-cancel-btn" class="small-btn cancel-btn">取消</button>
-      </div>
-    </form>
+              <div id="schedule-editor-box" class="hidden">
+                <h4 id="schedule-editor-title">新增排程</h4>
+                <form id="schedule-form" class="form-grid">
+                  <input id="schedule-date" type="date" required readonly />
+                  <input id="schedule-title" type="text" placeholder="排程標題" required />
+                  <textarea id="schedule-content" placeholder="排程內容" required></textarea>
+                  <div class="item-actions">
+                    <button type="submit" class="primary-btn">儲存排程</button>
+                    <button type="button" id="schedule-cancel-btn" class="small-btn cancel-btn">取消</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
   </div>
-</div>
 
   <script src="app.js"></script>
 </body>
