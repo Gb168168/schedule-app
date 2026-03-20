@@ -2,11 +2,42 @@
   box-sizing: border-box;
 }
 
+:root {
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --surface-soft: #f8fafc;
+  --border: #e5e7eb;
+  --border-strong: #d5dbe3;
+  --text: #0f172a;
+  --text-soft: #64748b;
+  --nav-1: #0f172a;
+  --nav-2: #071126;
+  --blue-1: #2563eb;
+  --blue-2: #1d4ed8;
+  --blue-soft: #dbeafe;
+  --blue-bg: #eff6ff;
+  --yellow: #facc15;
+  --red: #ef4444;
+  --green: #22c55e;
+  --shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
+  --shadow-pop: 0 20px 50px rgba(15, 23, 42, 0.18);
+  --radius-xl: 24px;
+  --radius-lg: 20px;
+  --radius-md: 18px;
+  --radius-sm: 14px;
+}
+
+html,
 body {
   margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
   font-family: "Segoe UI", "Noto Sans TC", sans-serif;
-  background: #f3f4f6;
-  color: #0f172a;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .hidden {
@@ -23,21 +54,52 @@ textarea {
 button {
   cursor: pointer;
   border: none;
+  transition: 0.2s ease;
 }
 
+button:hover {
+  transform: translateY(-1px);
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  background: var(--surface-soft);
+  outline: none;
+  color: var(--text);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--blue-1);
+  background: var(--surface);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+/* Login */
 .login-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: #eef2f7;
+  background: linear-gradient(180deg, #eef2f7, #e9eef5);
 }
 
 .login-box {
   width: 100%;
   max-width: 420px;
-  background: #ffffff;
+  background: var(--surface);
   border-radius: 24px;
   padding: 36px 28px;
   box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
@@ -51,33 +113,22 @@ button {
 }
 
 .login-box input {
-  width: 100%;
   margin-bottom: 14px;
-  border: 1px solid #d5dbe3;
-  border-radius: 14px;
-  padding: 14px 16px;
-  background: #f8fafc;
-  outline: none;
-}
-
-.login-box input:focus {
-  border-color: #2563eb;
-  background: #ffffff;
 }
 
 #login-btn {
   width: 100%;
   margin-top: 4px;
   padding: 14px 18px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--blue-1), var(--blue-2));
   color: #ffffff;
   font-weight: 700;
 }
 
 .login-hint {
   margin: 16px 0 0;
-  color: #64748b;
+  color: var(--text-soft);
   font-size: 14px;
   line-height: 1.6;
 }
@@ -89,6 +140,7 @@ button {
   font-size: 14px;
 }
 
+/* Layout */
 .main-page {
   display: flex;
   min-height: 100vh;
@@ -97,7 +149,7 @@ button {
 .sidebar {
   width: 244px;
   flex-shrink: 0;
-  background: linear-gradient(180deg, #0f172a, #071126);
+  background: linear-gradient(180deg, var(--nav-1), var(--nav-2));
   color: #ffffff;
   padding: 22px 16px;
 }
@@ -120,7 +172,9 @@ button {
   justify-content: center;
   font-weight: 800;
   font-size: 24px;
-  background: linear-gradient(135deg, #60a5fa, #2563eb);
+  color: #ffffff;
+  background: linear-gradient(135deg, #60a5fa, var(--blue-1));
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
 }
 
 .brand h1 {
@@ -154,7 +208,7 @@ button {
 }
 
 .menu-btn.active {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, var(--blue-1), var(--blue-2));
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
 }
 
@@ -164,9 +218,9 @@ button {
 }
 
 .content-header {
-  background: #ffffff;
+  background: var(--surface);
   padding: 26px 30px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -180,7 +234,7 @@ button {
 
 .content-header p {
   margin: 0;
-  color: #64748b;
+  color: var(--text-soft);
 }
 
 .header-right {
@@ -194,10 +248,11 @@ button {
   padding: 28px;
 }
 
+/* Cards */
 .hero-card {
-  background: linear-gradient(135deg, #0f172a, #1e293b);
+  background: linear-gradient(135deg, var(--nav-1), #1e293b);
   color: #ffffff;
-  border-radius: 24px;
+  border-radius: var(--radius-xl);
   padding: 28px;
   margin-bottom: 24px;
 }
@@ -223,10 +278,10 @@ button {
 }
 
 .card {
-  background: #ffffff;
-  border-radius: 24px;
+  background: var(--surface);
+  border-radius: var(--radius-xl);
   padding: 24px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--shadow);
 }
 
 .inner-card {
@@ -243,44 +298,17 @@ button {
   margin: 0 0 12px;
 }
 
+/* Form */
 .form-grid {
   display: grid;
   gap: 14px;
   margin-bottom: 20px;
 }
 
-.form-grid input,
-.form-grid textarea,
-.leave-form-row input,
-.leave-form-row select,
-.leave-form-row textarea {
-  width: 100%;
-  border: 1px solid #d5dbe3;
-  border-radius: 14px;
-  padding: 14px 16px;
-  background: #f8fafc;
-  outline: none;
-}
-
-.form-grid textarea,
-.leave-form-row textarea {
-  min-height: 120px;
-  resize: vertical;
-}
-
-.form-grid input:focus,
-.form-grid textarea:focus,
-.leave-form-row input:focus,
-.leave-form-row select:focus,
-.leave-form-row textarea:focus {
-  border-color: #2563eb;
-  background: #ffffff;
-}
-
 .primary-btn {
   padding: 14px 20px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--blue-1), var(--blue-2));
   color: #ffffff;
   font-weight: 700;
 }
@@ -298,17 +326,18 @@ button {
 }
 
 .edit-btn {
-  background: #facc15;
+  background: var(--yellow);
+  color: #111827;
 }
 
 .delete-btn,
 .reject-btn {
-  background: #ef4444;
+  background: var(--red);
   color: #ffffff;
 }
 
 .approve-btn {
-  background: #22c55e;
+  background: var(--green);
   color: #ffffff;
 }
 
@@ -318,14 +347,16 @@ button {
   flex-wrap: wrap;
 }
 
+/* Announcement */
 .edit-box {
   margin-bottom: 20px;
   padding: 18px;
   border: 1px solid #dbe2ea;
-  border-radius: 18px;
-  background: #f8fafc;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
 }
 
+/* Leave */
 .leave-form-row {
   display: grid;
   grid-template-columns: 120px 160px 160px minmax(240px, 1fr) 180px;
@@ -342,8 +373,8 @@ button {
 }
 
 .stat-card {
-  background: linear-gradient(135deg, #eff6ff, #dbeafe);
-  border-radius: 18px;
+  background: linear-gradient(135deg, var(--blue-bg), var(--blue-soft));
+  border-radius: var(--radius-md);
   padding: 18px;
 }
 
@@ -356,18 +387,19 @@ button {
   margin: 0;
   font-size: 28px;
   font-weight: 800;
-  color: #1d4ed8;
+  color: var(--blue-2);
 }
 
+/* Lists */
 .list-wrap {
   display: grid;
   gap: 14px;
 }
 
 .list-item {
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-md);
   padding: 18px;
 }
 
@@ -381,7 +413,7 @@ button {
 }
 
 .item-meta {
-  color: #64748b;
+  color: var(--text-soft);
   margin-bottom: 12px;
   font-size: 14px;
 }
@@ -410,8 +442,10 @@ button {
   color: #991b1b;
 }
 
+/* Calendar */
 .calendar-wrap {
   position: relative;
+  overflow: visible;
 }
 
 .calendar-toolbar {
@@ -436,7 +470,7 @@ button {
 
 .calendar-weekdays div {
   text-align: center;
-  color: #64748b;
+  color: var(--text-soft);
   font-weight: 700;
 }
 
@@ -448,13 +482,14 @@ button {
 
 .calendar-day {
   min-height: 112px;
-  border-radius: 18px;
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
   padding: 12px;
   cursor: pointer;
   transition: 0.2s ease;
   position: relative;
+  overflow: hidden;
 }
 
 .calendar-day:hover {
@@ -463,8 +498,8 @@ button {
 }
 
 .calendar-day.selected {
-  border: 2px solid #2563eb;
-  background: #eff6ff;
+  border: 2px solid var(--blue-1);
+  background: var(--blue-bg);
 }
 
 .calendar-day.today {
@@ -489,22 +524,23 @@ button {
   font-size: 12px;
   padding: 6px 8px;
   border-radius: 10px;
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--blue-soft);
+  color: var(--blue-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+/* Schedule popover */
 .schedule-popover {
   position: absolute;
-  z-index: 50;
+  z-index: 999;
   width: 360px;
   max-width: calc(100vw - 48px);
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid #dbe2ea;
-  border-radius: 20px;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
   padding: 16px;
 }
 
@@ -536,9 +572,10 @@ button {
 #schedule-editor-box {
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border);
 }
 
+/* Responsive */
 @media (max-width: 1200px) {
   .content-grid {
     grid-template-columns: 1fr;
