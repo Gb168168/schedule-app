@@ -1,385 +1,279 @@
+// ===== 使用者 =====
 const users = [
-  {
-    employeeId: "GoldBricks",
-    password: "GoldBricks",
-    name: "GoldBricks",
-    role: "管理員",
-    region: "北區",
-    department: "資訊部"
-  },
-  {
-    employeeId: "GB080202",
-    password: "GB080202",
-    name: "王小明",
-    role: "一般員工",
-    region: "中區",
-    department: "排班部"
-  }
+  { employeeId: "GoldBricks", password: "GoldBricks", name: "GoldBricks", role: "管理員", region: "北區", department: "資訊部" },
+  { employeeId: "GB080202", password: "GB080202", name: "王小明", role: "一般員工", region: "中區", department: "排班部" }
 ];
 
-const STORAGE_KEYS = {
-  announcements: "shift_announcements",
-  leaveRequests: "shift_leave_requests",
+// ===== Storage =====
+const KEY = {
   schedules: "shift_schedules",
-  currentUser: "shift_current_user"
+  user: "shift_user"
 };
 
 let currentUser = null;
-let editingAnnouncementId = null;
+let schedules = JSON.parse(localStorage.getItem(KEY.schedules) || "[]");
+
 let calendarDate = new Date();
-let selectedScheduleDate = "";
-let editingScheduleId = null;
+let selectedDate = "";
+let editingId = null;
 
-let announcements = loadData(STORAGE_KEYS.announcements, [
-  {
-    id: Date.now().toString() + "_a",
-    title: "系統公告",
-    content: "歡迎使用班表系統。",
-    author: "系統管理員",
-    createdAt: new Date().toLocaleString()
-  }
-]);
+// ===== DOM =====
+const loginPage = document.getElementById("login-page");
+const mainPage = document.getElementById("main-page");
 
-let leaveRequests = loadData(STORAGE_KEYS.leaveRequests, []);
-let schedules = loadData(STORAGE_KEYS.schedules, []);
+const loginForm = document.getElementById("login-form");
+const loginError = document.getElementById("login-error");
+const logoutBtn = document.getElementById("logout-btn");
 
-function loadData(key, defaultValue) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : defaultValue;
-  } catch (error) {
-    return defaultValue;
-  }
+const currentUserName = document.getElementById("current-user-name");
+
+// schedule
+const calendarGrid = document.getElementById("calendar-grid");
+const calendarTitle = document.getElementById("calendar-title");
+
+const schedulePopover = document.getElementById("schedule-popover");
+const scheduleClose = document.getElementById("schedule-popover-close");
+
+const scheduleAddBtn = document.getElementById("schedule-add-btn");
+const scheduleEditorBox = document.getElementById("schedule-editor-box");
+const scheduleEditorTitle = document.getElementById("schedule-editor-title");
+
+const scheduleForm = document.getElementById("schedule-form");
+const scheduleDate = document.getElementById("schedule-date");
+const scheduleTitle = document.getElementById("schedule-title");
+const scheduleContent = document.getElementById("schedule-content");
+const scheduleCancelBtn = document.getElementById("schedule-cancel-btn");
+
+const scheduleList = document.getElementById("selected-date-schedule-list");
+const selectedDateText = document.getElementById("selected-date-text");
+
+const calendarWrap = document.querySelector(".calendar-wrap");
+
+// ===== 共用 =====
+function save() {
+  localStorage.setItem(KEY.schedules, JSON.stringify(schedules));
 }
 
-function saveData(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+function formatDate(d) {
+  return d.toISOString().split("T")[0];
 }
 
-function isAdmin(user) {
-  return user && user.role === "管理員";
-}
+// ===== 登入 =====
+loginForm?.addEventListener("submit", (e) => {
+  e.preventDefault();
 
-function formatDate(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
+  const id = document.getElementById("employeeId").value;
+  const pw = document.getElementById("password").value;
 
-document.addEventListener("DOMContentLoaded", function () {
-  const loginPage = document.getElementById("login-page");
-  const mainPage = document.getElementById("main-page");
-  const loginForm = document.getElementById("login-form");
-  const loginError = document.getElementById("login-error");
-  const logoutBtn = document.getElementById("logout-btn");
+  const user = users.find(u => u.employeeId === id && u.password === pw);
 
-  const currentUserName = document.getElementById("current-user-name");
-  const userRole = document.getElementById("user-role");
-  const userRegion = document.getElementById("user-region");
-  const userDepartment = document.getElementById("user-department");
-
-  const staffName = document.getElementById("staff-name");
-  const staffRole = document.getElementById("staff-role");
-  const staffRegion = document.getElementById("staff-region");
-  const staffDepartment = document.getElementById("staff-department");
-
-  const pageTitle = document.getElementById("page-title");
-  const menuButtons = document.querySelectorAll(".menu-btn");
-  const pageSections = document.querySelectorAll(".page-section");
-
-  const announcementForm = document.getElementById("announcement-form");
-  const announcementTitle = document.getElementById("announcement-title");
-  const announcementContent = document.getElementById("announcement-content");
-  const announcementList = document.getElementById("announcement-list");
-
-  const announcementEditBox = document.getElementById("announcement-edit-box");
-  const announcementEditForm = document.getElementById("announcement-edit-form");
-  const announcementEditTitle = document.getElementById("announcement-edit-title");
-  const announcementEditContent = document.getElementById("announcement-edit-content");
-  const announcementCancelEdit = document.getElementById("announcement-cancel-edit");
-
-  const leaveForm = document.getElementById("leave-form");
-  const leaveType = document.getElementById("leave-type");
-  const leaveStart = document.getElementById("leave-start");
-  const leaveEnd = document.getElementById("leave-end");
-  const leaveReason = document.getElementById("leave-reason");
-  const leaveList = document.getElementById("leave-list");
-  const leaveStats = document.getElementById("leave-stats");
-
-  const scheduleForm = document.getElementById("schedule-form");
-  const scheduleDate = document.getElementById("schedule-date");
-  const scheduleTitle = document.getElementById("schedule-title");
-  const scheduleContent = document.getElementById("schedule-content");
-  const calendarGrid = document.getElementById("calendar-grid");
-  const calendarTitle = document.getElementById("calendar-title");
-  const prevMonthBtn = document.getElementById("prev-month");
-  const nextMonthBtn = document.getElementById("next-month");
-  const schedulePopover = document.getElementById("schedule-popover");
-  const schedulePopoverClose = document.getElementById("schedule-popover-close");
-  const selectedDateText = document.getElementById("selected-date-text");
-  const selectedDateScheduleList = document.getElementById("selected-date-schedule-list");
-  const scheduleCancelBtn = document.getElementById("schedule-cancel-btn");
-  const calendarWrap = document.querySelector(".calendar-wrap");
-  const scheduleAddBtn = document.getElementById("schedule-add-btn");
-  const scheduleEditorBox = document.getElementById("schedule-editor-box");
-  const scheduleEditorTitle = document.getElementById("schedule-editor-title");
-
-  function updateUserInfo(user) {
-    if (currentUserName) currentUserName.textContent = user.name;
-    if (userRole) userRole.textContent = user.role;
-    if (userRegion) userRegion.textContent = user.region;
-    if (userDepartment) userDepartment.textContent = user.department;
-
-    if (staffName) staffName.textContent = user.name;
-    if (staffRole) staffRole.textContent = user.role;
-    if (staffRegion) staffRegion.textContent = user.region;
-    if (staffDepartment) staffDepartment.textContent = user.department;
+  if (!user) {
+    loginError.textContent = "帳號錯誤";
+    return;
   }
 
-  function hideAnnouncementEditor() {
-    editingAnnouncementId = null;
-    if (announcementEditBox) announcementEditBox.classList.add("hidden");
-    if (announcementEditForm) announcementEditForm.reset();
-  }
+  currentUser = user;
+  localStorage.setItem(KEY.user, user.employeeId);
 
-  function showScheduleEditor(mode) {
-    if (scheduleEditorBox) {
-      scheduleEditorBox.classList.remove("hidden");
-    }
+  loginPage.classList.add("hidden");
+  mainPage.classList.remove("hidden");
 
-    if (scheduleEditorTitle) {
-      scheduleEditorTitle.textContent = mode === "edit" ? "編輯排程" : "新增排程";
-    }
-  }
+  currentUserName.textContent = user.name;
 
-  function hideScheduleEditor() {
-    editingScheduleId = null;
+  renderCalendar();
+});
 
-    if (scheduleEditorBox) {
-      scheduleEditorBox.classList.add("hidden");
-    }
+// restore
+(function () {
+  const saved = localStorage.getItem(KEY.user);
+  if (!saved) return;
 
-    if (scheduleTitle) scheduleTitle.value = "";
-    if (scheduleContent) scheduleContent.value = "";
-    if (scheduleDate && selectedScheduleDate) scheduleDate.value = selectedScheduleDate;
-  }
+  const user = users.find(u => u.employeeId === saved);
+  if (!user) return;
 
-  function renderAnnouncements() {
-    if (!announcementList) return;
+  currentUser = user;
+  loginPage.classList.add("hidden");
+  mainPage.classList.remove("hidden");
 
-    if (announcements.length === 0) {
-      announcementList.innerHTML = `<div class="list-item"><p>目前沒有公告。</p></div>`;
-      return;
-    }
+  currentUserName.textContent = user.name;
 
-    announcementList.innerHTML = announcements
-      .slice()
-      .reverse()
-      .map(function (item) {
-        let actions = "";
+  renderCalendar();
+})();
 
-        if (isAdmin(currentUser)) {
-          actions = `
-            <div class="item-actions">
-              <button type="button" class="small-btn edit-btn" onclick="startEditAnnouncement('${item.id}')">編輯</button>
-              <button type="button" class="small-btn delete-btn" onclick="deleteAnnouncement('${item.id}')">刪除</button>
-            </div>
-          `;
-        }
+logoutBtn?.addEventListener("click", () => {
+  localStorage.removeItem(KEY.user);
+  location.reload();
+});
 
-        return `
-          <div class="list-item">
-            <h4>${item.title}</h4>
-            <div class="item-meta">發布者：${item.author}｜時間：${item.createdAt}</div>
-            <p>${item.content}</p>
-            ${actions}
-          </div>
-        `;
-      })
-      .join("");
-  }
+// ===== 排程 =====
 
-  function renderLeaveStats() {
-    if (!leaveStats) return;
+function renderCalendar() {
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth();
 
-    const visibleLeaves = isAdmin(currentUser)
-      ? leaveRequests
-      : leaveRequests.filter(function (item) {
-          return currentUser && item.userName === currentUser.name;
-        });
+  calendarTitle.textContent = `${year} 年 ${month + 1} 月`;
 
-    const stats = {
-      特休: 0,
-      病假: 0,
-      事假: 0,
-      待審核: 0
-    };
+  const first = new Date(year, month, 1);
+  const start = first.getDay();
 
-    visibleLeaves.forEach(function (item) {
-      if (stats[item.type] !== undefined) stats[item.type] += 1;
-      if (item.status === "待審核") stats["待審核"] += 1;
-    });
+  const startDate = new Date(year, month, 1 - start);
 
-    leaveStats.innerHTML = `
-      <div class="stat-card"><h4>特休</h4><p>${stats["特休"]}</p></div>
-      <div class="stat-card"><h4>病假</h4><p>${stats["病假"]}</p></div>
-      <div class="stat-card"><h4>事假</h4><p>${stats["事假"]}</p></div>
-      <div class="stat-card"><h4>待審核</h4><p>${stats["待審核"]}</p></div>
+  let html = "";
+
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(startDate);
+    d.setDate(startDate.getDate() + i);
+
+    const ds = formatDate(d);
+
+    const list = schedules.filter(s => s.date === ds);
+
+    html += `
+      <div class="calendar-day" data-date="${ds}">
+        <div>${d.getDate()}</div>
+        ${list.map(s => `<div class="calendar-event">${s.title}</div>`).join("")}
+      </div>
     `;
   }
 
-  function renderLeaves() {
-    if (!leaveList) return;
+  calendarGrid.innerHTML = html;
 
-    const visibleLeaves = isAdmin(currentUser)
-      ? leaveRequests
-      : leaveRequests.filter(function (item) {
-          return currentUser && item.userName === currentUser.name;
-        });
+  document.querySelectorAll(".calendar-day").forEach(el => {
+    el.onclick = (e) => {
+      openPopover(el.dataset.date, el);
+      e.stopPropagation();
+    };
+  });
+}
 
-    renderLeaveStats();
+// ===== Popover =====
 
-    if (visibleLeaves.length === 0) {
-      leaveList.innerHTML = `<div class="list-item"><p>目前沒有請假申請。</p></div>`;
-      return;
-    }
+function openPopover(date, el) {
+  selectedDate = date;
+  editingId = null;
 
-    leaveList.innerHTML = visibleLeaves
-      .slice()
-      .reverse()
-      .map(function (item) {
-        let actionButtons = "";
+  selectedDateText.textContent = date;
+  scheduleDate.value = date;
 
-        if (isAdmin(currentUser) && item.status === "待審核") {
-          actionButtons += `
-            <button type="button" class="small-btn approve-btn" onclick="approveLeave('${item.id}')">核准</button>
-            <button type="button" class="small-btn reject-btn" onclick="rejectLeave('${item.id}')">駁回</button>
-          `;
-        }
+  hideEditor();
+  renderList();
 
-        if (currentUser && item.userName === currentUser.name && item.status === "待審核") {
-          actionButtons += `
-            <button type="button" class="small-btn cancel-btn" onclick="cancelLeave('${item.id}')">取消請假</button>
-          `;
-        }
+  schedulePopover.classList.remove("hidden");
 
-        return `
-          <div class="list-item">
-            <h4>${item.userName} - ${item.type}</h4>
-            <div class="item-meta">
-              部門：${item.department}｜區域：${item.region}
-              ${item.reviewedBy ? `｜審核人：${item.reviewedBy}` : ""}
-              ${item.reviewedAt ? `｜審核時間：${item.reviewedAt}` : ""}
-            </div>
-            <p>日期：${item.startDate} ~ ${item.endDate}</p>
-            <p>原因：${item.reason}</p>
-            <p><span class="status-badge status-${item.status}">${item.status}</span></p>
-            ${actionButtons ? `<div class="item-actions">${actionButtons}</div>` : ""}
-          </div>
-        `;
-      })
-      .join("");
+  positionPopover(el);
+}
+
+function closePopover() {
+  schedulePopover.classList.add("hidden");
+  hideEditor();
+}
+
+scheduleClose?.addEventListener("click", closePopover);
+
+// ===== 位置 =====
+function positionPopover(el) {
+  const rect = el.getBoundingClientRect();
+  const wrap = calendarWrap.getBoundingClientRect();
+
+  schedulePopover.style.left = (rect.left - wrap.left) + "px";
+  schedulePopover.style.top = (rect.bottom - wrap.top + 10) + "px";
+}
+
+// ===== Editor =====
+function showEditor(mode) {
+  scheduleEditorBox.classList.remove("hidden");
+  scheduleEditorTitle.textContent = mode === "edit" ? "編輯排程" : "新增排程";
+}
+
+function hideEditor() {
+  editingId = null;
+  scheduleEditorBox.classList.add("hidden");
+  scheduleTitle.value = "";
+  scheduleContent.value = "";
+}
+
+// ===== 列表 =====
+function renderList() {
+  const list = schedules.filter(s => s.date === selectedDate);
+
+  if (list.length === 0) {
+    scheduleList.innerHTML = `<div class="list-item">沒有排程</div>`;
+    return;
   }
 
-  function renderSchedules() {
-    if (!selectedDateScheduleList) return;
+  scheduleList.innerHTML = list.map(s => `
+    <div class="list-item">
+      <h4>${s.title}</h4>
+      <p>${s.content}</p>
+      <button onclick="editSchedule('${s.id}')">編輯</button>
+      <button onclick="deleteSchedule('${s.id}')">刪除</button>
+    </div>
+  `).join("");
+}
 
-    if (!selectedScheduleDate) {
-      selectedDateScheduleList.innerHTML = `<div class="list-item"><p>請先點選日期。</p></div>`;
-      return;
-    }
+// ===== 新增 =====
+scheduleAddBtn?.addEventListener("click", () => {
+  editingId = null;
+  scheduleTitle.value = "";
+  scheduleContent.value = "";
+  showEditor("add");
+});
 
-    const selectedSchedules = schedules.filter(function (item) {
-      return item.date === selectedScheduleDate;
-    });
+// ===== 儲存 =====
+scheduleForm?.addEventListener("submit", (e) => {
+  e.preventDefault();
 
-    if (selectedSchedules.length === 0) {
-      selectedDateScheduleList.innerHTML = `<div class="list-item"><p>這一天目前沒有排程。</p></div>`;
-      return;
-    }
+  const title = scheduleTitle.value;
+  const content = scheduleContent.value;
 
-    selectedDateScheduleList.innerHTML = selectedSchedules
-      .map(function (item) {
-        return `
-          <div class="list-item">
-            <h4>${item.title}</h4>
-            <div class="item-meta">日期：${item.date}｜建立者：${item.author}</div>
-            <p>${item.content}</p>
-            <div class="item-actions">
-              <button type="button" class="small-btn edit-btn" onclick="editSchedule('${item.id}')">編輯</button>
-              <button type="button" class="small-btn delete-btn" onclick="deleteSchedule('${item.id}')">刪除</button>
-            </div>
-          </div>
-        `;
-      })
-      .join("");
-  }
+  if (!title || !content) return;
 
-  function positionSchedulePopover(targetElement) {
-    if (!schedulePopover || !calendarWrap || !targetElement) return;
-
-    const wrapRect = calendarWrap.getBoundingClientRect();
-    const cellRect = targetElement.getBoundingClientRect();
-
-    const gap = 12;
-    const popoverWidth = schedulePopover.offsetWidth || 360;
-    const popoverHeight = schedulePopover.offsetHeight || 420;
-
-    let left = cellRect.left - wrapRect.left;
-    let top = cellRect.bottom - wrapRect.top + gap;
-
-    if (left + popoverWidth > wrapRect.width - 8) {
-      left = wrapRect.width - popoverWidth - 8;
-    }
-
-    if (left < 8) {
-      left = 8;
-    }
-
-    if (top + popoverHeight > wrapRect.height && cellRect.top - wrapRect.top > popoverHeight) {
-      top = cellRect.top - wrapRect.top - popoverHeight - gap;
-    }
-
-    if (top < 8) {
-      top = 8;
-    }
-
-    schedulePopover.style.left = `${left}px`;
-    schedulePopover.style.top = `${top}px`;
-  }
-
-  function openSchedulePopover(dateString, targetElement) {
-    selectedScheduleDate = dateString;
-
-    if (selectedDateText) selectedDateText.textContent = dateString;
-    if (scheduleDate) scheduleDate.value = dateString;
-
-    hideScheduleEditor();
-    renderSchedules();
-
-    if (schedulePopover) {
-      schedulePopover.classList.remove("hidden");
-    }
-
-    renderCalendar();
-
-    requestAnimationFrame(function () {
-      positionSchedulePopover(targetElement);
+  if (editingId) {
+    schedules = schedules.map(s =>
+      s.id === editingId ? { ...s, title, content } : s
+    );
+  } else {
+    schedules.push({
+      id: Date.now() + "",
+      date: selectedDate,
+      title,
+      content
     });
   }
 
-  function closeSchedulePopover() {
-    if (schedulePopover) schedulePopover.classList.add("hidden");
-    hideScheduleEditor();
+  save();
+  hideEditor();
+  renderList();
+  renderCalendar();
+});
+
+// ===== 編輯 =====
+window.editSchedule = function (id) {
+  const s = schedules.find(x => x.id === id);
+  if (!s) return;
+
+  editingId = id;
+
+  scheduleTitle.value = s.title;
+  scheduleContent.value = s.content;
+
+  showEditor("edit");
+};
+
+// ===== 刪除 =====
+window.deleteSchedule = function (id) {
+  schedules = schedules.filter(s => s.id !== id);
+  save();
+  renderList();
+  renderCalendar();
+};
+
+// ===== 取消 =====
+scheduleCancelBtn?.addEventListener("click", hideEditor);
+
+// ===== 點外面關閉 =====
+document.addEventListener("click", (e) => {
+  if (!schedulePopover.contains(e.target)) {
+    closePopover();
   }
-
-  function renderCalendar() {
-    if (!calendarGrid || !calendarTitle) return;
-
-    const year = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
-
-    calendarTitle.textContent = `${year} 年 ${month + 1} 月`;
-
-    const first
+});
