@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-2</title>
+  <title>班表系統-3</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -105,16 +105,77 @@
       </section>
 
       <section id="page-staff" class="page-section hidden">
-        <div class="card">
-          <h3>人員資訊</h3>
-          <div class="content-grid single-grid">
-            <div class="card inner-card">
-              <p>姓名：<span id="staff-name"></span></p>
-              <p>權限：<span id="staff-role"></span></p>
-              <p>區域：<span id="staff-region"></span></p>
-              <p>部門：<span id="staff-department"></span></p>
+        <div class="content-grid staff-grid">
+          <div class="card">
+            <h3>個人資訊</h3>
+            <div class="content-grid single-grid">
+              <div class="card inner-card">
+                <p>姓名：<span id="staff-name"></span></p>
+                <p>權限：<span id="staff-role"></span></p>
+                <p>區域：<span id="staff-region"></span></p>
+                <p>部門：<span id="staff-department"></span></p>
+              </div>
             </div>
           </div>
+
+          <div class="card">
+            <h3>新增員工</h3>
+            <form id="employee-form" class="form-grid employee-form">
+              <div class="form-section">
+                <h4>基本資料</h4>
+                <div class="two-column-grid">
+                  <input id="employee-form-id" type="text" placeholder="員工代號" required />
+                  <input id="employee-form-account" type="text" placeholder="帳號" />
+                  <input id="employee-form-name" type="text" placeholder="姓名" required />
+                  <select id="employee-form-department" required></select>
+                  <input id="employee-form-title" type="text" placeholder="職稱" />
+                  <select id="employee-form-region" required></select>
+                  <input id="employee-form-category" type="text" placeholder="類別" />
+                  <input id="employee-form-email-prefix" type="text" placeholder="Email 前綴" />
+                  <input id="employee-form-phone" type="tel" placeholder="電話" />
+                  <input id="employee-form-birthday" type="text" placeholder="生日 (MM/DD)" />
+                  <input id="employee-form-annual-leave-days" type="number" min="0" placeholder="年度特休天數" />
+                </div>
+              </div>
+
+              <div class="form-section">
+                <h4>班別與權限</h4>
+                <div class="checkbox-grid">
+                  <label><input id="shift-morning" type="checkbox" /> 早班</label>
+                  <label><input id="shift-evening" type="checkbox" /> 晚班</label>
+                  <label><input id="weekends-off" type="checkbox" /> 週休二日 &amp; 國定假日</label>
+                  <label><input id="permission-announcement-manage" type="checkbox" /> 可新增 / 編輯 / 隱藏 / 刪除公告</label>
+                  <label><input id="permission-leave-approve" type="checkbox" /> 可審核請假</label>
+                  <label><input id="permission-admin" type="checkbox" /> 設為管理員</label>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <h4>權限管理範圍</h4>
+                <p class="helper-text">只有管理員或審核人員需要設定管理範圍。</p>
+                <div class="scope-section">
+                  <h5>地區</h5>
+                  <div id="manage-regions" class="checkbox-grid checkbox-grid-compact"></div>
+                </div>
+                <div class="scope-section">
+                  <h5>部門</h5>
+                  <div id="manage-departments" class="checkbox-grid checkbox-grid-compact"></div>
+                </div>
+              </div>
+
+              <button type="submit" class="primary-btn">新增員工</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="card staff-list-card">
+          <div class="section-header-row">
+            <div>
+              <h3>員工列表</h3>
+              <p class="helper-text">顯示 Firestore employees collection 中的啟用員工資料。</p>
+            </div>
+          </div>
+         <div id="employee-list" class="list-wrap"></div>
         </div>
       </section>
 
@@ -140,72 +201,74 @@
         </div>
       </section>
 
-  <section id="page-schedule" class="page-section hidden">
-  <div class="card">
-    <h3>排程表</h3>
+      <section id="page-schedule" class="page-section hidden">
+        <div class="card">
+          <h3>排程表</h3>
 
-    <div class="calendar-wrap">
-      <div class="calendar-toolbar">
-        <button type="button" id="prev-month" class="small-btn">上個月</button>
-        <h4 id="calendar-title"></h4>
-        <button type="button" id="next-month" class="small-btn">下個月</button>
-      </div>
+         <div class="calendar-wrap">
+            <div class="calendar-toolbar">
+              <button type="button" id="prev-month" class="small-btn">上個月</button>
+              <h4 id="calendar-title"></h4>
+              <button type="button" id="next-month" class="small-btn">下個月</button>
+            </div>
 
-      <div class="calendar-weekdays">
-        <div>日</div>
-        <div>一</div>
-        <div>二</div>
-        <div>三</div>
-        <div>四</div>
-        <div>五</div>
-        <div>六</div>
-      </div>
+             <div class="calendar-weekdays">
+              <div>日</div>
+              <div>一</div>
+              <div>二</div>
+              <div>三</div>
+              <div>四</div>
+              <div>五</div>
+              <div>六</div>
+            </div>
 
-      <div id="calendar-grid" class="calendar-grid"></div>
+         <div id="calendar-grid" class="calendar-grid"></div>
 
-      <div id="schedule-popover" class="schedule-popover hidden">
-        <div class="schedule-popover-header">
-          <h4>當日排程</h4>
-          <button type="button" id="schedule-popover-close" class="small-btn cancel-btn">×</button>
-        </div>
+            <div id="schedule-popover" class="schedule-popover hidden">
+              <div class="schedule-popover-header">
+                <h4>當日排程</h4>
+                <button type="button" id="schedule-popover-close" class="small-btn cancel-btn">×</button>
+              </div>
 
-        <div class="selected-date-box">
-          <p>日期：<strong id="selected-date-text">--</strong></p>
-        </div>
+              <div class="selected-date-box">
+                <p>日期：<strong id="selected-date-text">--</strong></p>
+              </div>
 
-        <div id="selected-date-schedule-list" class="list-wrap"></div>
-
-        <div class="item-actions schedule-top-actions">
-          <button type="button" id="schedule-add-btn" class="primary-btn">+ 新增</button>
-        </div>
+            <div id="selected-date-schedule-list" class="list-wrap"></div>
+              
+              <div class="item-actions schedule-top-actions">
+                <button type="button" id="schedule-add-btn" class="primary-btn">+ 新增</button>
+              </div>
 
         <div id="schedule-editor-box" class="hidden">
-          <h4 id="schedule-editor-title">新增排程</h4>
-          <form id="schedule-form" class="form-grid">
-            <input id="schedule-date" type="date" required readonly />
-            <input id="schedule-title" type="text" placeholder="排程標題" required />
-            <textarea id="schedule-content" placeholder="排程內容" required></textarea>
-            <div class="item-actions">
-              <button type="submit" class="primary-btn">儲存排程</button>
-              <button type="button" id="schedule-cancel-btn" class="small-btn cancel-btn">取消</button>
+                <h4 id="schedule-editor-title">新增排程</h4>
+                <form id="schedule-form" class="form-grid">
+                  <input id="schedule-date" type="date" required readonly />
+                  <input id="schedule-title" type="text" placeholder="排程標題" required />
+                  <textarea id="schedule-content" placeholder="排程內容" required></textarea>
+                  <div class="item-actions">
+                    <button type="submit" class="primary-btn">儲存排程</button>
+                    <button type="button" id="schedule-cancel-btn" class="small-btn cancel-btn">取消</button>
+                  </div>
+                </form>
+              </div>
             </div>
-          </form>
+          </div>
         </div>
-      </div>
-    </div>
+     </section>
+    </section>
   </div>
-</section>
 
   <script>
-  window.__FIREBASE_CONFIG__ = {
-    apiKey: "AIzaSyAmPIQMfAR1BmvJbjx3L002ibVu2kXA3uM",
-    authDomain: "schedule-app-5845b.firebaseapp.com",
-    projectId: "schedule-app-5845b",
-    storageBucket: "schedule-app-5845b.firebasestorage.app",
-    messagingSenderId: "1046564647922",
-    appId: "1:1046564647922:web:965bb01618c8b6b992b16b"
-  };
-</script>
-<script type="module" src="app.js"></script>
+   window.__FIREBASE_CONFIG__ = {
+      apiKey: "AIzaSyAmPIQMfAR1BmvJbjx3L002ibVu2kXA3uM",
+      authDomain: "schedule-app-5845b.firebaseapp.com",
+      projectId: "schedule-app-5845b",
+      storageBucket: "schedule-app-5845b.firebasestorage.app",
+      messagingSenderId: "1046564647922",
+      appId: "1:1046564647922:web:965bb01618c8b6b992b16b"
+    };
+  </script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
