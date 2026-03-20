@@ -362,6 +362,77 @@ textarea {
   font-size: 14px;
 }
 
+.field-label {
+  display: grid;
+  gap: 8px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.field-label span {
+  color: var(--text-soft);
+}
+
+.email-input-wrap {
+  display: flex;
+  align-items: stretch;
+}
+
+.email-input-wrap input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.input-suffix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-left: none;
+  border-top-right-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+  background: #e2e8f0;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.admin-scope-panel {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.admin-scope-panel h5 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+
+.admin-permissions-grid {
+  margin-bottom: 16px;
+}
+
+.scope-collapse {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 14px 16px;
+}
+
+.scope-collapse + .scope-collapse {
+  margin-top: 12px;
+}
+
+.scope-collapse summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.scope-collapse[open] summary {
+  margin-bottom: 12px;
+}
+
 .scope-section + .scope-section {
   margin-top: 16px;
 }
