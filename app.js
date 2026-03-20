@@ -314,40 +314,14 @@ document.addEventListener("DOMContentLoaded", function () {
       .join("");
   }
 
-  function positionSchedulePopover(targetElement) {
-    if (!schedulePopover || !calendarWrap || !targetElement) return;
+  function positionSchedulePopover() {
+    if (!schedulePopover) return;
 
-    const wrapRect = calendarWrap.getBoundingClientRect();
-    const cellRect = targetElement.getBoundingClientRect();
-
-    const gap = 12;
-    const popoverWidth = schedulePopover.offsetWidth || 360;
-    const popoverHeight = schedulePopover.offsetHeight || 420;
-
-    let left = cellRect.left - wrapRect.left;
-    let top = cellRect.bottom - wrapRect.top + gap;
-
-    if (left + popoverWidth > wrapRect.width - 8) {
-      left = wrapRect.width - popoverWidth - 8;
-    }
-
-    if (left < 8) {
-      left = 8;
-    }
-
-    if (top + popoverHeight > wrapRect.height && cellRect.top - wrapRect.top > popoverHeight) {
-      top = cellRect.top - wrapRect.top - popoverHeight - gap;
-    }
-
-    if (top < 8) {
-      top = 8;
-    }
-
-    schedulePopover.style.left = `${left}px`;
-    schedulePopover.style.top = `${top}px`;
+   schedulePopover.style.left = "50%";
+   schedulePopover.style.top = "50%";
   }
 
-  function openSchedulePopover(dateString, targetElement) {
+  function openSchedulePopover(dateString) {
     selectedScheduleDate = dateString;
     editingScheduleId = null;
 
@@ -363,7 +337,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     requestAnimationFrame(function () {
-      positionSchedulePopover(targetElement);
+      positionSchedulePopover();
     });
   }
 
@@ -533,12 +507,8 @@ document.addEventListener("DOMContentLoaded", function () {
     renderSchedules();
     renderCalendar();
 
-    const targetCell = calendarGrid
-      ? calendarGrid.querySelector(`[data-date="${item.date}"]`)
-      : null;
-
     requestAnimationFrame(function () {
-      positionSchedulePopover(targetCell);
+     positionSchedulePopover();
     });
   };
 
@@ -556,13 +526,9 @@ document.addEventListener("DOMContentLoaded", function () {
     renderSchedules();
     renderCalendar();
 
-    const targetCell = calendarGrid
-      ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`)
-      : null;
-
-    if (targetCell && schedulePopover && !schedulePopover.classList.contains("hidden")) {
+   if (schedulePopover && !schedulePopover.classList.contains("hidden")) {
       requestAnimationFrame(function () {
-        positionSchedulePopover(targetCell);
+        positionSchedulePopover();
       });
     }
   };
@@ -831,12 +797,8 @@ document.addEventListener("DOMContentLoaded", function () {
       renderSchedules();
       renderCalendar();
 
-      const targetCell = calendarGrid
-        ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`)
-        : null;
-
       requestAnimationFrame(function () {
-        positionSchedulePopover(targetCell);
+         positionSchedulePopover();
       });
     });
   }
@@ -874,13 +836,7 @@ document.addEventListener("DOMContentLoaded", function () {
   window.addEventListener("resize", function () {
     if (!schedulePopover || schedulePopover.classList.contains("hidden")) return;
 
-    const targetCell = calendarGrid
-      ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`)
-      : null;
-
-    if (targetCell) {
-      positionSchedulePopover(targetCell);
-    }
+    positionSchedulePopover();
   });
 
   if (prevMonthBtn) {
