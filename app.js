@@ -121,6 +121,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const selectedDateScheduleList = document.getElementById("selected-date-schedule-list");
   const scheduleCancelBtn = document.getElementById("schedule-cancel-btn");
   const calendarWrap = document.querySelector(".calendar-wrap");
+  const scheduleAddBtn = document.getElementById("schedule-add-btn");
+  const scheduleEditorBox = document.getElementById("schedule-editor-box");
+  const scheduleEditorTitle = document.getElementById("schedule-editor-title");
 
   function updateUserInfo(user) {
     if (currentUserName) currentUserName.textContent = user.name;
@@ -138,6 +141,21 @@ document.addEventListener("DOMContentLoaded", function () {
     editingAnnouncementId = null;
     if (announcementEditBox) announcementEditBox.classList.add("hidden");
     if (announcementEditForm) announcementEditForm.reset();
+  }
+
+  function showScheduleEditor(mode) {
+    if (scheduleEditorBox) scheduleEditorBox.classList.remove("hidden");
+    if (scheduleEditorTitle) {
+      scheduleEditorTitle.textContent = mode === "edit" ? "編輯排程" : "新增排程";
+    }
+  }
+
+  function hideScheduleEditor() {
+    editingScheduleId = null;
+    if (scheduleEditorBox) scheduleEditorBox.classList.add("hidden");
+    if (scheduleTitle) scheduleTitle.value = "";
+    if (scheduleContent) scheduleContent.value = "";
+    if (scheduleDate && selectedScheduleDate) scheduleDate.value = selectedScheduleDate;
   }
 
   function renderAnnouncements() {
@@ -312,10 +330,7 @@ document.addEventListener("DOMContentLoaded", function () {
       left = 8;
     }
 
-    const wrapVisibleBottom = calendarWrap.scrollTop + calendarWrap.clientHeight;
-    const estimatedBottom = top + popoverHeight;
-
-    if (estimatedBottom > wrapRect.height && cellRect.top - wrapRect.top > popoverHeight) {
+    if (top + popoverHeight > wrapRect.height && cellRect.top - wrapRect.top > popoverHeight) {
       top = cellRect.top - wrapRect.top - popoverHeight - gap;
     }
 
@@ -333,9 +348,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (selectedDateText) selectedDateText.textContent = dateString;
     if (scheduleDate) scheduleDate.value = dateString;
-    if (scheduleTitle) scheduleTitle.value = "";
-    if (scheduleContent) scheduleContent.value = "";
 
+    hideScheduleEditor();
     renderSchedules();
     renderCalendar();
 
@@ -350,16 +364,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function closeSchedulePopover() {
     if (schedulePopover) schedulePopover.classList.add("hidden");
-    editingScheduleId = null;
-  }
-
-  function clearScheduleEditor() {
-    editingScheduleId = null;
-    if (scheduleTitle) scheduleTitle.value = "";
-    if (scheduleContent) scheduleContent.value = "";
-    if (selectedScheduleDate && scheduleDate) {
-      scheduleDate.value = selectedScheduleDate;
-    }
+    hideScheduleEditor();
   }
 
   function renderCalendar() {
@@ -397,11 +402,9 @@ document.addEventListener("DOMContentLoaded", function () {
         >
           <div class="calendar-day-number">${cellDate.getDate()}</div>
           <div class="calendar-events">
-            ${daySchedules
-              .map(function (schedule) {
-                return `<div class="calendar-event">${schedule.title}</div>`;
-              })
-              .join("")}
+            ${daySchedules.map(function (schedule) {
+              return `<div class="calendar-event">${schedule.title}</div>`;
+            }).join("")}
           </div>
         </div>
       `);
@@ -517,6 +520,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (scheduleTitle) scheduleTitle.value = item.title;
     if (scheduleContent) scheduleContent.value = item.content;
 
+    showScheduleEditor("edit");
     renderSchedules();
     renderCalendar();
 
@@ -541,9 +545,7 @@ document.addEventListener("DOMContentLoaded", function () {
     saveData(STORAGE_KEYS.schedules, schedules);
 
     if (editingScheduleId === id) {
-      editingScheduleId = null;
-      if (scheduleTitle) scheduleTitle.value = "";
-      if (scheduleContent) scheduleContent.value = "";
+      hideScheduleEditor();
     }
 
     renderSchedules();
@@ -755,6 +757,16 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  if (scheduleAddBtn) {
+    scheduleAddBtn.addEventListener("click", function () {
+      editingScheduleId = null;
+      if (scheduleDate) scheduleDate.value = selectedScheduleDate;
+      if (scheduleTitle) scheduleTitle.value = "";
+      if (scheduleContent) scheduleContent.value = "";
+      showScheduleEditor("add");
+    });
+  }
+
   if (scheduleForm) {
     scheduleForm.addEventListener("submit", function (event) {
       event.preventDefault();
@@ -791,11 +803,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       saveData(STORAGE_KEYS.schedules, schedules);
-      editingScheduleId = null;
-
-      if (scheduleTitle) scheduleTitle.value = "";
-      if (scheduleContent) scheduleContent.value = "";
-
+      hideScheduleEditor();
       renderSchedules();
       renderCalendar();
 
@@ -811,7 +819,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (scheduleCancelBtn) {
     scheduleCancelBtn.addEventListener("click", function () {
-      clearScheduleEditor();
+      hideScheduleEditor();
     });
   }
 
