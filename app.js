@@ -148,6 +148,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (scheduleEditorTitle) {
       scheduleEditorTitle.textContent = mode === "edit" ? "編輯排程" : "新增排程";
     }
+    if (scheduleTitle) scheduleTitle.focus();
   }
 
   function hideScheduleEditor() {
@@ -283,9 +284,13 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    const selectedSchedules = schedules.filter(function (item) {
-      return item.date === selectedScheduleDate;
-    });
+    const selectedSchedules = schedules
+      .filter(function (item) {
+        return item.date === selectedScheduleDate;
+      })
+      .sort(function (a, b) {
+        return a.title.localeCompare(b.title, "zh-Hant");
+      });
 
     if (selectedSchedules.length === 0) {
       selectedDateScheduleList.innerHTML = `<div class="list-item"><p>這一天目前沒有排程。</p></div>`;
@@ -300,8 +305,8 @@ document.addEventListener("DOMContentLoaded", function () {
             <div class="item-meta">日期：${item.date}｜建立者：${item.author}</div>
             <p>${item.content}</p>
             <div class="item-actions">
-              <button type="button" class="small-btn edit-btn" onclick="editSchedule('${item.id}')">編輯</button>
-              <button type="button" class="small-btn delete-btn" onclick="deleteSchedule('${item.id}')">刪除</button>
+              <button type="button" class="small-btn edit-btn" data-action="edit-schedule" data-id="${item.id}">編輯</button>
+              <button type="button" class="small-btn delete-btn" data-action="delete-schedule" data-id="${item.id}">刪除</button>
             </div>
           </div>
         `;
@@ -561,6 +566,25 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     }
   };
+
+  
+  if (selectedDateScheduleList) {
+    selectedDateScheduleList.addEventListener("click", function (event) {
+      const actionButton = event.target.closest("[data-action]");
+      if (!actionButton) return;
+
+      const scheduleId = actionButton.dataset.id;
+      if (!scheduleId) return;
+
+      if (actionButton.dataset.action === "edit-schedule") {
+        window.editSchedule(scheduleId);
+      }
+
+      if (actionButton.dataset.action === "delete-schedule") {
+        window.deleteSchedule(scheduleId);
+      }
+    });
+  }
 
   function setLoggedInUser(user) {
     currentUser = user;
