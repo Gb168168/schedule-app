@@ -37,8 +37,6 @@ const users = [
 ];
 
 const STORAGE_KEYS = {
-  announcements: "shift_announcements",
-  leaveRequests: "shift_leave_requests",
   currentUser: "shift_current_user"
 };
 
@@ -60,10 +58,6 @@ function loadData(key, defaultValue) {
   } catch (error) {
     return defaultValue;
   }
-}
-
-function saveData(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
 }
 
 function isAdmin(user) {
@@ -240,6 +234,24 @@ document.addEventListener("DOMContentLoaded", function () {
       });
 
       renderLeaves();
+    });
+  }
+
+   function startScheduleListener() {
+    if (!db) return;
+
+    const q = query(collection(db, "schedules"), orderBy("createdAtClient", "desc"));
+
+    onSnapshot(q, function (snapshot) {
+      schedules = snapshot.docs.map(function (docItem) {
+        return {
+          id: docItem.id,
+          ...docItem.data()
+        };
+      });
+
+      renderSchedules();
+      renderCalendar();
     });
   }
 
@@ -539,24 +551,18 @@ window.approveLeave = async function (id) {
     });
   };
 
-  window.deleteSchedule = function (id) {
-    schedules = schedules.filter(function (item) {
-      return item.id !== id;
-    });
+  window.deleteSchedule = async function (id) {
+    if (!db) return;
 
-    saveData(STORAGE_KEYS.schedules, schedules);
+   try {
+     await deleteDoc(doc(db, "schedules", id));
 
-    if (editingScheduleId === id) {
-      hideScheduleEditor();
-    }
-
-    renderSchedules();
-    renderCalendar();
-
-   if (schedulePopover && !schedulePopover.classList.contains("hidden")) {
-      requestAnimationFrame(function () {
-        positionSchedulePopover();
-      });
+     if (editingScheduleId === id) {
+        hideScheduleEditor();
+      }
+    } catch (error) {
+      console.error("刪除排程失敗", error);
+      alert("刪除失敗");
     }
   };
 
@@ -800,48 +806,46 @@ window.approveLeave = async function (id) {
   }
 
   if (scheduleForm) {
-    scheduleForm.addEventListener("submit", function (event) {
+    scheduleForm.addEventListener("submit", async function (event) {
       event.preventDefault();
 
-      const date = scheduleDate ? scheduleDate.value : "";
-      const title = scheduleTitle ? scheduleTitle.value.trim() : "";
-      const content = scheduleContent ? scheduleContent.value.trim() : "";
+      const date = scheduleDate.value;
+      const title = scheduleTitle.value.trim();
+      const content = scheduleContent.value.trim();
 
       if (!date || !title || !content) {
         alert("請填寫完整排程資料");
         return;
       }
 
-      if (editingScheduleId) {
-        schedules = schedules.map(function (item) {
-          if (item.id === editingScheduleId) {
-            return {
-              ...item,
-              date: date,
-              title: title,
-              content: content
-            };
-          }
-          return item;
-        });
-      } else {
-        schedules.push({
-          id: Date.now().toString(),
-          date: date,
-          title: title,
-          content: content,
-          author: currentUser ? currentUser.name : "未知使用者"
-        });
+      if (!db) {
+        alert("Firebase 未設定");
+        return;
       }
 
-      saveData(STORAGE_KEYS.schedules, schedules);
-      hideScheduleEditor();
-      renderSchedules();
-      renderCalendar();
+      try {
+        if (editingScheduleId) {
+          await updateDoc(doc(db, "schedules", editingScheduleId), {
+            date,
+            title,
+            content
+          });
+        } else {
+          await addDoc(collection(db, "schedules"), {
+            date,
+            title,
+            content,
+            author: currentUser.name,
+            createdAt: serverTimestamp(),
+            createdAtClient: new Date()
+          });
+        }
 
-      requestAnimationFrame(function () {
-         positionSchedulePopover();
-      });
+         hideScheduleEditor();
+      } catch (error) {
+        console.error("排程失敗", error);
+        alert("排程儲存失敗");
+      }
     });
   }
 
@@ -902,5 +906,5 @@ window.approveLeave = async function (id) {
   renderCalendar();
   restoreLogin();
   startAnnouncementsListener();
-  startLeaveListener();
+  startScheduleListener();
 });
