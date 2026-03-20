@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-3</title>
+  <title>班表系統-4</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -83,16 +83,28 @@
           <h3>公告管理</h3>
 
           <form id="announcement-form" class="form-grid">
-            <input id="announcement-title" type="text" placeholder="公告標題" required />
-            <textarea id="announcement-content" placeholder="公告內容" required></textarea>
+             <label class="field-label">
+              <span>公告標題</span>
+              <input id="announcement-title" type="text" required />
+            </label>
+            <label class="field-label">
+              <span>公告內容</span>
+              <textarea id="announcement-content" required></textarea>
+            </label>
             <button type="submit" class="primary-btn">新增公告</button>
           </form>
 
           <div id="announcement-edit-box" class="edit-box hidden">
             <h4>編輯公告</h4>
             <form id="announcement-edit-form" class="form-grid">
-              <input id="announcement-edit-title" type="text" placeholder="公告標題" required />
-              <textarea id="announcement-edit-content" placeholder="公告內容" required></textarea>
+              <label class="field-label">
+                <span>公告標題</span>
+                <input id="announcement-edit-title" type="text" required />
+              </label>
+              <label class="field-label">
+                <span>公告內容</span>
+                <textarea id="announcement-edit-content" required></textarea>
+              </label>
               <div class="item-actions">
                 <button type="submit" class="primary-btn">儲存修改</button>
                 <button type="button" id="announcement-cancel-edit" class="small-btn cancel-btn">取消編輯</button>
@@ -105,36 +117,25 @@
       </section>
 
       <section id="page-staff" class="page-section hidden">
-        <div class="content-grid staff-grid">
-          <div class="card">
-            <h3>個人資訊</h3>
-            <div class="content-grid single-grid">
-              <div class="card inner-card">
-                <p>姓名：<span id="staff-name"></span></p>
-                <p>權限：<span id="staff-role"></span></p>
-                <p>區域：<span id="staff-region"></span></p>
-                <p>部門：<span id="staff-department"></span></p>
-              </div>
-            </div>
-          </div>
-
+        <div class="content-grid staff-grid"
           <div class="card">
             <h3>新增員工</h3>
             <form id="employee-form" class="form-grid employee-form">
               <div class="form-section">
                 <h4>基本資料</h4>
                 <div class="two-column-grid">
-                  <input id="employee-form-id" type="text" placeholder="員工代號" required />
-                  <input id="employee-form-account" type="text" placeholder="帳號" />
-                  <input id="employee-form-name" type="text" placeholder="姓名" required />
-                  <select id="employee-form-department" required></select>
-                  <input id="employee-form-title" type="text" placeholder="職稱" />
-                  <select id="employee-form-region" required></select>
-                  <input id="employee-form-category" type="text" placeholder="類別" />
-                  <input id="employee-form-email-prefix" type="text" placeholder="Email 前綴" />
-                  <input id="employee-form-phone" type="tel" placeholder="電話" />
-                  <input id="employee-form-birthday" type="text" placeholder="生日 (MM/DD)" />
-                  <input id="employee-form-annual-leave-days" type="number" min="0" placeholder="年度特休天數" />
+                  <label class="field-label"><span>員工代號</span><input id="employee-form-id" type="text" required /></label>
+                  <label class="field-label"><span>帳號</span><input id="employee-form-account" type="text" /></label>
+                  <label class="field-label"><span>姓名</span><input id="employee-form-name" type="text" required /></label>
+                  <label class="field-label"><span>密碼</span><input id="employee-form-password" type="password" required /></label>
+                  <label class="field-label"><span>部門</span><select id="employee-form-department" required></select></label>
+                  <label class="field-label"><span>地區</span><select id="employee-form-region" required></select></label>
+                  <label class="field-label"><span>職稱</span><input id="employee-form-title" type="text" /></label>
+                  <label class="field-label"><span>類別</span><input id="employee-form-category" type="text" /></label>
+                  <label class="field-label email-field"><span>Email</span><div class="email-input-wrap"><input id="employee-form-email-prefix" type="text" /><span class="input-suffix">@goldbricks.com.tw</span></div></label>
+                  <label class="field-label"><span>電話</span><input id="employee-form-phone" type="tel" /></label>
+                  <label class="field-label"><span>生日 (MM/DD)</span><input id="employee-form-birthday" type="text" /></label>
+                  <label class="field-label"><span>年度特休天數</span><input id="employee-form-annual-leave-days" type="number" min="0" /></label>
                 </div>
               </div>
 
@@ -144,39 +145,39 @@
                   <label><input id="shift-morning" type="checkbox" /> 早班</label>
                   <label><input id="shift-evening" type="checkbox" /> 晚班</label>
                   <label><input id="weekends-off" type="checkbox" /> 週休二日 &amp; 國定假日</label>
-                  <label><input id="permission-announcement-manage" type="checkbox" /> 可新增 / 編輯 / 隱藏 / 刪除公告</label>
-                  <label><input id="permission-leave-approve" type="checkbox" /> 可審核請假</label>
                   <label><input id="permission-admin" type="checkbox" /> 設為管理員</label>
                 </div>
-              </div>
-
-              <div class="form-section">
-                <h4>權限管理範圍</h4>
-                <p class="helper-text">只有管理員或審核人員需要設定管理範圍。</p>
-                <div class="scope-section">
-                  <h5>地區</h5>
-                  <div id="manage-regions" class="checkbox-grid checkbox-grid-compact"></div>
-                </div>
-                <div class="scope-section">
-                  <h5>部門</h5>
-                  <div id="manage-departments" class="checkbox-grid checkbox-grid-compact"></div>
+                <div id="admin-scope-panel" class="admin-scope-panel hidden">
+                  <h5>權限管理範圍</h5>
+                  <div class="checkbox-grid admin-permissions-grid">
+                    <label><input id="permission-leave-approve" type="checkbox" /> 可審核請假</label>
+                    <label><input id="permission-announcement-manage" type="checkbox" /> 可新增 / 編輯 / 隱藏 / 刪除公告</label>
+                  </div>
+                  <details class="scope-collapse">
+                    <summary>地區</summary>
+                    <div id="manage-regions" class="checkbox-grid checkbox-grid-compact"></div>
+                  </details>
+                  <details class="scope-collapse">
+                    <summary>部門</summary>
+                    <div id="manage-departments" class="checkbox-grid checkbox-grid-compact"></div>
+                  </details>
                 </div>
               </div>
 
               <button type="submit" class="primary-btn">新增員工</button>
             </form>
           </div>
-        </div>
 
-        <div class="card staff-list-card">
-          <div class="section-header-row">
-            <div>
-              <h3>員工列表</h3>
-              <p class="helper-text">顯示 Firestore employees collection 中的啟用員工資料。</p>
+       <div class="card staff-list-card">
+            <div class="section-header-row">
+              <div>
+                <h3>員工列表</h3>
+                <p class="helper-text">右側顯示已建置的員工資料。</p>
+              </div>
             </div>
+          <div id="employee-list" class="list-wrap"></div>
           </div>
-         <div id="employee-list" class="list-wrap"></div>
-        </div>
+         </div>
       </section>
 
       <section id="page-leave" class="page-section hidden">
@@ -205,14 +206,14 @@
         <div class="card">
           <h3>排程表</h3>
 
-         <div class="calendar-wrap">
+          <div class="calendar-wrap">
             <div class="calendar-toolbar">
               <button type="button" id="prev-month" class="small-btn">上個月</button>
               <h4 id="calendar-title"></h4>
               <button type="button" id="next-month" class="small-btn">下個月</button>
             </div>
 
-             <div class="calendar-weekdays">
+            <div class="calendar-weekdays">
               <div>日</div>
               <div>一</div>
               <div>二</div>
@@ -222,7 +223,7 @@
               <div>六</div>
             </div>
 
-         <div id="calendar-grid" class="calendar-grid"></div>
+           <div id="calendar-grid" class="calendar-grid"></div>
 
             <div id="schedule-popover" class="schedule-popover hidden">
               <div class="schedule-popover-header">
@@ -234,18 +235,18 @@
                 <p>日期：<strong id="selected-date-text">--</strong></p>
               </div>
 
-            <div id="selected-date-schedule-list" class="list-wrap"></div>
-              
+              <div id="selected-date-schedule-list" class="list-wrap"></div>
+
               <div class="item-actions schedule-top-actions">
                 <button type="button" id="schedule-add-btn" class="primary-btn">+ 新增</button>
               </div>
 
-        <div id="schedule-editor-box" class="hidden">
+              <div id="schedule-editor-box" class="hidden">
                 <h4 id="schedule-editor-title">新增排程</h4>
                 <form id="schedule-form" class="form-grid">
-                  <input id="schedule-date" type="date" required readonly />
-                  <input id="schedule-title" type="text" placeholder="排程標題" required />
-                  <textarea id="schedule-content" placeholder="排程內容" required></textarea>
+                  <label class="field-label"><span>日期</span><input id="schedule-date" type="date" required readonly /></label>
+                  <label class="field-label"><span>排程標題</span><input id="schedule-title" type="text" required /></label>
+                  <label class="field-label"><span>排程內容</span><textarea id="schedule-content" required></textarea></label>
                   <div class="item-actions">
                     <button type="submit" class="primary-btn">儲存排程</button>
                     <button type="button" id="schedule-cancel-btn" class="small-btn cancel-btn">取消</button>
@@ -255,12 +256,12 @@
             </div>
           </div>
         </div>
-     </section>
+      </section>
     </section>
   </div>
 
   <script>
-   window.__FIREBASE_CONFIG__ = {
+    window.__FIREBASE_CONFIG__ = {
       apiKey: "AIzaSyAmPIQMfAR1BmvJbjx3L002ibVu2kXA3uM",
       authDomain: "schedule-app-5845b.firebaseapp.com",
       projectId: "schedule-app-5845b",
