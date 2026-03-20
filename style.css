@@ -86,7 +86,6 @@ textarea {
   resize: vertical;
 }
 
-/* Login */
 .login-page {
   min-height: 100vh;
   display: flex;
@@ -140,7 +139,6 @@ textarea {
   font-size: 14px;
 }
 
-/* Layout */
 .main-page {
   display: flex;
   min-height: 100vh;
@@ -248,7 +246,6 @@ textarea {
   padding: 28px;
 }
 
-/* Cards */
 .hero-card {
   background: linear-gradient(135deg, var(--nav-1), #1e293b);
   color: #ffffff;
@@ -277,6 +274,11 @@ textarea {
   grid-template-columns: 1fr;
 }
 
+.staff-grid {
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.6fr);
+  margin-bottom: 20px;
+}
+
 .card {
   background: var(--surface);
   border-radius: var(--radius-xl);
@@ -298,11 +300,89 @@ textarea {
   margin: 0 0 12px;
 }
 
-/* Form */
 .form-grid {
   display: grid;
   gap: 14px;
   margin-bottom: 20px;
+}
+
+.employee-form {
+  margin-bottom: 0;
+}
+
+.form-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  padding: 18px;
+}
+
+.form-section h4,
+.scope-section h5 {
+  margin: 0 0 12px;
+}
+
+.two-column-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.checkbox-grid label,
+.checkbox-grid-compact label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--surface);
+}
+
+.checkbox-grid input,
+.checkbox-grid-compact input {
+  width: auto;
+  margin: 0;
+  padding: 0;
+}
+
+.checkbox-grid-compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.helper-text {
+  margin: 0 0 12px;
+  color: var(--text-soft);
+  font-size: 14px;
+}
+
+.scope-section + .scope-section {
+  margin-top: 16px;
+}
+
+.section-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.staff-list-card {
+  margin-top: 20px;
+}
+
+.employee-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .primary-btn {
@@ -347,7 +427,6 @@ textarea {
   flex-wrap: wrap;
 }
 
-/* Announcement */
 .edit-box {
   margin-bottom: 20px;
   padding: 18px;
@@ -356,7 +435,6 @@ textarea {
   background: var(--surface-soft);
 }
 
-/* Leave */
 .leave-form-row {
   display: grid;
   grid-template-columns: 120px 160px 160px minmax(240px, 1fr) 180px;
@@ -390,7 +468,6 @@ textarea {
   color: var(--blue-2);
 }
 
-/* Lists */
 .list-wrap {
   display: grid;
   gap: 14px;
@@ -442,7 +519,11 @@ textarea {
   color: #991b1b;
 }
 
-/* Calendar */
+.status-active {
+  background: #dcfce7;
+  color: #166534;
+}
+
 .calendar-wrap {
   position: relative;
   overflow: visible;
@@ -532,7 +613,6 @@ textarea {
   text-overflow: ellipsis;
 }
 
-/* Schedule popover */
 .schedule-popover {
   position: fixed;
   top: 50%;
@@ -565,7 +645,6 @@ textarea {
 .selected-date-box {
   margin-bottom: 12px;
 }
-
 
 .selected-date-box p {
   margin: 0;
@@ -604,9 +683,12 @@ textarea {
   border-top: 1px solid var(--border);
 }
 
-/* Responsive */
 @media (max-width: 1200px) {
-  .content-grid {
+  .content-grid,
+  .staff-grid,
+  .two-column-grid,
+  .checkbox-grid,
+  .checkbox-grid-compact {
     grid-template-columns: 1fr;
   }
 
@@ -640,7 +722,9 @@ textarea {
 }
 
 @media (max-width: 768px) {
-  .schedule-list-item {
+  .schedule-list-item,
+  .employee-card-header,
+  .section-header-row {
     flex-direction: column;
   }
 
