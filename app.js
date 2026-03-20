@@ -1,279 +1,877 @@
-// ===== 使用者 =====
 const users = [
-  { employeeId: "GoldBricks", password: "GoldBricks", name: "GoldBricks", role: "管理員", region: "北區", department: "資訊部" },
-  { employeeId: "GB080202", password: "GB080202", name: "王小明", role: "一般員工", region: "中區", department: "排班部" }
+  {
+    employeeId: "GoldBricks",
+    password: "GoldBricks",
+    name: "GoldBricks",
+    role: "管理員",
+    region: "北區",
+    department: "資訊部"
+  },
+  {
+    employeeId: "GB080202",
+    password: "GB080202",
+    name: "王小明",
+    role: "一般員工",
+    region: "中區",
+    department: "排班部"
+  }
 ];
 
-// ===== Storage =====
-const KEY = {
+const STORAGE_KEYS = {
+  announcements: "shift_announcements",
+  leaveRequests: "shift_leave_requests",
   schedules: "shift_schedules",
-  user: "shift_user"
+  currentUser: "shift_current_user"
 };
 
 let currentUser = null;
-let schedules = JSON.parse(localStorage.getItem(KEY.schedules) || "[]");
-
+let editingAnnouncementId = null;
 let calendarDate = new Date();
-let selectedDate = "";
-let editingId = null;
+let selectedScheduleDate = "";
+let editingScheduleId = null;
 
-// ===== DOM =====
-const loginPage = document.getElementById("login-page");
-const mainPage = document.getElementById("main-page");
+let announcements = loadData(STORAGE_KEYS.announcements, [
+  {
+    id: Date.now().toString() + "_a",
+    title: "系統公告",
+    content: "歡迎使用班表系統。",
+    author: "系統管理員",
+    createdAt: new Date().toLocaleString()
+  }
+]);
 
-const loginForm = document.getElementById("login-form");
-const loginError = document.getElementById("login-error");
-const logoutBtn = document.getElementById("logout-btn");
+let leaveRequests = loadData(STORAGE_KEYS.leaveRequests, []);
+let schedules = loadData(STORAGE_KEYS.schedules, []);
 
-const currentUserName = document.getElementById("current-user-name");
-
-// schedule
-const calendarGrid = document.getElementById("calendar-grid");
-const calendarTitle = document.getElementById("calendar-title");
-
-const schedulePopover = document.getElementById("schedule-popover");
-const scheduleClose = document.getElementById("schedule-popover-close");
-
-const scheduleAddBtn = document.getElementById("schedule-add-btn");
-const scheduleEditorBox = document.getElementById("schedule-editor-box");
-const scheduleEditorTitle = document.getElementById("schedule-editor-title");
-
-const scheduleForm = document.getElementById("schedule-form");
-const scheduleDate = document.getElementById("schedule-date");
-const scheduleTitle = document.getElementById("schedule-title");
-const scheduleContent = document.getElementById("schedule-content");
-const scheduleCancelBtn = document.getElementById("schedule-cancel-btn");
-
-const scheduleList = document.getElementById("selected-date-schedule-list");
-const selectedDateText = document.getElementById("selected-date-text");
-
-const calendarWrap = document.querySelector(".calendar-wrap");
-
-// ===== 共用 =====
-function save() {
-  localStorage.setItem(KEY.schedules, JSON.stringify(schedules));
+function loadData(key, defaultValue) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : defaultValue;
+  } catch (error) {
+    return defaultValue;
+  }
 }
 
-function formatDate(d) {
-  return d.toISOString().split("T")[0];
+function saveData(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
 }
 
-// ===== 登入 =====
-loginForm?.addEventListener("submit", (e) => {
-  e.preventDefault();
+function isAdmin(user) {
+  return user && user.role === "管理員";
+}
 
-  const id = document.getElementById("employeeId").value;
-  const pw = document.getElementById("password").value;
+function formatDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
-  const user = users.find(u => u.employeeId === id && u.password === pw);
+document.addEventListener("DOMContentLoaded", function () {
+  const loginPage = document.getElementById("login-page");
+  const mainPage = document.getElementById("main-page");
+  const loginForm = document.getElementById("login-form");
+  const loginError = document.getElementById("login-error");
+  const logoutBtn = document.getElementById("logout-btn");
 
-  if (!user) {
-    loginError.textContent = "帳號錯誤";
-    return;
+  const currentUserName = document.getElementById("current-user-name");
+  const userRole = document.getElementById("user-role");
+  const userRegion = document.getElementById("user-region");
+  const userDepartment = document.getElementById("user-department");
+
+  const staffName = document.getElementById("staff-name");
+  const staffRole = document.getElementById("staff-role");
+  const staffRegion = document.getElementById("staff-region");
+  const staffDepartment = document.getElementById("staff-department");
+
+  const pageTitle = document.getElementById("page-title");
+  const menuButtons = document.querySelectorAll(".menu-btn");
+  const pageSections = document.querySelectorAll(".page-section");
+
+  const announcementForm = document.getElementById("announcement-form");
+  const announcementTitle = document.getElementById("announcement-title");
+  const announcementContent = document.getElementById("announcement-content");
+  const announcementList = document.getElementById("announcement-list");
+
+  const announcementEditBox = document.getElementById("announcement-edit-box");
+  const announcementEditForm = document.getElementById("announcement-edit-form");
+  const announcementEditTitle = document.getElementById("announcement-edit-title");
+  const announcementEditContent = document.getElementById("announcement-edit-content");
+  const announcementCancelEdit = document.getElementById("announcement-cancel-edit");
+
+  const leaveForm = document.getElementById("leave-form");
+  const leaveType = document.getElementById("leave-type");
+  const leaveStart = document.getElementById("leave-start");
+  const leaveEnd = document.getElementById("leave-end");
+  const leaveReason = document.getElementById("leave-reason");
+  const leaveList = document.getElementById("leave-list");
+  const leaveStats = document.getElementById("leave-stats");
+
+  const scheduleForm = document.getElementById("schedule-form");
+  const scheduleDate = document.getElementById("schedule-date");
+  const scheduleTitle = document.getElementById("schedule-title");
+  const scheduleContent = document.getElementById("schedule-content");
+  const calendarGrid = document.getElementById("calendar-grid");
+  const calendarTitle = document.getElementById("calendar-title");
+  const prevMonthBtn = document.getElementById("prev-month");
+  const nextMonthBtn = document.getElementById("next-month");
+  const schedulePopover = document.getElementById("schedule-popover");
+  const schedulePopoverClose = document.getElementById("schedule-popover-close");
+  const selectedDateText = document.getElementById("selected-date-text");
+  const selectedDateScheduleList = document.getElementById("selected-date-schedule-list");
+  const scheduleCancelBtn = document.getElementById("schedule-cancel-btn");
+  const calendarWrap = document.querySelector(".calendar-wrap");
+  const scheduleAddBtn = document.getElementById("schedule-add-btn");
+  const scheduleEditorBox = document.getElementById("schedule-editor-box");
+  const scheduleEditorTitle = document.getElementById("schedule-editor-title");
+
+  function updateUserInfo(user) {
+    if (currentUserName) currentUserName.textContent = user.name;
+    if (userRole) userRole.textContent = user.role;
+    if (userRegion) userRegion.textContent = user.region;
+    if (userDepartment) userDepartment.textContent = user.department;
+
+    if (staffName) staffName.textContent = user.name;
+    if (staffRole) staffRole.textContent = user.role;
+    if (staffRegion) staffRegion.textContent = user.region;
+    if (staffDepartment) staffDepartment.textContent = user.department;
   }
 
-  currentUser = user;
-  localStorage.setItem(KEY.user, user.employeeId);
+  function hideAnnouncementEditor() {
+    editingAnnouncementId = null;
+    if (announcementEditBox) announcementEditBox.classList.add("hidden");
+    if (announcementEditForm) announcementEditForm.reset();
+  }
 
-  loginPage.classList.add("hidden");
-  mainPage.classList.remove("hidden");
+  function showScheduleEditor(mode) {
+    if (scheduleEditorBox) scheduleEditorBox.classList.remove("hidden");
+    if (scheduleEditorTitle) {
+      scheduleEditorTitle.textContent = mode === "edit" ? "編輯排程" : "新增排程";
+    }
+  }
 
-  currentUserName.textContent = user.name;
+  function hideScheduleEditor() {
+    editingScheduleId = null;
+    if (scheduleEditorBox) scheduleEditorBox.classList.add("hidden");
+    if (scheduleTitle) scheduleTitle.value = "";
+    if (scheduleContent) scheduleContent.value = "";
+    if (scheduleDate && selectedScheduleDate) scheduleDate.value = selectedScheduleDate;
+  }
 
-  renderCalendar();
-});
+  function renderAnnouncements() {
+    if (!announcementList) return;
 
-// restore
-(function () {
-  const saved = localStorage.getItem(KEY.user);
-  if (!saved) return;
+    if (announcements.length === 0) {
+      announcementList.innerHTML = `<div class="list-item"><p>目前沒有公告。</p></div>`;
+      return;
+    }
 
-  const user = users.find(u => u.employeeId === saved);
-  if (!user) return;
+    announcementList.innerHTML = announcements
+      .slice()
+      .reverse()
+      .map(function (item) {
+        let actions = "";
 
-  currentUser = user;
-  loginPage.classList.add("hidden");
-  mainPage.classList.remove("hidden");
+        if (isAdmin(currentUser)) {
+          actions = `
+            <div class="item-actions">
+              <button type="button" class="small-btn edit-btn" onclick="startEditAnnouncement('${item.id}')">編輯</button>
+              <button type="button" class="small-btn delete-btn" onclick="deleteAnnouncement('${item.id}')">刪除</button>
+            </div>
+          `;
+        }
 
-  currentUserName.textContent = user.name;
+        return `
+          <div class="list-item">
+            <h4>${item.title}</h4>
+            <div class="item-meta">發布者：${item.author}｜時間：${item.createdAt}</div>
+            <p>${item.content}</p>
+            ${actions}
+          </div>
+        `;
+      })
+      .join("");
+  }
 
-  renderCalendar();
-})();
+  function renderLeaveStats() {
+    if (!leaveStats) return;
 
-logoutBtn?.addEventListener("click", () => {
-  localStorage.removeItem(KEY.user);
-  location.reload();
-});
+    const visibleLeaves = isAdmin(currentUser)
+      ? leaveRequests
+      : leaveRequests.filter(function (item) {
+          return currentUser && item.userName === currentUser.name;
+        });
 
-// ===== 排程 =====
+    const stats = {
+      特休: 0,
+      病假: 0,
+      事假: 0,
+      待審核: 0
+    };
 
-function renderCalendar() {
-  const year = calendarDate.getFullYear();
-  const month = calendarDate.getMonth();
+    visibleLeaves.forEach(function (item) {
+      if (stats[item.type] !== undefined) stats[item.type] += 1;
+      if (item.status === "待審核") stats["待審核"] += 1;
+    });
 
-  calendarTitle.textContent = `${year} 年 ${month + 1} 月`;
-
-  const first = new Date(year, month, 1);
-  const start = first.getDay();
-
-  const startDate = new Date(year, month, 1 - start);
-
-  let html = "";
-
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(startDate);
-    d.setDate(startDate.getDate() + i);
-
-    const ds = formatDate(d);
-
-    const list = schedules.filter(s => s.date === ds);
-
-    html += `
-      <div class="calendar-day" data-date="${ds}">
-        <div>${d.getDate()}</div>
-        ${list.map(s => `<div class="calendar-event">${s.title}</div>`).join("")}
-      </div>
+    leaveStats.innerHTML = `
+      <div class="stat-card"><h4>特休</h4><p>${stats["特休"]}</p></div>
+      <div class="stat-card"><h4>病假</h4><p>${stats["病假"]}</p></div>
+      <div class="stat-card"><h4>事假</h4><p>${stats["事假"]}</p></div>
+      <div class="stat-card"><h4>待審核</h4><p>${stats["待審核"]}</p></div>
     `;
   }
 
-  calendarGrid.innerHTML = html;
+  function renderLeaves() {
+    if (!leaveList) return;
 
-  document.querySelectorAll(".calendar-day").forEach(el => {
-    el.onclick = (e) => {
-      openPopover(el.dataset.date, el);
-      e.stopPropagation();
-    };
-  });
-}
+    const visibleLeaves = isAdmin(currentUser)
+      ? leaveRequests
+      : leaveRequests.filter(function (item) {
+          return currentUser && item.userName === currentUser.name;
+        });
 
-// ===== Popover =====
+    renderLeaveStats();
 
-function openPopover(date, el) {
-  selectedDate = date;
-  editingId = null;
+    if (visibleLeaves.length === 0) {
+      leaveList.innerHTML = `<div class="list-item"><p>目前沒有請假申請。</p></div>`;
+      return;
+    }
 
-  selectedDateText.textContent = date;
-  scheduleDate.value = date;
+    leaveList.innerHTML = visibleLeaves
+      .slice()
+      .reverse()
+      .map(function (item) {
+        let actionButtons = "";
 
-  hideEditor();
-  renderList();
+        if (isAdmin(currentUser) && item.status === "待審核") {
+          actionButtons += `
+            <button type="button" class="small-btn approve-btn" onclick="approveLeave('${item.id}')">核准</button>
+            <button type="button" class="small-btn reject-btn" onclick="rejectLeave('${item.id}')">駁回</button>
+          `;
+        }
 
-  schedulePopover.classList.remove("hidden");
+        if (currentUser && item.userName === currentUser.name && item.status === "待審核") {
+          actionButtons += `
+            <button type="button" class="small-btn cancel-btn" onclick="cancelLeave('${item.id}')">取消請假</button>
+          `;
+        }
 
-  positionPopover(el);
-}
-
-function closePopover() {
-  schedulePopover.classList.add("hidden");
-  hideEditor();
-}
-
-scheduleClose?.addEventListener("click", closePopover);
-
-// ===== 位置 =====
-function positionPopover(el) {
-  const rect = el.getBoundingClientRect();
-  const wrap = calendarWrap.getBoundingClientRect();
-
-  schedulePopover.style.left = (rect.left - wrap.left) + "px";
-  schedulePopover.style.top = (rect.bottom - wrap.top + 10) + "px";
-}
-
-// ===== Editor =====
-function showEditor(mode) {
-  scheduleEditorBox.classList.remove("hidden");
-  scheduleEditorTitle.textContent = mode === "edit" ? "編輯排程" : "新增排程";
-}
-
-function hideEditor() {
-  editingId = null;
-  scheduleEditorBox.classList.add("hidden");
-  scheduleTitle.value = "";
-  scheduleContent.value = "";
-}
-
-// ===== 列表 =====
-function renderList() {
-  const list = schedules.filter(s => s.date === selectedDate);
-
-  if (list.length === 0) {
-    scheduleList.innerHTML = `<div class="list-item">沒有排程</div>`;
-    return;
+        return `
+          <div class="list-item">
+            <h4>${item.userName} - ${item.type}</h4>
+            <div class="item-meta">
+              部門：${item.department}｜區域：${item.region}
+              ${item.reviewedBy ? `｜審核人：${item.reviewedBy}` : ""}
+              ${item.reviewedAt ? `｜審核時間：${item.reviewedAt}` : ""}
+            </div>
+            <p>日期：${item.startDate} ~ ${item.endDate}</p>
+            <p>原因：${item.reason}</p>
+            <p><span class="status-badge status-${item.status}">${item.status}</span></p>
+            ${actionButtons ? `<div class="item-actions">${actionButtons}</div>` : ""}
+          </div>
+        `;
+      })
+      .join("");
   }
 
-  scheduleList.innerHTML = list.map(s => `
-    <div class="list-item">
-      <h4>${s.title}</h4>
-      <p>${s.content}</p>
-      <button onclick="editSchedule('${s.id}')">編輯</button>
-      <button onclick="deleteSchedule('${s.id}')">刪除</button>
-    </div>
-  `).join("");
-}
+  function renderSchedules() {
+    if (!selectedDateScheduleList) return;
 
-// ===== 新增 =====
-scheduleAddBtn?.addEventListener("click", () => {
-  editingId = null;
-  scheduleTitle.value = "";
-  scheduleContent.value = "";
-  showEditor("add");
-});
+    if (!selectedScheduleDate) {
+      selectedDateScheduleList.innerHTML = `<div class="list-item"><p>請先點選日期。</p></div>`;
+      return;
+    }
 
-// ===== 儲存 =====
-scheduleForm?.addEventListener("submit", (e) => {
-  e.preventDefault();
+    const selectedSchedules = schedules.filter(function (item) {
+      return item.date === selectedScheduleDate;
+    });
 
-  const title = scheduleTitle.value;
-  const content = scheduleContent.value;
+    if (selectedSchedules.length === 0) {
+      selectedDateScheduleList.innerHTML = `<div class="list-item"><p>這一天目前沒有排程。</p></div>`;
+      return;
+    }
 
-  if (!title || !content) return;
+    selectedDateScheduleList.innerHTML = selectedSchedules
+      .map(function (item) {
+        return `
+          <div class="list-item">
+            <h4>${item.title}</h4>
+            <div class="item-meta">日期：${item.date}｜建立者：${item.author}</div>
+            <p>${item.content}</p>
+            <div class="item-actions">
+              <button type="button" class="small-btn edit-btn" onclick="editSchedule('${item.id}')">編輯</button>
+              <button type="button" class="small-btn delete-btn" onclick="deleteSchedule('${item.id}')">刪除</button>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
 
-  if (editingId) {
-    schedules = schedules.map(s =>
-      s.id === editingId ? { ...s, title, content } : s
-    );
-  } else {
-    schedules.push({
-      id: Date.now() + "",
-      date: selectedDate,
-      title,
-      content
+  function positionSchedulePopover(targetElement) {
+    if (!schedulePopover || !calendarWrap || !targetElement) return;
+
+    const wrapRect = calendarWrap.getBoundingClientRect();
+    const cellRect = targetElement.getBoundingClientRect();
+
+    const gap = 12;
+    const popoverWidth = schedulePopover.offsetWidth || 360;
+    const popoverHeight = schedulePopover.offsetHeight || 420;
+
+    let left = cellRect.left - wrapRect.left;
+    let top = cellRect.bottom - wrapRect.top + gap;
+
+    if (left + popoverWidth > wrapRect.width - 8) {
+      left = wrapRect.width - popoverWidth - 8;
+    }
+
+    if (left < 8) {
+      left = 8;
+    }
+
+    if (top + popoverHeight > wrapRect.height && cellRect.top - wrapRect.top > popoverHeight) {
+      top = cellRect.top - wrapRect.top - popoverHeight - gap;
+    }
+
+    if (top < 8) {
+      top = 8;
+    }
+
+    schedulePopover.style.left = `${left}px`;
+    schedulePopover.style.top = `${top}px`;
+  }
+
+  function openSchedulePopover(dateString, targetElement) {
+    selectedScheduleDate = dateString;
+    editingScheduleId = null;
+
+    if (selectedDateText) selectedDateText.textContent = dateString;
+    if (scheduleDate) scheduleDate.value = dateString;
+
+    hideScheduleEditor();
+    renderSchedules();
+    renderCalendar();
+
+    if (schedulePopover) {
+      schedulePopover.classList.remove("hidden");
+    }
+
+    requestAnimationFrame(function () {
+      positionSchedulePopover(targetElement);
     });
   }
 
-  save();
-  hideEditor();
-  renderList();
-  renderCalendar();
-});
-
-// ===== 編輯 =====
-window.editSchedule = function (id) {
-  const s = schedules.find(x => x.id === id);
-  if (!s) return;
-
-  editingId = id;
-
-  scheduleTitle.value = s.title;
-  scheduleContent.value = s.content;
-
-  showEditor("edit");
-};
-
-// ===== 刪除 =====
-window.deleteSchedule = function (id) {
-  schedules = schedules.filter(s => s.id !== id);
-  save();
-  renderList();
-  renderCalendar();
-};
-
-// ===== 取消 =====
-scheduleCancelBtn?.addEventListener("click", hideEditor);
-
-// ===== 點外面關閉 =====
-document.addEventListener("click", (e) => {
-  if (!schedulePopover.contains(e.target)) {
-    closePopover();
+  function closeSchedulePopover() {
+    if (schedulePopover) schedulePopover.classList.add("hidden");
+    hideScheduleEditor();
   }
+
+  function renderCalendar() {
+    if (!calendarGrid || !calendarTitle) return;
+
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+
+    calendarTitle.textContent = `${year} 年 ${month + 1} 月`;
+
+    const firstDay = new Date(year, month, 1);
+    const startDay = firstDay.getDay();
+    const firstCellDate = new Date(year, month, 1 - startDay);
+
+    const todayString = formatDate(new Date());
+    const cells = [];
+
+    for (let i = 0; i < 42; i++) {
+      const cellDate = new Date(firstCellDate);
+      cellDate.setDate(firstCellDate.getDate() + i);
+
+      const cellDateString = formatDate(cellDate);
+      const daySchedules = schedules.filter(function (item) {
+        return item.date === cellDateString;
+      });
+
+      const isOtherMonth = cellDate.getMonth() !== month;
+      const isToday = cellDateString === todayString;
+      const isSelected = cellDateString === selectedScheduleDate;
+
+      cells.push(`
+        <div
+          class="calendar-day ${isOtherMonth ? "other-month" : ""} ${isToday ? "today" : ""} ${isSelected ? "selected" : ""}"
+          data-date="${cellDateString}"
+        >
+          <div class="calendar-day-number">${cellDate.getDate()}</div>
+          <div class="calendar-events">
+            ${daySchedules.map(function (schedule) {
+              return `<div class="calendar-event">${schedule.title}</div>`;
+            }).join("")}
+          </div>
+        </div>
+      `);
+    }
+
+    calendarGrid.innerHTML = cells.join("");
+
+    const dayCells = calendarGrid.querySelectorAll(".calendar-day");
+    dayCells.forEach(function (cell) {
+      cell.addEventListener("click", function (event) {
+        const dateString = cell.dataset.date;
+        openSchedulePopover(dateString, cell);
+        event.stopPropagation();
+      });
+    });
+  }
+
+  window.startEditAnnouncement = function (id) {
+    if (!isAdmin(currentUser)) return;
+
+    const item = announcements.find(function (announcement) {
+      return announcement.id === id;
+    });
+
+    if (!item) return;
+
+    editingAnnouncementId = id;
+    if (announcementEditTitle) announcementEditTitle.value = item.title;
+    if (announcementEditContent) announcementEditContent.value = item.content;
+    if (announcementEditBox) announcementEditBox.classList.remove("hidden");
+    if (announcementEditTitle) announcementEditTitle.focus();
+  };
+
+  window.deleteAnnouncement = function (id) {
+    if (!isAdmin(currentUser)) return;
+
+    announcements = announcements.filter(function (item) {
+      return item.id !== id;
+    });
+
+    saveData(STORAGE_KEYS.announcements, announcements);
+
+    if (editingAnnouncementId === id) {
+      hideAnnouncementEditor();
+    }
+
+    renderAnnouncements();
+  };
+
+  window.approveLeave = function (id) {
+    leaveRequests = leaveRequests.map(function (item) {
+      if (item.id === id) {
+        return {
+          ...item,
+          status: "已核准",
+          reviewedBy: currentUser ? currentUser.name : "",
+          reviewedAt: new Date().toLocaleString()
+        };
+      }
+      return item;
+    });
+
+    saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
+    renderLeaves();
+  };
+
+  window.rejectLeave = function (id) {
+    leaveRequests = leaveRequests.map(function (item) {
+      if (item.id === id) {
+        return {
+          ...item,
+          status: "已駁回",
+          reviewedBy: currentUser ? currentUser.name : "",
+          reviewedAt: new Date().toLocaleString()
+        };
+      }
+      return item;
+    });
+
+    saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
+    renderLeaves();
+  };
+
+  window.cancelLeave = function (id) {
+    leaveRequests = leaveRequests.map(function (item) {
+      if (item.id === id) {
+        return {
+          ...item,
+          status: "已取消",
+          reviewedBy: currentUser ? currentUser.name : "",
+          reviewedAt: new Date().toLocaleString()
+        };
+      }
+      return item;
+    });
+
+    saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
+    renderLeaves();
+  };
+
+  window.editSchedule = function (id) {
+    const item = schedules.find(function (schedule) {
+      return schedule.id === id;
+    });
+
+    if (!item) return;
+
+    editingScheduleId = id;
+    selectedScheduleDate = item.date;
+
+    if (selectedDateText) selectedDateText.textContent = item.date;
+    if (scheduleDate) scheduleDate.value = item.date;
+    if (scheduleTitle) scheduleTitle.value = item.title;
+    if (scheduleContent) scheduleContent.value = item.content;
+
+    if (schedulePopover) {
+      schedulePopover.classList.remove("hidden");
+    }
+
+    showScheduleEditor("edit");
+    renderSchedules();
+    renderCalendar();
+
+    const targetCell = calendarGrid
+      ? calendarGrid.querySelector(`[data-date="${item.date}"]`)
+      : null;
+
+    requestAnimationFrame(function () {
+      positionSchedulePopover(targetCell);
+    });
+  };
+
+  window.deleteSchedule = function (id) {
+    schedules = schedules.filter(function (item) {
+      return item.id !== id;
+    });
+
+    saveData(STORAGE_KEYS.schedules, schedules);
+
+    if (editingScheduleId === id) {
+      hideScheduleEditor();
+    }
+
+    renderSchedules();
+    renderCalendar();
+
+    const targetCell = calendarGrid
+      ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`)
+      : null;
+
+    if (targetCell && schedulePopover && !schedulePopover.classList.contains("hidden")) {
+      requestAnimationFrame(function () {
+        positionSchedulePopover(targetCell);
+      });
+    }
+  };
+
+  function setLoggedInUser(user) {
+    currentUser = user;
+    updateUserInfo(user);
+
+    if (loginPage) loginPage.classList.add("hidden");
+    if (mainPage) mainPage.classList.remove("hidden");
+
+    localStorage.setItem(STORAGE_KEYS.currentUser, user.employeeId);
+
+    renderAnnouncements();
+    renderLeaves();
+    renderSchedules();
+    renderCalendar();
+  }
+
+  function restoreLogin() {
+    const savedEmployeeId = localStorage.getItem(STORAGE_KEYS.currentUser);
+    if (!savedEmployeeId) return;
+
+    const matchedUser = users.find(function (u) {
+      return u.employeeId === savedEmployeeId;
+    });
+
+    if (!matchedUser) return;
+
+    setLoggedInUser(matchedUser);
+  }
+
+  if (loginForm) {
+    loginForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      const employeeIdInput = document.getElementById("employeeId");
+      const passwordInput = document.getElementById("password");
+
+      const employeeId = employeeIdInput ? employeeIdInput.value.trim() : "";
+      const password = passwordInput ? passwordInput.value.trim() : "";
+
+      const user = users.find(function (u) {
+        return u.employeeId === employeeId && u.password === password;
+      });
+
+      if (!user) {
+        if (loginError) loginError.textContent = "帳號或密碼錯誤";
+        return;
+      }
+
+      if (loginError) loginError.textContent = "";
+      setLoggedInUser(user);
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", function () {
+      currentUser = null;
+      editingAnnouncementId = null;
+      editingScheduleId = null;
+      selectedScheduleDate = "";
+
+      localStorage.removeItem(STORAGE_KEYS.currentUser);
+
+      hideAnnouncementEditor();
+      closeSchedulePopover();
+
+      if (mainPage) mainPage.classList.add("hidden");
+      if (loginPage) loginPage.classList.remove("hidden");
+      if (loginForm) loginForm.reset();
+      if (loginError) loginError.textContent = "";
+    });
+  }
+
+  menuButtons.forEach(function (button) {
+    button.addEventListener("click", function () {
+      const targetPage = button.dataset.page;
+
+      menuButtons.forEach(function (btn) {
+        btn.classList.remove("active");
+      });
+      button.classList.add("active");
+
+      pageSections.forEach(function (section) {
+        section.classList.add("hidden");
+      });
+
+      const targetSection = document.getElementById("page-" + targetPage);
+      if (targetSection) {
+        targetSection.classList.remove("hidden");
+      }
+
+      if (pageTitle) pageTitle.textContent = button.textContent;
+    });
+  });
+
+  if (announcementForm) {
+    announcementForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      const title = announcementTitle ? announcementTitle.value.trim() : "";
+      const content = announcementContent ? announcementContent.value.trim() : "";
+
+      if (!title || !content) {
+        alert("請填寫完整公告內容");
+        return;
+      }
+
+      announcements.push({
+        id: Date.now().toString(),
+        title: title,
+        content: content,
+        author: currentUser ? currentUser.name : "未知使用者",
+        createdAt: new Date().toLocaleString()
+      });
+
+      saveData(STORAGE_KEYS.announcements, announcements);
+      announcementForm.reset();
+      renderAnnouncements();
+    });
+  }
+
+  if (announcementEditForm) {
+    announcementEditForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      if (!editingAnnouncementId) return;
+
+      const title = announcementEditTitle ? announcementEditTitle.value.trim() : "";
+      const content = announcementEditContent ? announcementEditContent.value.trim() : "";
+
+      if (!title || !content) {
+        alert("請填寫完整公告內容");
+        return;
+      }
+
+      announcements = announcements.map(function (item) {
+        if (item.id === editingAnnouncementId) {
+          return {
+            ...item,
+            title: title,
+            content: content,
+            createdAt: new Date().toLocaleString()
+          };
+        }
+        return item;
+      });
+
+      saveData(STORAGE_KEYS.announcements, announcements);
+      hideAnnouncementEditor();
+      renderAnnouncements();
+    });
+  }
+
+  if (announcementCancelEdit) {
+    announcementCancelEdit.addEventListener("click", function () {
+      hideAnnouncementEditor();
+    });
+  }
+
+  if (leaveForm) {
+    leaveForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      const startDate = leaveStart ? leaveStart.value : "";
+      const endDate = leaveEnd ? leaveEnd.value : "";
+      const reason = leaveReason ? leaveReason.value.trim() : "";
+
+      if (!startDate || !endDate || !reason) {
+        alert("請填寫完整請假資料");
+        return;
+      }
+
+      if (startDate > endDate) {
+        alert("開始日期不能晚於結束日期");
+        return;
+      }
+
+      leaveRequests.push({
+        id: Date.now().toString(),
+        userName: currentUser ? currentUser.name : "未知使用者",
+        department: currentUser ? currentUser.department : "",
+        region: currentUser ? currentUser.region : "",
+        type: leaveType ? leaveType.value : "特休",
+        startDate: startDate,
+        endDate: endDate,
+        reason: reason,
+        status: "待審核",
+        reviewedBy: "",
+        reviewedAt: ""
+      });
+
+      saveData(STORAGE_KEYS.leaveRequests, leaveRequests);
+      leaveForm.reset();
+      renderLeaves();
+    });
+  }
+
+  if (scheduleAddBtn) {
+    scheduleAddBtn.addEventListener("click", function () {
+      editingScheduleId = null;
+      if (scheduleDate) scheduleDate.value = selectedScheduleDate;
+      if (scheduleTitle) scheduleTitle.value = "";
+      if (scheduleContent) scheduleContent.value = "";
+      showScheduleEditor("add");
+    });
+  }
+
+  if (scheduleForm) {
+    scheduleForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      const date = scheduleDate ? scheduleDate.value : "";
+      const title = scheduleTitle ? scheduleTitle.value.trim() : "";
+      const content = scheduleContent ? scheduleContent.value.trim() : "";
+
+      if (!date || !title || !content) {
+        alert("請填寫完整排程資料");
+        return;
+      }
+
+      if (editingScheduleId) {
+        schedules = schedules.map(function (item) {
+          if (item.id === editingScheduleId) {
+            return {
+              ...item,
+              date: date,
+              title: title,
+              content: content
+            };
+          }
+          return item;
+        });
+      } else {
+        schedules.push({
+          id: Date.now().toString(),
+          date: date,
+          title: title,
+          content: content,
+          author: currentUser ? currentUser.name : "未知使用者"
+        });
+      }
+
+      saveData(STORAGE_KEYS.schedules, schedules);
+      hideScheduleEditor();
+      renderSchedules();
+      renderCalendar();
+
+      const targetCell = calendarGrid
+        ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`)
+        : null;
+
+      requestAnimationFrame(function () {
+        positionSchedulePopover(targetCell);
+      });
+    });
+  }
+
+  if (scheduleCancelBtn) {
+    scheduleCancelBtn.addEventListener("click", function () {
+      hideScheduleEditor();
+    });
+  }
+
+  if (schedulePopoverClose) {
+    schedulePopoverClose.addEventListener("click", function (event) {
+      event.stopPropagation();
+      closeSchedulePopover();
+    });
+  }
+
+  document.addEventListener("click", function (event) {
+    if (!schedulePopover || schedulePopover.classList.contains("hidden")) return;
+
+    const clickedInsidePopover = schedulePopover.contains(event.target);
+    const clickedDayCell = event.target.closest(".calendar-day");
+
+    if (!clickedInsidePopover && !clickedDayCell) {
+      closeSchedulePopover();
+    }
+  });
+
+  window.addEventListener("resize", function () {
+    if (!schedulePopover || schedulePopover.classList.contains("hidden")) return;
+
+    const targetCell = calendarGrid
+      ? calendarGrid.querySelector(`[data-date="${selectedScheduleDate}"]`)
+      : null;
+
+    if (targetCell) {
+      positionSchedulePopover(targetCell);
+    }
+  });
+
+  if (prevMonthBtn) {
+    prevMonthBtn.addEventListener("click", function () {
+      calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1);
+      renderCalendar();
+      closeSchedulePopover();
+    });
+  }
+
+  if (nextMonthBtn) {
+    nextMonthBtn.addEventListener("click", function () {
+      calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1);
+      renderCalendar();
+      closeSchedulePopover();
+    });
+  }
+
+  renderAnnouncements();
+  renderLeaves();
+  renderSchedules();
+  renderCalendar();
+  restoreLogin();
 });
