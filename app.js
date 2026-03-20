@@ -51,7 +51,7 @@ let editingScheduleId = null;
 
 let announcements = [];
 
-let leaveRequests = loadData(STORAGE_KEYS.leaveRequests, []);
+let leaveRequests = [];
 let schedules = loadData(STORAGE_KEYS.schedules, []);
 
 function loadData(key, defaultValue) {
