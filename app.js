@@ -300,11 +300,13 @@ document.addEventListener("DOMContentLoaded", function () {
     selectedDateScheduleList.innerHTML = selectedSchedules
       .map(function (item) {
         return `
-          <div class="list-item">
-            <h4>${item.title}</h4>
-            <div class="item-meta">日期：${item.date}｜建立者：${item.author}</div>
-            <p>${item.content}</p>
-            <div class="item-actions">
+         <div class="list-item schedule-list-item">
+            <div class="schedule-item-main">
+              <h4>${item.title}</h4>
+              <div class="item-meta">日期：${item.date}｜建立者：${item.author}</div>
+              <p>${item.content}</p>
+            </div>
+            <div class="item-actions schedule-item-actions">
               <button type="button" class="small-btn edit-btn" data-action="edit-schedule" data-id="${item.id}">編輯</button>
               <button type="button" class="small-btn delete-btn" data-action="delete-schedule" data-id="${item.id}">刪除</button>
             </div>
