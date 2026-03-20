@@ -671,54 +671,55 @@ document.addEventListener("DOMContentLoaded", function () {
           createdAt: createdAt
         });
 
-        announcements.push({
-          id: docRef.id,
-          title: title,
-          content: content,
-          author: author,
-          createdAt: createdAt.toLocaleString()
-        });
+      if (announcementForm) {
+  announcementForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
 
-        announcementForm.reset();
-        renderAnnouncements();
-      } catch (error) {
-        console.error("新增公告失敗", error);
-        alert("公告雲端儲存失敗，請稍後再試。");
-      }
-    });
-  }
+    const title = announcementTitle ? announcementTitle.value.trim() : "";
+    const content = announcementContent ? announcementContent.value.trim() : "";
 
-  if (announcementEditForm) {
-    announcementEditForm.addEventListener("submit", function (event) {
-      event.preventDefault();
+    if (!title || !content) {
+      alert("請填寫完整公告內容");
+      return;
+    }
 
-      if (!editingAnnouncementId) return;
+    if (!db) {
+      alert("尚未設定 Firebase，無法將公告儲存到雲端。");
+      return;
+    }
 
-      const title = announcementEditTitle ? announcementEditTitle.value.trim() : "";
-      const content = announcementEditContent ? announcementEditContent.value.trim() : "";
+    try {
+      const author = currentUser ? currentUser.name : "未知使用者";
 
-      if (!title || !content) {
-        alert("請填寫完整公告內容");
-        return;
-      }
-
-      announcements = announcements.map(function (item) {
-        if (item.id === editingAnnouncementId) {
-          return {
-            ...item,
-            title: title,
-            content: content,
-            createdAt: new Date().toLocaleString()
-          };
-        }
-        return item;
+      await addDoc(collection(db, "announcements"), {
+        title: title,
+        content: content,
+        author: author,
+        createdAt: serverTimestamp()
       });
 
-      saveData(STORAGE_KEYS.announcements, announcements);
+      announcementForm.reset();
+    } catch (error) {
+      console.error("新增公告失敗", error);
+      alert("公告雲端儲存失敗，請稍後再試。");
+    }
+  });
+}
+
+    try {
+      await updateDoc(doc(db, "announcements", editingAnnouncementId), {
+        title: title,
+        content: content,
+        updatedAt: serverTimestamp()
+      });
+
       hideAnnouncementEditor();
-      renderAnnouncements();
-    });
-  }
+    } catch (error) {
+      console.error("更新公告失敗", error);
+      alert("更新公告失敗，請稍後再試。");
+    }
+  });
+}
 
   if (announcementCancelEdit) {
     announcementCancelEdit.addEventListener("click", function () {
@@ -872,9 +873,9 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  renderAnnouncements();
   renderLeaves();
   renderSchedules();
   renderCalendar();
   restoreLogin();
+  startAnnouncementsListener();
 });
