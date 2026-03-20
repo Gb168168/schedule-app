@@ -1,5 +1,17 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
+  orderBy,
+  onSnapshot,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
 const firebaseConfig = window.__FIREBASE_CONFIG__;
 const firebaseApp = firebaseConfig ? initializeApp(firebaseConfig) : null;
@@ -156,6 +168,29 @@ document.addEventListener("DOMContentLoaded", function () {
     if (scheduleTitle) scheduleTitle.value = "";
     if (scheduleContent) scheduleContent.value = "";
     if (scheduleDate && selectedScheduleDate) scheduleDate.value = selectedScheduleDate;
+  }
+
+  function startAnnouncementsListener() {
+    if (!db) return;
+
+    const q = query(collection(db, "announcements"), orderBy("createdAt", "desc"));
+
+    onSnapshot(q, function (snapshot) {
+      announcements = snapshot.docs.map(function (docItem) {
+        const data = docItem.data();
+        return {
+          id: docItem.id,
+          title: data.title || "",
+          content: data.content || "",
+          author: data.author || "",
+          createdAt: data.createdAt && data.createdAt.toDate
+            ? data.createdAt.toDate().toLocaleString()
+            : ""
+        };
+      });
+
+      renderAnnouncements();
+    });
   }
 
   function renderAnnouncements() {
@@ -663,63 +698,50 @@ document.addEventListener("DOMContentLoaded", function () {
 
       try {
         const author = currentUser ? currentUser.name : "未知使用者";
-        const createdAt = new Date();
-        const docRef = await addDoc(collection(db, "announcements"), {
+        
+        await addDoc(collection(db, "announcements"), {
           title: title,
           content: content,
           author: author,
-          createdAt: createdAt
+          createdAt: serverTimestamp()
         });
 
-      if (announcementForm) {
-  announcementForm.addEventListener("submit", async function (event) {
-    event.preventDefault();
+        announcementForm.reset();
+      } catch (error) {
+        console.error("新增公告失敗", error);
+        alert("公告雲端儲存失敗，請稍後再試。");
+      }
+    });
+  }
 
-    const title = announcementTitle ? announcementTitle.value.trim() : "";
-    const content = announcementContent ? announcementContent.value.trim() : "";
+    if (announcementEditForm) {
+     announcementEditForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
 
-    if (!title || !content) {
-      alert("請填寫完整公告內容");
-      return;
-    }
+    if (!editingAnnouncementId || !db) return;
 
-    if (!db) {
-      alert("尚未設定 Firebase，無法將公告儲存到雲端。");
-      return;
-    }
+      const title = announcementEditTitle ? announcementEditTitle.value.trim() : "";
+      const content = announcementEditContent ? announcementEditContent.value.trim() : "";
 
-    try {
-      const author = currentUser ? currentUser.name : "未知使用者";
+     if (!title || !content) {
+        alert("請填寫完整公告內容");
+        return;
+      }
 
-      await addDoc(collection(db, "announcements"), {
-        title: title,
-        content: content,
-        author: author,
-        createdAt: serverTimestamp()
-      });
+     try {
+        await updateDoc(doc(db, "announcements", editingAnnouncementId), {
+          title: title,
+          content: content,
+          updatedAt: serverTimestamp()
+        });
 
-      announcementForm.reset();
-    } catch (error) {
-      console.error("新增公告失敗", error);
-      alert("公告雲端儲存失敗，請稍後再試。");
-    }
-  });
-}
-
-    try {
-      await updateDoc(doc(db, "announcements", editingAnnouncementId), {
-        title: title,
-        content: content,
-        updatedAt: serverTimestamp()
-      });
-
-      hideAnnouncementEditor();
-    } catch (error) {
-      console.error("更新公告失敗", error);
-      alert("更新公告失敗，請稍後再試。");
-    }
-  });
-}
+        hideAnnouncementEditor();
+      } catch (error) {
+        console.error("更新公告失敗", error);
+        alert("更新公告失敗，請稍後再試。");
+      }
+    });
+  }
 
   if (announcementCancelEdit) {
     announcementCancelEdit.addEventListener("click", function () {
