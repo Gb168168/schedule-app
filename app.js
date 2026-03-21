@@ -15,14 +15,20 @@ import {
 
 const REGIONS = ["新竹區", "台中區", "嘉義區"];
 const DEPARTMENTS = ["管理部", "TSE", "FAE", "新場", "倉管", "RD", "線上客服"];
+const LOCATION_CATEGORIES = {
+  office: "區域固定點",
+  customer: "工作店家"
+};
+
+const DEFAULT_ATTENDANCE_LOCATIONS = [
+  { region: "新竹區", category: "office", name: "新竹辦公點", lat: 24.8039, lng: 120.9647, radiusMeters: 500, isActive: true, isHidden: false },
+  { region: "台中區", category: "office", name: "台中辦公點", lat: 24.17779, lng: 120.713161, radiusMeters: 500, isActive: true, isHidden: false },
+  { region: "嘉義區", category: "office", name: "嘉義辦公點", lat: 23.4801, lng: 120.4491, radiusMeters: 500, isActive: true, isHidden: false }
+];
+
 const DEFAULT_ATTENDANCE_SETTINGS = {
-  offices: [
-    { name: "新竹區", lat: 24.8039, lng: 120.9647, radiusMeters: 500 },
-    { name: "台中區", lat: 24.17779, lng: 120.713161, radiusMeters: 500 },
-    { name: "嘉義區", lat: 23.4801, lng: 120.4491, radiusMeters: 500 }
-  ],
- allowedIpRanges: [],
- requireWifi: false
+  allowedIpRanges: [],
+  requireWifi: false
 };
 
 const firebaseConfig = window.__FIREBASE_CONFIG__;
@@ -36,7 +42,13 @@ const users = [
     name: "GoldBricks",
     role: "管理員",
     region: "台中區",
-    department: "最高權限"
+    department: "最高權限",
+    permissions: {
+    announcementManage: true,
+    leaveApprove: true,
+    admin: true,
+    coordinateAdmin: true
+    }
   },
   {
     employeeId: "GB080202",
@@ -44,7 +56,13 @@ const users = [
     name: "邱淑芬",
     role: "財務副理",
     region: "台中區",
-    department: "管理部"
+    department: "管理部",
+    permissions: {
+    announcementManage: false,
+    leaveApprove: false,
+    admin: false,
+    coordinateAdmin: false
+    }
   }
 ];
 
@@ -60,10 +78,20 @@ let leaveRequests = [];
 let schedules = [];
 let employees = [];
 let attendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS };
+let attendanceLocations = DEFAULT_ATTENDANCE_LOCATIONS.map((item, index) => ({ id: `default-${index}`, ...item }));
+let editingCoordinateId = null;
 let lastAttendanceAttempt = null;
 
 function isAdmin(user) {
-  return user && user.role === "管理員";
+ return Boolean(user?.permissions?.admin || user?.role === "管理員");
+}
+
+function canManageAnnouncements(user) {
+  return Boolean(user?.permissions?.admin || user?.permissions?.announcementManage);
+}
+
+function canManageCoordinates(user) {
+  return Boolean(user?.permissions?.admin || user?.permissions?.coordinateAdmin);
 }
 
 function formatDate(date) {
@@ -78,6 +106,7 @@ function formatEmployeePermissions(employee) {
   if (employee.permissions?.admin) tags.push("管理員");
   if (employee.permissions?.leaveApprove) tags.push("可審核請假");
   if (employee.permissions?.announcementManage) tags.push("公告管理");
+  if (employee.permissions?.coordinateAdmin) tags.push("座標管理");
   return tags.length > 0 ? tags.join("、") : "一般員工";
 }
 
@@ -104,14 +133,23 @@ function getDistanceMeters(lat1, lng1, lat2, lng2) {
   return R * c;
 }
 
-function findMatchedOffice(userLat, userLng, offices) {
-  for (const office of offices) {
-    const distance = getDistanceMeters(userLat, userLng, office.lat, office.lng);
-    if (distance <= office.radiusMeters) {
-      return { ...office, distanceMeters: Math.round(distance) };
-    }
-  }
-  return null;
+function findMatchedOffice(userLat, userLng, locations, userRegion = "") {
+  const activeLocations = locations.filter((location) => location.isActive && !location.isHidden);
+  const scopedLocations = activeLocations.filter((location) => !userRegion || location.region === userRegion);
+  const candidates = scopedLocations.length > 0 ? scopedLocations : activeLocations;
+  return candidates.find((location) => {
+    const distance = getDistanceMeters(userLat, userLng, location.lat, location.lng);
+    return distance <= location.radiusMeters;
+  })
+    ? (() => {
+        const matched = candidates.find((location) => {
+          const distance = getDistanceMeters(userLat, userLng, location.lat, location.lng);
+          return distance <= location.radiusMeters;
+        });
+        const distance = getDistanceMeters(userLat, userLng, matched.lat, matched.lng);
+        return { ...matched, distanceMeters: Math.round(distance) };
+      })()
+    : null;
 }
 
 function getNetworkType() {
@@ -158,7 +196,6 @@ async function fetchAttendanceSettings() {
 
   const data = snapshot.data();
   attendanceSettings = {
-    offices: Array.isArray(data.offices) && data.offices.length > 0 ? data.offices : DEFAULT_ATTENDANCE_SETTINGS.offices,
     allowedIpRanges: Array.isArray(data.allowedIpRanges) ? data.allowedIpRanges : DEFAULT_ATTENDANCE_SETTINGS.allowedIpRanges,
     requireWifi: typeof data.requireWifi === "boolean" ? data.requireWifi : DEFAULT_ATTENDANCE_SETTINGS.requireWifi
   };
@@ -198,6 +235,21 @@ document.addEventListener("DOMContentLoaded", function () {
   const leaveApproveCheckbox = document.getElementById("permission-leave-approve");
   const announcementManageCheckbox = document.getElementById("permission-announcement-manage");
   const adminScopePanel = document.getElementById("admin-scope-panel");
+  
+  const coordinateMenuBtn = document.getElementById("menu-coordinate-btn");
+  const coordinateAdminDisabled = document.getElementById("coordinate-admin-disabled");
+  const coordinateEditorCard = document.getElementById("coordinate-editor-card");
+  const coordinateEditorTitle = document.getElementById("coordinate-editor-title");
+  const coordinateForm = document.getElementById("coordinate-form");
+  const coordinateRegionSelect = document.getElementById("coordinate-region");
+  const coordinateCategorySelect = document.getElementById("coordinate-category");
+  const coordinateNameInput = document.getElementById("coordinate-name");
+  const coordinateRadiusInput = document.getElementById("coordinate-radius");
+  const coordinateLatInput = document.getElementById("coordinate-lat");
+  const coordinateLngInput = document.getElementById("coordinate-lng");
+  const coordinateIsActiveInput = document.getElementById("coordinate-is-active");
+  const coordinateCancelBtn = document.getElementById("coordinate-cancel-btn");
+  const coordinateRegionList = document.getElementById("coordinate-region-list");
   
   const pageTitle = document.getElementById("page-title");
   const menuButtons = document.querySelectorAll(".menu-btn");
@@ -244,16 +296,101 @@ document.addEventListener("DOMContentLoaded", function () {
     attendanceStatusBadge.textContent = text;
   }
 
+  function updateMenuPermissions(user) {
+    if (!coordinateMenuBtn) return;
+    coordinateMenuBtn.classList.toggle("hidden", !canManageCoordinates(user));
+  }
+
+  function populateCoordinateRegionOptions() {
+    if (!coordinateRegionSelect) return;
+    coordinateRegionSelect.innerHTML = REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("");
+  }
+
+  function getVisibleAttendanceLocations() {
+    return attendanceLocations.filter((location) => !location.isHidden);
+  }
+  
   function renderAttendanceSettingsSummary() {
     if (!attendanceSettingsSummary) return;
+    const activeLocations = getVisibleAttendanceLocations().filter((location) => location.isActive);
     attendanceSettingsSummary.innerHTML = `
-      <p><strong>Firestore：</strong>settings/attendance</p>
-      <p><strong>據點：</strong>${attendanceSettings.offices.map((office) => `${office.name}（${office.radiusMeters}m）`).join("、")}</p>
-      <p><strong>定位打卡：</strong>使用座標比對 500 公尺內允許打卡</p>
+      <p><strong>員工集合：</strong>employees</p>
+      <p><strong>打卡座標集合：</strong>attendanceLocations</p>
+      <p><strong>啟用座標：</strong>${activeLocations.length} 筆</p>
+      <p><strong>定位打卡：</strong>先比對登入者地區，若該地區沒有符合點位，再回退為所有啟用點位。</p>
       <p><strong>IP 白名單：</strong>${attendanceSettings.allowedIpRanges.join("、") || "未使用"}</p>
       <p><strong>需要 Wi‑Fi：</strong>${attendanceSettings.requireWifi ? "是" : "否"}</p>
     `;
     if (attendanceRequireWifi) attendanceRequireWifi.textContent = attendanceSettings.requireWifi ? "是" : "否";
+  }
+
+  function hideCoordinateEditor() {
+    editingCoordinateId = null;
+    if (coordinateEditorCard) coordinateEditorCard.classList.add("hidden");
+    if (coordinateForm) coordinateForm.reset();
+    if (coordinateIsActiveInput) coordinateIsActiveInput.checked = true;
+    populateCoordinateRegionOptions();
+    if (coordinateCategorySelect) coordinateCategorySelect.value = "office";
+  }
+
+  function showCoordinateEditor(mode, location = null, preset = {}) {
+    if (!coordinateEditorCard) return;
+    coordinateEditorCard.classList.remove("hidden");
+    if (coordinateEditorTitle) coordinateEditorTitle.textContent = mode === "edit" ? "編輯打卡座標" : "新增打卡座標";
+    if (coordinateRegionSelect) coordinateRegionSelect.value = location?.region || preset.region || REGIONS[0];
+    if (coordinateCategorySelect) coordinateCategorySelect.value = location?.category || preset.category || "office";
+    if (coordinateNameInput) coordinateNameInput.value = location?.name || "";
+    if (coordinateRadiusInput) coordinateRadiusInput.value = location?.radiusMeters ?? 500;
+    if (coordinateLatInput) coordinateLatInput.value = location?.lat ?? "";
+    if (coordinateLngInput) coordinateLngInput.value = location?.lng ?? "";
+    if (coordinateIsActiveInput) coordinateIsActiveInput.checked = location?.isActive ?? true;
+    if (coordinateNameInput) coordinateNameInput.focus();
+  }
+
+  function renderCoordinates() {
+    if (!coordinateRegionList) return;
+    const canManage = canManageCoordinates(currentUser);
+    if (coordinateAdminDisabled) coordinateAdminDisabled.classList.toggle("hidden", canManage);
+    if (coordinateEditorCard && !canManage) coordinateEditorCard.classList.add("hidden");
+
+    const visibleLocations = getVisibleAttendanceLocations();
+    coordinateRegionList.innerHTML = REGIONS.map((region) => {
+      const regionLocations = visibleLocations.filter((location) => location.region === region);
+      return ["office", "customer"].map((category, index) => {
+        const items = regionLocations.filter((location) => location.category === category);
+        const table = items.length > 0
+          ? `<table class="coordinate-table"><thead><tr><th>名稱</th><th>緯度</th><th>經度</th><th>半徑</th><th>狀態</th><th>操作</th></tr></thead><tbody>${items.map((item) => `<tr><td>${item.name}</td><td>${Number(item.lat).toFixed(6)}</td><td>${Number(item.lng).toFixed(6)}</td><td>${item.radiusMeters}m</td><td><span class="status-badge ${item.isActive ? "status-success" : "status-fail"}">${item.isActive ? "啟用" : "停用"}</span></td><td>${canManage ? `<div class="item-actions"><button type="button" class="small-btn edit-btn" onclick="editCoordinate('${item.id}')">編輯</button><button type="button" class="small-btn" onclick="toggleCoordinateVisibility('${item.id}', false)">隱藏</button><button type="button" class="small-btn delete-btn" onclick="deleteCoordinate('${item.id}')">刪除</button></div>` : "-"}</td></tr>`).join("")}</tbody></table>`
+          : `<div class="list-item"><p>目前沒有${LOCATION_CATEGORIES[category]}。</p></div>`;
+        const addBtn = canManage ? `<button type="button" class="primary-btn coordinate-add-btn" data-region="${region}" data-category="${category}">+ 新增${LOCATION_CATEGORIES[category]}</button>` : "";
+        return `${index === 0 ? `<section class="coordinate-region-card"><div class="section-header-row"><div><h3>${region}</h3><p class="helper-text">分區顯示內部座標與工作店家座標。</p></div></div>` : ""}<div class="coordinate-category-block"><h4>${LOCATION_CATEGORIES[category]}</h4>${table}${addBtn}</div>${index === 1 ? `</section>` : ""}`;
+      }).join("");
+    }).join("");
+
+    coordinateRegionList.querySelectorAll(".coordinate-add-btn").forEach((button) => {
+      button.addEventListener("click", function () {
+        editingCoordinateId = null;
+        showCoordinateEditor("add", null, { region: button.dataset.region, category: button.dataset.category });
+      });
+    });
+  }
+
+  function startAttendanceLocationsListener() {
+    if (!db) {
+      attendanceLocations = DEFAULT_ATTENDANCE_LOCATIONS.map((item, index) => ({ id: `default-${index}`, ...item }));
+      renderCoordinates();
+      renderAttendanceSettingsSummary();
+      return;
+    }
+    const q = query(collection(db, "attendanceLocations"), orderBy("region", "asc"));
+    onSnapshot(q, async function (snapshot) {
+      if (snapshot.empty) {
+        await Promise.all(DEFAULT_ATTENDANCE_LOCATIONS.map((item) => addDoc(collection(db, "attendanceLocations"), { ...item, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })));
+        return;
+      }
+      attendanceLocations = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
+      renderCoordinates();
+      renderAttendanceSettingsSummary();
+    });
   }
 
   function renderAttendanceAttempt() {
@@ -339,7 +476,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const position = await getCurrentPositionAsync();
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
-      const matchedOffice = findMatchedOffice(lat, lng, attendanceSettings.offices);
+      const matchedOffice = findMatchedOffice(lat, lng, attendanceLocations, currentUser.region);
       const networkType = getNetworkType();
 
       if (!matchedOffice) {
@@ -368,7 +505,7 @@ document.addEventListener("DOMContentLoaded", function () {
           networkType,
           badgeKind: "fail",
           badgeText: "位置不符",
-          message: "目前位置不在任何公司據點 500 公尺半徑內，無法打卡。"
+          message: "目前位置不在任何可用打卡座標半徑內，無法打卡。"
         };
         renderAttendanceAttempt();
         return;
@@ -462,6 +599,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (manageDepartments) {
       manageDepartments.innerHTML = DEPARTMENTS.map((department) => `<label><input type="checkbox" name="manage-departments" value="${department}" /> ${department}</label>`).join("");
     }
+    
+    populateCoordinateRegionOptions();
   }
 
   function syncAdminPermissionState() {
@@ -577,7 +716,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     announcementList.innerHTML = announcements.map(function (item) {
-      const actions = isAdmin(currentUser)
+      const actions = canManageAnnouncements(currentUser)
         ? `<div class="item-actions">
             <button type="button" class="small-btn edit-btn" onclick="startEditAnnouncement('${item.id}')">編輯</button>
             <button type="button" class="small-btn delete-btn" onclick="deleteAnnouncement('${item.id}')">刪除</button>
@@ -742,7 +881,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   window.startEditAnnouncement = function (id) {
-    if (!isAdmin(currentUser)) return;
+    if (!canManageAnnouncements(currentUser)) return;
     const item = announcements.find((announcement) => announcement.id === id);
     if (!item) return;
     editingAnnouncementId = id;
@@ -753,7 +892,7 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   window.deleteAnnouncement = async function (id) {
-    if (!isAdmin(currentUser) || !db) return;
+    if (!canManageAnnouncements(currentUser) || !db) return;
     try {
       await deleteDoc(doc(db, "announcements", id));
       if (editingAnnouncementId === id) hideAnnouncementEditor();
@@ -822,9 +961,11 @@ document.addEventListener("DOMContentLoaded", function () {
     if (loginPage) loginPage.classList.add("hidden");
     if (mainPage) mainPage.classList.remove("hidden");
     localStorage.setItem(STORAGE_KEYS.currentUser, user.employeeId);
+    updateMenuPermissions(user);
     renderLeaves();
     renderSchedules();
     renderCalendar();
+    renderCoordinates();
   }
 
   function restoreLogin() {
@@ -863,6 +1004,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (loginPage) loginPage.classList.remove("hidden");
       if (loginForm) loginForm.reset();
       if (loginError) loginError.textContent = "";
+      updateMenuPermissions(null);
     });
   }
 
@@ -956,7 +1098,8 @@ document.addEventListener("DOMContentLoaded", function () {
         permissions: {
           admin: adminCheckbox?.checked || false,
           leaveApprove: leaveApproveCheckbox?.checked || false,
-          announcementManage: announcementManageCheckbox?.checked || false
+          announcementManage: announcementManageCheckbox?.checked || false,
+          coordinateAdmin: adminCheckbox?.checked || false
         },
         manageScopes: {
           regions: Array.from(document.querySelectorAll('input[name="manage-regions"]:checked')).map((el) => el.value),
@@ -1081,12 +1224,86 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  if (coordinateForm) {
+    coordinateForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      if (!canManageCoordinates(currentUser)) return alert("你沒有座標管理權限");
+      const payload = {
+        region: coordinateRegionSelect?.value || REGIONS[0],
+        category: coordinateCategorySelect?.value || "office",
+        name: coordinateNameInput?.value.trim() || "",
+        lat: Number(coordinateLatInput?.value || 0),
+        lng: Number(coordinateLngInput?.value || 0),
+        radiusMeters: Number(coordinateRadiusInput?.value || 0),
+        isActive: coordinateIsActiveInput?.checked ?? true,
+        isHidden: false,
+        updatedAt: serverTimestamp()
+      };
+      if (!payload.name || !payload.lat || !payload.lng || !payload.radiusMeters) return alert("請完整填寫座標資料");
+      try {
+        if (!db) {
+          if (editingCoordinateId) {
+            attendanceLocations = attendanceLocations.map((item) => item.id === editingCoordinateId ? { ...item, ...payload } : item);
+          } else {
+            attendanceLocations = [{ id: `local-${Date.now()}`, ...payload }, ...attendanceLocations];
+          }
+          renderCoordinates();
+          renderAttendanceSettingsSummary();
+          hideCoordinateEditor();
+          return;
+        }
+        if (editingCoordinateId) {
+          await updateDoc(doc(db, "attendanceLocations", editingCoordinateId), payload);
+        } else {
+          await addDoc(collection(db, "attendanceLocations"), { ...payload, createdAt: serverTimestamp() });
+        }
+        hideCoordinateEditor();
+      } catch (error) {
+        console.error("儲存打卡座標失敗", error);
+        alert("儲存打卡座標失敗");
+      }
+    });
+  }
+
+  if (coordinateCancelBtn) coordinateCancelBtn.addEventListener("click", hideCoordinateEditor);
+
+  window.editCoordinate = function (id) {
+    if (!canManageCoordinates(currentUser)) return;
+    const location = attendanceLocations.find((item) => item.id === id);
+    if (!location) return;
+    editingCoordinateId = id;
+    showCoordinateEditor("edit", location);
+  };
+
+  window.toggleCoordinateVisibility = async function (id, isActive = false) {
+    if (!canManageCoordinates(currentUser)) return;
+    if (!db) {
+      attendanceLocations = attendanceLocations.map((item) => item.id === id ? { ...item, isHidden: true, isActive } : item);
+      renderCoordinates();
+      renderAttendanceSettingsSummary();
+      return;
+    }
+    await updateDoc(doc(db, "attendanceLocations", id), { isHidden: true, isActive, updatedAt: serverTimestamp() });
+  };
+
+  window.deleteCoordinate = async function (id) {
+    if (!canManageCoordinates(currentUser)) return;
+    if (!db) {
+      attendanceLocations = attendanceLocations.filter((item) => item.id !== id);
+      renderCoordinates();
+      renderAttendanceSettingsSummary();
+      return;
+    }
+    await deleteDoc(doc(db, "attendanceLocations", id));
+  };
+
   populateFixedOptions();
   syncAdminPermissionState();
   startAnnouncementsListener();
   startLeaveListener();
   startScheduleListener();
   startEmployeesListener();
+  startAttendanceLocationsListener();
   restoreLogin();
   renderAttendanceSettingsSummary();
   refreshAttendanceSettings();
