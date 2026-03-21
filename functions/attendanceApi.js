@@ -16,6 +16,12 @@ const DEFAULT_ATTENDANCE_SETTINGS = {
   ]
 };
 
+const DEFAULT_ATTENDANCE_LOCATIONS = [
+  { region: "新竹區", category: "office", name: "新竹辦公點", lat: 24.8039, lng: 120.9647, radiusMeters: 500, isActive: true, isHidden: false },
+  { region: "台中區", category: "office", name: "台中辦公點", lat: 24.17779, lng: 120.713161, radiusMeters: 500, isActive: true, isHidden: false },
+  { region: "嘉義區", category: "office", name: "嘉義辦公點", lat: 23.4801, lng: 120.4491, radiusMeters: 500, isActive: true, isHidden: false }
+];
+
 function getDistanceMeters(lat1, lng1, lat2, lng2) {
   const R = 6371000;
   const toRad = (deg) => (deg * Math.PI) / 180;
@@ -35,17 +41,51 @@ function getDistanceMeters(lat1, lng1, lat2, lng2) {
   return R * c;
 }
 
-function findMatchedOffice(userLat, userLng, offices) {
-  for (const office of offices) {
-    const distance = getDistanceMeters(userLat, userLng, office.lat, office.lng);
+function normalizeLocation(location) {
+  return {
+    name: location.name || "",
+    lat: Number(location.lat),
+    lng: Number(location.lng),
+    radiusMeters: Number(location.radiusMeters),
+    isActive: location.isActive !== false,
+    isHidden: location.isHidden === true
+  };
+}
 
-    if (distance <= office.radiusMeters) {
+async function loadAttendanceLocations() {
+  const snapshot = await db.collection("attendanceLocations").get();
+  if (snapshot.empty) {
+    return DEFAULT_ATTENDANCE_LOCATIONS.map(normalizeLocation);
+  }
+
+  return snapshot.docs
+    .map((docItem) => normalizeLocation(docItem.data()))
+    .filter((location) =>
+      location.name &&
+      Number.isFinite(location.lat) &&
+      Number.isFinite(location.lng) &&
+      Number.isFinite(location.radiusMeters) &&
+      location.radiusMeters > 0 &&
+      location.isActive &&
+      !location.isHidden
+    );
+}
+
+function findMatchedOffice(userLat, userLng, offices) {
+  const matches = offices
+    .map((office) => {
+      const distance = getDistanceMeters(userLat, userLng, office.lat, office.lng);
       return {
-        matched: true,
         officeName: office.name,
-        distanceMeters: Math.round(distance)
+        distanceMeters: Math.round(distance),
+        matched: distance <= office.radiusMeters
       };
-    }
+   })
+    .filter((office) => office.matched)
+    .sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+  if (matches.length > 0) {
+    return matches[0];
   }
 
   return {
@@ -64,9 +104,13 @@ exports.submitAttendance = functions.https.onRequest(async (request, response) =
   try {
     const settingsSnapshot = await db.collection("settings").doc("attendance").get();
     const settings = settingsSnapshot.exists ? settingsSnapshot.data() : {};
-    const offices = Array.isArray(settings.offices) && settings.offices.length > 0
-      ? settings.offices
-      : DEFAULT_ATTENDANCE_SETTINGS.offices;
+    const savedOffices = Array.isArray(settings.offices) && settings.offices.length > 0
+      ? settings.offices.map(normalizeLocation)
+      : [];
+    const locationCollectionOffices = await loadAttendanceLocations();
+    const offices = locationCollectionOffices.length > 0
+      ? locationCollectionOffices
+      : (savedOffices.length > 0 ? savedOffices : DEFAULT_ATTENDANCE_SETTINGS.offices.map(normalizeLocation));
 
     const {
       employeeId,
