@@ -939,3 +939,67 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+.coordinate-region-list {
+  display: grid;
+  gap: 20px;
+}
+
+.coordinate-region-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  background: var(--surface-soft);
+}
+
+.coordinate-category-block + .coordinate-category-block {
+  margin-top: 20px;
+}
+
+.coordinate-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  background: var(--surface);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.coordinate-table th,
+.coordinate-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 14px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.coordinate-table th {
+  background: #eaf1ff;
+  color: var(--blue-2);
+  font-size: 14px;
+}
+
+.coordinate-table tr:last-child td {
+  border-bottom: none;
+}
+
+.coordinate-add-btn {
+  margin-top: 14px;
+}
+
+.checkbox-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.checkbox-inline input {
+  width: auto;
+}
+
+@media (max-width: 900px) {
+  .coordinate-table {
+    display: block;
+    overflow-x: auto;
+  }
+}
