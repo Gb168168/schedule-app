@@ -9,8 +9,7 @@ import {
   query,
   orderBy,
   onSnapshot,
-  serverTimestamp,
-  getDoc
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
 const REGIONS = ["新竹區", "台中區", "嘉義區"];
@@ -25,10 +24,6 @@ const DEFAULT_ATTENDANCE_LOCATIONS = [
   { region: "台中區", category: "office", name: "台中辦公點", lat: 24.17779, lng: 120.713161, radiusMeters: 500, isActive: true, isHidden: false },
   { region: "嘉義區", category: "office", name: "嘉義辦公點", lat: 23.4801, lng: 120.4491, radiusMeters: 500, isActive: true, isHidden: false }
 ];
-
-const DEFAULT_ATTENDANCE_SETTINGS = {
-  allowedIpRanges: []
-};
 
 const firebaseConfig = window.__FIREBASE_CONFIG__;
 const firebaseApp = firebaseConfig ? initializeApp(firebaseConfig) : null;
@@ -76,7 +71,6 @@ let announcements = [];
 let leaveRequests = [];
 let schedules = [];
 let employees = [];
-let attendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS };
 let attendanceLocations = DEFAULT_ATTENDANCE_LOCATIONS.map((item, index) => ({ id: `default-${index}`, ...item }));
 let editingCoordinateId = null;
 let lastAttendanceAttempt = null;
@@ -171,26 +165,6 @@ function getCurrentPositionAsync() {
   });
 }
 
-async function fetchAttendanceSettings() {
-  if (!db) {
-    attendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS };
-    return attendanceSettings;
-  }
-
-  const settingsRef = doc(db, "settings", "attendance");
-  const snapshot = await getDoc(settingsRef);
-  if (!snapshot.exists()) {
-    attendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS };
-    return attendanceSettings;
-  }
-
-  const data = snapshot.data();
-  attendanceSettings = {
-    allowedIpRanges: Array.isArray(data.allowedIpRanges) ? data.allowedIpRanges : DEFAULT_ATTENDANCE_SETTINGS.allowedIpRanges
-  };
-  return attendanceSettings;
-}
-
 document.addEventListener("DOMContentLoaded", function () {
   const loginPage = document.getElementById("login-page");
   const mainPage = document.getElementById("main-page");
@@ -211,7 +185,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const attendanceNetworkType = document.getElementById("attendance-network-type");
   const clockInBtn = document.getElementById("clock-in-btn");
   const clockOutBtn = document.getElementById("clock-out-btn");
-  const refreshAttendanceSettingsBtn = document.getElementById("refresh-attendance-settings-btn");
 
   const employeeForm = document.getElementById("employee-form");
   const employeeList = document.getElementById("employee-list");
@@ -306,7 +279,6 @@ document.addEventListener("DOMContentLoaded", function () {
       <p><strong>打卡座標集合：</strong>attendanceLocations</p>
       <p><strong>啟用座標：</strong>${activeLocations.length} 筆</p>
       <p><strong>定位打卡：</strong>先比對登入者地區，若該地區沒有符合點位，再回退為所有啟用點位。</p>
-      <p><strong>IP 白名單：</strong>${attendanceSettings.allowedIpRanges.join("、") || "未使用"}</p>
     `;
   }
 
@@ -396,31 +368,6 @@ document.addEventListener("DOMContentLoaded", function () {
     setAttendanceBadge(lastAttendanceAttempt.badgeKind, lastAttendanceAttempt.badgeText);
   }
 
-  async function refreshAttendanceSettings(showFeedback = false) {
-    try {
-      await fetchAttendanceSettings();
-      renderAttendanceSettingsSummary();
-      if (showFeedback) {
-        lastAttendanceAttempt = {
-          badgeKind: "success",
-          badgeText: "設定已更新",
-          message: "已重新讀取 Firestore 的 settings/attendance 設定。"
-        };
-        renderAttendanceAttempt();
-      }
-    } catch (error) {
-      console.error("讀取打卡設定失敗", error);
-      attendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS };
-      renderAttendanceSettingsSummary();
-      lastAttendanceAttempt = {
-        badgeKind: "fail",
-        badgeText: "設定讀取失敗",
-        message: "無法讀取 Firestore 設定，已改用前端預設打卡設定。"
-      };
-      renderAttendanceAttempt();
-    }
-  }
-
   async function submitAttendanceToBackend(payload) {
     const apiUrl = window.__ATTENDANCE_API_URL__;
     if (!apiUrl) {
@@ -458,7 +405,6 @@ document.addEventListener("DOMContentLoaded", function () {
     if (attendanceResult) attendanceResult.innerHTML = `<p>${actionText}檢查中，請稍候…</p>`;
 
     try {
-      await refreshAttendanceSettings();
       const position = await getCurrentPositionAsync();
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
@@ -1138,7 +1084,6 @@ document.addEventListener("DOMContentLoaded", function () {
   if (nextMonthBtn) nextMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() + 1); renderCalendar(); });
   if (clockInBtn) clockInBtn.addEventListener("click", function () { handleAttendance("clockIn"); });
   if (clockOutBtn) clockOutBtn.addEventListener("click", function () { handleAttendance("clockOut"); });
-  if (refreshAttendanceSettingsBtn) refreshAttendanceSettingsBtn.addEventListener("click", function () { refreshAttendanceSettings(true); });
   
   document.addEventListener("click", function (event) {
     if (!schedulePopover || schedulePopover.classList.contains("hidden")) return;
@@ -1256,6 +1201,5 @@ document.addEventListener("DOMContentLoaded", function () {
   startAttendanceLocationsListener();
   restoreLogin();
   renderAttendanceSettingsSummary();
-  refreshAttendanceSettings();
   renderCalendar();
 });
