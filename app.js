@@ -27,8 +27,7 @@ const DEFAULT_ATTENDANCE_LOCATIONS = [
 ];
 
 const DEFAULT_ATTENDANCE_SETTINGS = {
-  allowedIpRanges: [],
-  requireWifi: false
+  allowedIpRanges: []
 };
 
 const firebaseConfig = window.__FIREBASE_CONFIG__;
@@ -157,15 +156,6 @@ function getNetworkType() {
   return connection?.type || connection?.effectiveType || "unknown";
 }
 
-function normalizeNetworkType(networkType) {
-  return String(networkType || "unknown").toLowerCase();
-}
-
-function isWifiNetwork(networkType) {
-  const normalized = normalizeNetworkType(networkType);
-  return normalized === "wifi" || normalized === "ethernet";
-}
-
 function getCurrentPositionAsync() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -196,8 +186,7 @@ async function fetchAttendanceSettings() {
 
   const data = snapshot.data();
   attendanceSettings = {
-    allowedIpRanges: Array.isArray(data.allowedIpRanges) ? data.allowedIpRanges : DEFAULT_ATTENDANCE_SETTINGS.allowedIpRanges,
-    requireWifi: typeof data.requireWifi === "boolean" ? data.requireWifi : DEFAULT_ATTENDANCE_SETTINGS.requireWifi
+    allowedIpRanges: Array.isArray(data.allowedIpRanges) ? data.allowedIpRanges : DEFAULT_ATTENDANCE_SETTINGS.allowedIpRanges
   };
   return attendanceSettings;
 }
@@ -220,7 +209,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const attendanceLocation = document.getElementById("attendance-location");
   const attendanceOffice = document.getElementById("attendance-office");
   const attendanceNetworkType = document.getElementById("attendance-network-type");
-  const attendanceRequireWifi = document.getElementById("attendance-require-wifi");
   const clockInBtn = document.getElementById("clock-in-btn");
   const clockOutBtn = document.getElementById("clock-out-btn");
   const refreshAttendanceSettingsBtn = document.getElementById("refresh-attendance-settings-btn");
@@ -319,9 +307,7 @@ document.addEventListener("DOMContentLoaded", function () {
       <p><strong>啟用座標：</strong>${activeLocations.length} 筆</p>
       <p><strong>定位打卡：</strong>先比對登入者地區，若該地區沒有符合點位，再回退為所有啟用點位。</p>
       <p><strong>IP 白名單：</strong>${attendanceSettings.allowedIpRanges.join("、") || "未使用"}</p>
-      <p><strong>需要 Wi‑Fi：</strong>${attendanceSettings.requireWifi ? "是" : "否"}</p>
     `;
-    if (attendanceRequireWifi) attendanceRequireWifi.textContent = attendanceSettings.requireWifi ? "是" : "否";
   }
 
   function hideCoordinateEditor() {
@@ -511,41 +497,6 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      if (attendanceSettings.requireWifi && !isWifiNetwork(networkType)) {
-         const payload = {
-          employeeId: currentUser.employeeId,
-          employeeName: currentUser.name,
-          type,
-          lat,
-          lng,
-          officeName: matchedOffice.name,
-          distanceMeters: matchedOffice.distanceMeters,
-          status: "rejected",
-          reason: `此據點要求 Wi‑Fi 打卡，目前偵測到的 networkType 為 ${networkType}`,
-          networkType,
-          createdAtClient: new Date().toISOString()
-        };
-
-        try {
-          await submitAttendanceToBackend(payload);
-        } catch (submitError) {
-          console.warn("寫入拒絕打卡紀錄失敗", submitError);
-        }
-
-        lastAttendanceAttempt = {
-          lat,
-          lng,
-          officeName: matchedOffice.name,
-          distanceMeters: matchedOffice.distanceMeters,
-          networkType,
-          badgeKind: "fail",
-          badgeText: "網路不符",
-          message: `此據點要求 Wi‑Fi 打卡，目前偵測到的 networkType 為 ${networkType}。`
-        };
-        renderAttendanceAttempt();
-        return;
-      }
-
       const payload = {
         employeeId: currentUser.employeeId,
         employeeName: currentUser.name,
@@ -556,7 +507,6 @@ document.addEventListener("DOMContentLoaded", function () {
         distanceMeters: matchedOffice.distanceMeters,
         status: "success",
         networkType,
-        requireWifi: attendanceSettings.requireWifi,
         createdAtClient: new Date().toISOString()
       };
 
