@@ -126,7 +126,7 @@ function getDistanceMeters(lat1, lng1, lat2, lng2) {
   return R * c;
 }
 
-function findMatchedOffice(userLat, userLng, locations, userRegion = "") {
+function findMatchedOffice(userLat, userLng, locations = attendanceLocations, userRegion = "") {
   const activeLocations = locations.filter((location) => location.isActive && !location.isHidden);
   const scopedLocations = activeLocations.filter((location) => !userRegion || location.region === userRegion);
   const candidates = scopedLocations.length > 0 ? scopedLocations : activeLocations;
@@ -332,6 +332,11 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  function refreshAttendanceSettings() {
+    renderAttendanceSettingsSummary();
+    renderAttendanceAttempt();
+  }
+
   function startAttendanceLocationsListener() {
     if (!db) {
       attendanceLocations = DEFAULT_ATTENDANCE_LOCATIONS.map((item, index) => ({ id: `default-${index}`, ...item }));
@@ -394,88 +399,71 @@ document.addEventListener("DOMContentLoaded", function () {
     return data;
   }
 
-  async function handleAttendance(type) {
+  async function handleClock(type) {
     if (!currentUser) {
-      alert("請先登入後再打卡。");
+      alert("請先登入");
       return;
     }
-
-    const actionText = type === "clockIn" ? "上班打卡" : "下班打卡";
-    setAttendanceBadge("pending", "檢查中");
-    if (attendanceResult) attendanceResult.innerHTML = `<p>${actionText}檢查中，請稍候…</p>`;
 
     try {
       const position = await getCurrentPositionAsync();
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
-      const matchedOffice = findMatchedOffice(lat, lng, attendanceLocations, currentUser.region);
+      const match = findMatchedOffice(lat, lng, attendanceLocations, currentUser.region);
       const networkType = getNetworkType();
 
-      if (!matchedOffice) {
-        const payload = {
-          employeeId: currentUser.employeeId,
-          employeeName: currentUser.name,
-          type,
-          lat,
-          lng,
-          distanceMeters: null,
-          status: "rejected",
-          reason: "超出允許範圍",
-          networkType,
-          createdAtClient: new Date().toISOString()
-        };
-
-        try {
-          await submitAttendanceToBackend(payload);
-        } catch (submitError) {
-          console.warn("寫入拒絕打卡紀錄失敗", submitError);
-        }
-
+      if (!match) {
         lastAttendanceAttempt = {
           lat,
           lng,
           networkType,
           badgeKind: "fail",
           badgeText: "位置不符",
-          message: "目前位置不在任何可用打卡座標半徑內，無法打卡。"
+          message: "不在可打卡範圍內"
         };
         renderAttendanceAttempt();
+        alert("不在可打卡範圍內");
         return;
       }
 
-      const payload = {
+      if (!db) {
+        throw new Error("Firebase 未設定");
+      }
+
+      await addDoc(collection(db, "attendanceRecords"), {
         employeeId: currentUser.employeeId,
         employeeName: currentUser.name,
         type,
-        officeName: matchedOffice.name,
         lat,
         lng,
-        distanceMeters: matchedOffice.distanceMeters,
-        status: "success",
-        networkType,
-        createdAtClient: new Date().toISOString()
-      };
+        officeName: match.name,
+        createdAt: serverTimestamp(),
+        createdAtClient: new Date()
+      });
 
-      const response = await submitAttendanceToBackend(payload);
       lastAttendanceAttempt = {
         lat,
         lng,
-        officeName: matchedOffice.name,
-        distanceMeters: matchedOffice.distanceMeters,
+        officeName: match.name,
+        distanceMeters: match.distanceMeters,
         networkType,
         badgeKind: "success",
-        badgeText: type === "clockIn" ? "上班完成" : "下班完成",
-        message: `${actionText}成功：${response.message || "已完成打卡"}`
+        badgeText: type === "clockIn" ? "已上班" : "已下班",
+        message: `${type === "clockIn" ? "上班" : "下班"}打卡成功`
       };
       renderAttendanceAttempt();
-    } catch (error) {
-      console.error(`${actionText}失敗`, error);
+    alert(`${type === "clockIn" ? "上班" : "下班"}打卡成功`);
+    } catch (err) {
+      console.error(err);
       lastAttendanceAttempt = {
+        lat: null,
+        lng: null,
         badgeKind: "fail",
         badgeText: "打卡失敗",
-        message: `${actionText}失敗：${error.message}`
+        message: "打卡失敗"
       };
       renderAttendanceAttempt();
+      alert("打卡失敗");
     }
   }
 
@@ -1082,8 +1070,17 @@ document.addEventListener("DOMContentLoaded", function () {
   if (schedulePopoverClose) schedulePopoverClose.addEventListener("click", closeSchedulePopover);
   if (prevMonthBtn) prevMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() - 1); renderCalendar(); });
   if (nextMonthBtn) nextMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() + 1); renderCalendar(); });
-  if (clockInBtn) clockInBtn.addEventListener("click", function () { handleAttendance("clockIn"); });
-  if (clockOutBtn) clockOutBtn.addEventListener("click", function () { handleAttendance("clockOut"); });
+  if (clockInBtn) {
+    clockInBtn.addEventListener("click", () => {
+      handleClock("clockIn");
+    });
+  }
+
+  if (clockOutBtn) {
+    clockOutBtn.addEventListener("click", () => {
+      handleClock("clockOut");
+    });
+  }
   
   document.addEventListener("click", function (event) {
     if (!schedulePopover || schedulePopover.classList.contains("hidden")) return;
@@ -1194,12 +1191,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
   populateFixedOptions();
   syncAdminPermissionState();
+  startEmployeesListener();
+
+  renderLeaves();
+  renderSchedules();
+  renderCalendar();
+  restoreLogin();
+
   startAnnouncementsListener();
   startLeaveListener();
   startScheduleListener();
-  startEmployeesListener();
   startAttendanceLocationsListener();
-  restoreLogin();
-  renderAttendanceSettingsSummary();
-  renderCalendar();
+  refreshAttendanceSettings();
 });
