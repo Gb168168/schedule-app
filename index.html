@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-4</title>
+  <title>班表系統-5</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -33,6 +33,7 @@
         <button class="menu-btn" data-page="announcement">公告欄</button>
         <button class="menu-btn" data-page="staff">人員資訊</button>
         <button class="menu-btn" data-page="leave">請假</button>
+        <button class="menu-btn hidden" id="menu-coordinate-btn" data-page="coordinates">打卡座標</button>
         <button class="menu-btn" data-page="schedule">排程表</button>
       </nav>
     </aside>
@@ -239,6 +240,66 @@
         </div>
       </section>
 
+      
+      <section id="page-coordinates" class="page-section hidden">
+        <div class="card">
+          <div class="section-header-row">
+            <div>
+              <h3>打卡座標</h3>
+              <p class="helper-text">依地區管理內部座標與工作店家座標，支援新增、編輯、隱藏與刪除。</p>
+            </div>
+          </div>
+
+          <div id="coordinate-admin-disabled" class="attendance-result hidden">
+            <p>你目前沒有座標管理權限。</p>
+          </div>
+
+          <div id="coordinate-editor-card" class="edit-box hidden">
+            <h4 id="coordinate-editor-title">新增打卡座標</h4>
+            <form id="coordinate-form" class="form-grid">
+              <div class="two-column-grid">
+                <label class="field-label">
+                  <span>地區 region</span>
+                  <select id="coordinate-region" required></select>
+                </label>
+                <label class="field-label">
+                  <span>類型 category</span>
+                  <select id="coordinate-category" required>
+                    <option value="office">區域固定點</option>
+                    <option value="customer">工作店家</option>
+                  </select>
+                </label>
+                <label class="field-label">
+                  <span>名稱 name</span>
+                  <input id="coordinate-name" type="text" required />
+                </label>
+                <label class="field-label">
+                  <span>打卡半徑 radiusMeters</span>
+                  <input id="coordinate-radius" type="number" min="1" required />
+                </label>
+                <label class="field-label">
+                  <span>緯度 lat</span>
+                  <input id="coordinate-lat" type="number" step="any" required />
+                </label>
+                <label class="field-label">
+                  <span>經度 lng</span>
+                  <input id="coordinate-lng" type="number" step="any" required />
+                </label>
+              </div>
+              <label class="field-label checkbox-inline">
+                <span>啟用 isActive</span>
+                <input id="coordinate-is-active" type="checkbox" checked />
+              </label>
+              <div class="item-actions">
+                <button type="submit" class="primary-btn">儲存座標</button>
+                <button type="button" id="coordinate-cancel-btn" class="small-btn cancel-btn">取消</button>
+              </div>
+            </form>
+          </div>
+
+          <div id="coordinate-region-list" class="coordinate-region-list"></div>
+        </div>
+      </section>
       <section id="page-schedule" class="page-section hidden">
         <div class="card">
           <h3>排程表</h3>
