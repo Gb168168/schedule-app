@@ -32,30 +32,50 @@ const db = firebaseApp ? getFirestore(firebaseApp) : null;
 const users = [
   {
     employeeId: "GoldBricks",
+    account: "GoldBricks",
     password: "GoldBricks",
     name: "GoldBricks",
     role: "管理員",
+    title: "管理員",
     region: "台中區",
     department: "最高權限",
+    category: "系統管理員",
+    annualLeaveDays: 0,
+    shifts: { morning: true, evening: true },
+    weekendsOff: false,
     permissions: {
-    announcementManage: true,
-    leaveApprove: true,
-    admin: true,
-    coordinateAdmin: true
+     announcementManage: true,
+      leaveApprove: true,
+      admin: true,
+      coordinateAdmin: true
+    },
+    manageScopes: {
+      regions: [...REGIONS],
+      departments: [...DEPARTMENTS]
     }
   },
   {
     employeeId: "GB080202",
+    account: "GB080202",
     password: "GB080202",
     name: "邱淑芬",
     role: "財務副理",
+    title: "財務副理",
     region: "台中區",
     department: "管理部",
+    category: "正式員工",
+    annualLeaveDays: 0,
+    shifts: { morning: true, evening: false },
+    weekendsOff: true,
     permissions: {
-    announcementManage: false,
-    leaveApprove: false,
-    admin: false,
-    coordinateAdmin: false
+      announcementManage: false,
+      leaveApprove: false,
+      admin: false,
+      coordinateAdmin: false
+    },
+    manageScopes: {
+      regions: [],
+      departments: []
     }
   }
 ];
@@ -76,7 +96,8 @@ let editingEmployeeId = null;
 let announcements = [];
 let leaveRequests = [];
 let schedules = [];
-let employees = [];
+let employees = users.map((user, index) => ({ id: `builtin-${index}`, status: "active", isHidden: false, ...user }));
+let isBootstrappingEmployees = false;
 let attendanceLocations = DEFAULT_ATTENDANCE_LOCATIONS.map((item, index) => ({ id: `default-${index}`, ...item }));
 let attendanceRecords = [];
 let shiftSettings = DEFAULT_SHIFT_SETTINGS.map((item) => ({ ...item }));
@@ -119,6 +140,39 @@ function createEmployee(employeeData) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
+}
+
+function getBuiltinEmployees() {
+  return users.map(function (user, index) {
+    return {
+      id: `builtin-${index}`,
+      status: "active",
+      isHidden: false,
+      ...user
+    };
+  });
+}
+
+async function seedDefaultEmployees() {
+  if (!db || isBootstrappingEmployees) return;
+
+  isBootstrappingEmployees = true;
+
+  try {
+    await Promise.all(
+      users.map(function (user) {
+        return createEmployee({
+          ...user,
+          status: "active",
+          isHidden: false
+        });
+      })
+    );
+  } catch (error) {
+    console.error("初始化預設員工失敗", error);
+  } finally {
+    isBootstrappingEmployees = false;
+  }
 }
 
 function getDistanceMeters(lat1, lng1, lat2, lng2) {
@@ -1097,12 +1151,17 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function startEmployeesListener() {
-    if (!db) return;
-    
+     if (!db) {
+      employees = getBuiltinEmployees();
+      renderEmployees();
+      restoreLogin();
+      return;
+    }
+
     const q = query(collection(db, "employees"), orderBy("createdAt", "desc"));
     
     onSnapshot(q, function (snapshot) {
-      employees = snapshot.docs
+      const visibleEmployees = snapshot.docs
         .map(function (docItem) {
           return {
             id: docItem.id,
@@ -1113,6 +1172,15 @@ document.addEventListener("DOMContentLoaded", function () {
           return !employee.isHidden;
         });
 
+         if (visibleEmployees.length === 0) {
+        employees = getBuiltinEmployees();
+        renderEmployees();
+        restoreLogin();
+        seedDefaultEmployees();
+        return;
+      }
+
+      employees = visibleEmployees;
       renderEmployees();
       restoreLogin();
     });
