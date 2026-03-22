@@ -156,7 +156,8 @@ function findLoginUser(loginId, password) {
   return employees.find(function (user) {
     if (!isLoginEligible(user)) return false;
     return getLoginIdentifiers(user).includes(normalizedLoginId) && getAcceptedPasswords(user).includes(normalizedPassword);
-}
+  });
+  }
 
 function getShiftNameFromCode(code) {
   return code === "evening" ? "晚班" : "早班";
