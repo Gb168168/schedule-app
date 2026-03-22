@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-messaging.js";
+import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-messaging.js";
 import {
   getFirestore,
   collection,
@@ -123,13 +123,16 @@ async function registerMessagingServiceWorker() {
   }
 }
 
-async function initFCM() {
-  if (!messaging || !db || !currentUser?.id || String(currentUser.id).startsWith("builtin-")) return;
+async function initMessaging() {
+  if (!messaging || !currentUser || !db || !currentUser?.id || String(currentUser.id).startsWith("builtin-")) return;
   if (!("Notification" in window)) return;
 
   try {
     const permission = await Notification.requestPermission();
-    if (permission !== "granted") return;
+    if (permission !== "granted") {
+      console.log("使用者未允許通知");
+      return;
+    }
 
     const serviceWorkerRegistration = await registerMessagingServiceWorker();
     const token = await getToken(messaging, {
@@ -137,16 +140,27 @@ async function initFCM() {
       serviceWorkerRegistration: serviceWorkerRegistration || undefined
     });
 
-    if (!token) return;
+    if (!token) {
+      console.log("沒有取得 FCM token");
+      return;
+    }
 
-    console.log("FCM Token:", token);
+    console.log("FCM token:", token);
 
     await updateDoc(doc(db, "employees", currentUser.id), {
       fcmToken: token,
       updatedAt: serverTimestamp()
     });
+    
+    onMessage(messaging, function (payload) {
+      console.log("前景通知：", payload);
+
+      const title = payload.notification?.title || "新通知";
+      const body = payload.notification?.body || "";
+      alert(`${title}\n${body}`);
+    });
   } catch (error) {
-    console.error("FCM 初始化失敗", error);
+    console.error("初始化推播失敗：", error);
   }
 }
 
@@ -1660,7 +1674,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     renderSchedules();
     renderCalendar();
     renderCoordinates();
-    initFCM();
+    initMessaging();
   }
 
   function restoreLogin() {
