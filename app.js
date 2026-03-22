@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-messaging.js";
+import { getMessaging, isSupported as isMessagingSupported, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-messaging.js";
 import {
   getFirestore,
   collection,
@@ -29,7 +29,8 @@ const DEFAULT_ATTENDANCE_LOCATIONS = [
 const firebaseConfig = window.__FIREBASE_CONFIG__;
 const firebaseApp = firebaseConfig ? initializeApp(firebaseConfig) : null;
 const db = firebaseApp ? getFirestore(firebaseApp) : null;
-const messaging = firebaseApp ? getMessaging(firebaseApp) : null;
+let messaging = null;
+let messagingSupportChecked = false;
 
 const users = [
   {
@@ -135,10 +136,33 @@ async function registerMessagingServiceWorker() {
   }
 }
 
-async function initMessaging() {
-  if (!messaging || !currentUser || !db || !currentUser?.id || String(currentUser.id).startsWith("builtin-")) return;
-  if (!("Notification" in window)) return;
+async function ensureMessaging() {
+  if (messagingSupportChecked) return messaging;
 
+  messagingSupportChecked = true;
+
+  if (!firebaseApp || !("Notification" in window)) return null;
+
+  const supported = await isMessagingSupported().catch(function (error) {
+    console.warn("FCM 支援檢查失敗", error);
+    return false;
+  });
+
+  if (!supported) {
+    console.warn("目前瀏覽器環境不支援 Firebase Messaging，略過推播初始化。");
+    return null;
+  }
+
+  messaging = getMessaging(firebaseApp);
+  return messaging;
+}
+
+async function initMessaging() {
+  if (!currentUser || !db || !currentUser?.id || String(currentUser.id).startsWith("builtin-")) return;
+
+  const messagingInstance = await ensureMessaging();
+  if (!messagingInstance) return;
+  
   try {
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
@@ -147,7 +171,7 @@ async function initMessaging() {
     }
 
     const serviceWorkerRegistration = await registerMessagingServiceWorker();
-    const token = await getToken(messaging, {
+    const token = await getToken(messagingInstance, {
       vapidKey: "BAiisudW3eTSyOOkA_WMPmpWGa0Rrny0G9FI6T2W1KSIU_JiegUeIs7AplJCPIkYpr_1uIedG2oC7R_Qiik0F5c",
       serviceWorkerRegistration: serviceWorkerRegistration || undefined
     });
@@ -165,7 +189,7 @@ async function initMessaging() {
       updatedAt: serverTimestamp()
     });
     
-    onMessage(messaging, function (payload) {
+    onMessage(messagingInstance, function (payload) {
       console.log("前景通知：", payload);
 
       const title = payload.notification?.title || "新通知";
