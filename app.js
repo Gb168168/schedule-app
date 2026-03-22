@@ -72,6 +72,7 @@ let editingAnnouncementId = null;
 let calendarDate = new Date();
 let selectedScheduleDate = "";
 let editingScheduleId = null;
+let editingEmployeeId = null;
 let announcements = [];
 let leaveRequests = [];
 let schedules = [];
@@ -1015,38 +1016,105 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    employeeList.innerHTML = employees.map(function (employee) {
-      const shifts = [];
-      if (employee.shifts?.morning) shifts.push("早班");
-      if (employee.shifts?.evening) shifts.push("晚班");
-      if (employee.weekendsOff) shifts.push("週休二日 &amp; 國定假日");
+    const grouped = {};
 
-      const scopeRegions = employee.manageScopes?.regions?.length ? employee.manageScopes.regions.join("、") : "未設定";
-      const scopeDepartments = employee.manageScopes?.departments?.length ? employee.manageScopes.departments.join("、") : "未設定";
+     employees.forEach(function (employee) {
+      const region = employee.region || "未分類地區";
+      const department = employee.department || "未分類部門";
 
-      return `
-        <div class="list-item">
-          <div class="employee-card-header">
-            <h4>${employee.name || "未命名員工"}</h4>
-            <span class="status-badge status-${employee.status || "active"}">${employee.status || "active"}</span>
-          </div>
-          <div class="item-meta">員工代號：${employee.employeeId || "-"}｜帳號：${employee.account || "-"}｜Email：${employee.email || "-"}</div>
-          <p>部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}</p>
-          <p>類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}</p>
-          <p>年度特休：${employee.annualLeaveDays || 0} 天｜班別與休假：${shifts.join("、") || "未設定"}</p>
-          <p>權限：${formatEmployeePermissions(employee)}</p>
-          ${employee.permissions?.admin ? `<p>管理地區：${scopeRegions}</p><p>管理部門：${scopeDepartments}</p>` : ""}
-        </div>
-      `;
-    }).join("");
+            if (!grouped[region]) grouped[region] = {};
+      if (!grouped[region][department]) grouped[region][department] = [];
+
+      grouped[region][department].push(employee);
+    });
+
+    employeeList.innerHTML = Object.keys(grouped)
+      .map(function (region) {
+        const departments = grouped[region];
+
+        return `
+          <details class="scope-collapse" open>
+            <summary>${region}</summary>
+            ${Object.keys(departments)
+              .map(function (department) {
+                return `
+                  <details class="scope-collapse" open>
+                    <summary>${department}（${departments[department].length} 人）</summary>
+                    <div class="list-wrap">
+                      ${departments[department]
+                        .map(function (employee) {
+                          const shifts = [];
+                          if (employee.shifts?.morning) shifts.push("早班");
+                          if (employee.shifts?.evening) shifts.push("晚班");
+                          if (employee.weekendsOff) shifts.push("週休二日 &amp; 國定假日");
+
+                          const scopeRegions = employee.manageScopes?.regions?.length
+                            ? employee.manageScopes.regions.join("、")
+                            : "未設定";
+                          const scopeDepartments = employee.manageScopes?.departments?.length
+                            ? employee.manageScopes.departments.join("、")
+                            : "未設定";
+
+                          return `
+                            <div class="list-item">
+                              <div class="employee-card-header">
+                                <div>
+                                  <h4>${employee.name || "未命名員工"}</h4>
+                                  <div class="item-meta">
+                                    員工代號：${employee.employeeId || "-"}｜
+                                    帳號：${employee.account || "-"}｜
+                                    Email：${employee.email || "-"}
+                                  </div>
+                                </div>
+                                <span class="status-badge status-${employee.status || "active"}">
+                                  ${employee.status || "active"}
+                                </span>
+                              </div>
+
+                              <p>部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}</p>
+                              <p>類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}</p>
+                              <p>年度特休：${employee.annualLeaveDays || 0} 天｜班別與休假：${shifts.join("、") || "未設定"}</p>
+                              <p>權限：${formatEmployeePermissions(employee)}</p>
+                              ${employee.permissions?.admin ? `<p>管理地區：${scopeRegions}</p><p>管理部門：${scopeDepartments}</p>` : ""}
+
+                              <div class="item-actions">
+                                <button type="button" class="small-btn edit-btn" onclick="editEmployee('${employee.id}')">編輯</button>
+                                <button type="button" class="small-btn delete-btn" onclick="deleteEmployee('${employee.id}')">刪除</button>
+                              </div>
+                            </div>
+                          `;
+                        })
+                        .join("")}
+                    </div>
+                  </details>
+                `;
+              })
+              .join("")}
+          </details>
+        `;
+      })
+      .join("");
   }
 
   function startEmployeesListener() {
     if (!db) return;
+    
     const q = query(collection(db, "employees"), orderBy("createdAt", "desc"));
+    
     onSnapshot(q, function (snapshot) {
-      employees = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() })).filter((employee) => !employee.isHidden);
+      employees = snapshot.docs
+        .map(function (docItem) {
+          return {
+            id: docItem.id,
+            ...docItem.data()
+          };
+        })
+        .filter(function (employee) {
+          return !employee.isHidden;
+        });
+
       renderEmployees();
+      restoreLogin();
     });
   }
 
@@ -1351,7 +1419,9 @@ document.addEventListener("DOMContentLoaded", function () {
   function restoreLogin() {
     const savedEmployeeId = localStorage.getItem(STORAGE_KEYS.currentUser);
     if (!savedEmployeeId) return;
-    const matchedUser = users.find((u) => u.employeeId === savedEmployeeId);
+    const matchedUser = employees.find(function (u) {
+      return u.employeeId === savedEmployeeId && !u.isHidden && u.status !== "deleted";
+    });
     if (!matchedUser) return;
     setLoggedInUser(matchedUser);
   }
@@ -1359,15 +1429,29 @@ document.addEventListener("DOMContentLoaded", function () {
   if (loginForm) {
     loginForm.addEventListener("submit", function (event) {
       event.preventDefault();
-      const employeeId = document.getElementById("employeeId")?.value.trim() || "";
-      const password = document.getElementById("password")?.value.trim() || "";
-      const user = users.find((u) => u.employeeId === employeeId && u.password === password);
-      if (!user) {
+      
+      const employeeIdInput = document.getElementById("employeeId");
+      const passwordInput = document.getElementById("password");
+
+      const employeeId = employeeIdInput ? employeeIdInput.value.trim() : "";
+      const password = passwordInput ? passwordInput.value.trim() : "";
+
+      const matchedUser = employees.find(function (u) {
+        return (
+          u.employeeId === employeeId &&
+          u.password === password &&
+          !u.isHidden &&
+          u.status !== "deleted"
+        );
+      });
+
+      if (!matchedUser) {
         if (loginError) loginError.textContent = "帳號或密碼錯誤";
         return;
       }
+      
       if (loginError) loginError.textContent = "";
-      setLoggedInUser(user);
+      setLoggedInUser(matchedUser);
     });
   }
 
@@ -1511,7 +1595,15 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!db) return alert("Firebase 未設定，無法新增員工。");
 
       try {
-        await createEmployee(employeeData);
+        if (editingEmployeeId) {
+          await updateDoc(doc(db, "employees", editingEmployeeId), {
+            ...employeeData,
+            updatedAt: serverTimestamp()
+          });
+          editingEmployeeId = null;
+        } else {
+          await createEmployee(employeeData);
+        }
         employeeForm.reset();
         populateFixedOptions();
         syncAdminPermissionState();
@@ -1525,6 +1617,71 @@ document.addEventListener("DOMContentLoaded", function () {
   if (adminCheckbox) {
     adminCheckbox.addEventListener("change", syncAdminPermissionState);
   }
+  
+  window.editEmployee = function (id) {
+    const employee = employees.find(function (item) {
+      return item.id === id;
+    });
+
+    if (!employee) return;
+
+    editingEmployeeId = id;
+
+    document.getElementById("employee-form-id").value = employee.employeeId || "";
+    document.getElementById("employee-form-account").value = employee.account || "";
+    document.getElementById("employee-form-name").value = employee.name || "";
+    document.getElementById("employee-form-password").value = employee.password || "";
+    document.getElementById("employee-form-department").value = employee.department || "";
+    document.getElementById("employee-form-title").value = employee.title || "";
+    document.getElementById("employee-form-region").value = employee.region || "";
+    document.getElementById("employee-form-category").value = employee.category || "";
+    document.getElementById("employee-form-email-prefix").value = employee.emailPrefix || "";
+    document.getElementById("employee-form-phone").value = employee.phone || "";
+    document.getElementById("employee-form-birthday").value = employee.birthday || "";
+    document.getElementById("employee-form-annual-leave-days").value = employee.annualLeaveDays || 0;
+
+    document.getElementById("shift-morning").checked = !!employee.shifts?.morning;
+    document.getElementById("shift-evening").checked = !!employee.shifts?.evening;
+    document.getElementById("weekends-off").checked = !!employee.weekendsOff;
+
+    if (adminCheckbox) adminCheckbox.checked = !!employee.permissions?.admin;
+    if (leaveApproveCheckbox) leaveApproveCheckbox.checked = !!employee.permissions?.leaveApprove;
+    if (announcementManageCheckbox) announcementManageCheckbox.checked = !!employee.permissions?.announcementManage;
+
+    document.querySelectorAll('input[name="manage-regions"]').forEach(function (input) {
+      input.checked = !!employee.manageScopes?.regions?.includes(input.value);
+    });
+    document.querySelectorAll('input[name="manage-departments"]').forEach(function (input) {
+      input.checked = !!employee.manageScopes?.departments?.includes(input.value);
+    });
+
+    syncAdminPermissionState();
+  };
+
+  window.deleteEmployee = async function (id) {
+    if (!db) return;
+
+    const confirmed = confirm("確定要刪除此員工嗎？");
+    if (!confirmed) return;
+
+    try {
+      await updateDoc(doc(db, "employees", id), {
+        isHidden: true,
+        status: "deleted",
+        updatedAt: serverTimestamp()
+      });
+
+      if (editingEmployeeId === id) {
+        editingEmployeeId = null;
+        if (employeeForm) employeeForm.reset();
+        populateFixedOptions();
+        syncAdminPermissionState();
+      }
+    } catch (error) {
+      console.error("刪除員工失敗", error);
+      alert("刪除失敗");
+    }
+  };
 
   if (leaveForm) {
     leaveForm.addEventListener("submit", async function (event) {
