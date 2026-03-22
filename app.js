@@ -119,38 +119,6 @@ function canManageCoordinates(user) {
   return Boolean(user?.permissions?.admin || user?.permissions?.coordinateAdmin);
 }
 
-function normalizeLoginValue(value) {
-  return String(value || "")
-    .trim()
-    .replace(/　/g, " ");
-}
-
-function normalizePasswordValue(value) {
-  return String(value || "")
-    .trim()
-    .replace(/　/g, " ");
-}
-
-function isLoginEligible(user) {
-  return Boolean(user) && !user.isHidden && user.status !== "deleted";
-}
-
-function findLoginUser(employeeId, password) {
-  const normalizedEmployeeId = normalizeLoginValue(employeeId);
-  const normalizedPassword = normalizePasswordValue(password);
-  
-  if (!normalizedEmployeeId || !normalizedPassword) return null;
-
-  return employees.find(function (user) {
-    if (!isLoginEligible(user)) return false;
-    
-    return (
-      normalizeLoginValue(user.employeeId) === normalizedEmployeeId &&
-      normalizePasswordValue(user.password) === normalizedPassword
-    );
-  }) || null;
-}
-
 function getShiftNameFromCode(code) {
   return code === "evening" ? "晚班" : "早班";
 }
@@ -206,30 +174,6 @@ function getBuiltinEmployees() {
       ...user
     };
   });
-}
-
-function mergeEmployeesWithBuiltin(remoteEmployees = []) {
-  const mergedByEmployeeId = new Map();
-
-  getBuiltinEmployees().forEach(function (employee) {
-    const key = normalizeLoginValue(employee.employeeId);
-    if (!key) return;
-    mergedByEmployeeId.set(key, employee);
-  });
-
-  remoteEmployees.forEach(function (employee) {
-    const key = normalizeLoginValue(employee.employeeId);
-    if (!key) return;
-    const builtinEmployee = mergedByEmployeeId.get(key) || {};
-    mergedByEmployeeId.set(key, {
-      ...builtinEmployee,
-      status: "active",
-      isHidden: false,
-      ...employee
-    });
-  });
-
-  return Array.from(mergedByEmployeeId.values()).filter(isLoginEligible);
 }
 
 async function seedDefaultEmployees() {
@@ -1298,13 +1242,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         return;
       }
 
-      employees = mergeEmployeesWithBuiltin(visibleEmployees);
-      ensureBaseShiftTemplates();
-      renderEmployees();
-      restoreLogin();
-    }, function (error) {
-      console.error("載入員工資料失敗，改用內建帳號", error);
-      employees = getBuiltinEmployees();
+      employees = visibleEmployees;
       ensureBaseShiftTemplates();
       renderEmployees();
       restoreLogin();
@@ -1614,16 +1552,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   function restoreLogin() {
     const savedEmployeeId = localStorage.getItem(STORAGE_KEYS.currentUser);
     if (!savedEmployeeId) return;
-
-    const normalizedEmployeeId = normalizeLoginValue(savedEmployeeId);
-
-    const matchedUser = employees.find(function (user) {
-      return (
-        isLoginEligible(user) &&
-        normalizeLoginValue(user.employeeId) === normalizedEmployeeId
-      );
+    const matchedUser = employees.find(function (u) {
+      return u.employeeId === savedEmployeeId && !u.isHidden && u.status !== "deleted";
     });
-
     if (!matchedUser) return;
     setLoggedInUser(matchedUser);
   }
@@ -1631,17 +1562,27 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   if (loginForm) {
     loginForm.addEventListener("submit", function (event) {
       event.preventDefault();
+      
+      const employeeIdInput = document.getElementById("employeeId");
+      const passwordInput = document.getElementById("password");
 
-      const employeeId = document.getElementById("employeeId")?.value.trim() || "";
-      const password = document.getElementById("password")?.value.trim() || "";
+      const employeeId = employeeIdInput ? employeeIdInput.value.trim() : "";
+      const password = passwordInput ? passwordInput.value.trim() : "";
 
-      const matchedUser = findLoginUser(employeeId, password);
+      const matchedUser = employees.find(function (u) {
+        return (
+          u.employeeId === employeeId &&
+          u.password === password &&
+          !u.isHidden &&
+          u.status !== "deleted"
+        );
+      });
 
       if (!matchedUser) {
-        if (loginError) loginError.textContent = "員工編號或密碼錯誤";
+        if (loginError) loginError.textContent = "帳號或密碼錯誤";
         return;
       }
-
+      
       if (loginError) loginError.textContent = "";
       setLoggedInUser(matchedUser);
     });
@@ -2188,6 +2129,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   renderLeaves();
   renderSchedules();
   renderCalendar();
+  restoreLogin();
 
   startAnnouncementsListener();
   startLeaveListener();
