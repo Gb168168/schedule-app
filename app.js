@@ -60,6 +60,11 @@ const users = [
   }
 ];
 
+const DEFAULT_SHIFT_SETTINGS = [
+  { code: "morning", name: "早班", startTime: "08:00", endTime: "17:00", reminderTime: "07:50", graceMinutes: 15, isActive: true },
+  { code: "evening", name: "晚班", startTime: "20:00", endTime: "08:00", reminderTime: "19:50", graceMinutes: 15, isActive: true }
+];
+
 const STORAGE_KEYS = { currentUser: "shift_current_user" };
 
 let currentUser = null;
@@ -73,6 +78,7 @@ let schedules = [];
 let employees = [];
 let attendanceLocations = DEFAULT_ATTENDANCE_LOCATIONS.map((item, index) => ({ id: `default-${index}`, ...item }));
 let attendanceRecords = [];
+let shiftSettings = DEFAULT_SHIFT_SETTINGS.map((item) => ({ ...item }));
 let editingCoordinateId = null;
 let lastAttendanceAttempt = null;
 let attendanceMap = null;
@@ -183,9 +189,11 @@ document.addEventListener("DOMContentLoaded", function () {
   const attendanceStatusBadge = document.getElementById("attendance-status-badge");
   const attendanceSettingsSummary = document.getElementById("attendance-settings-summary");
   const attendanceResult = document.getElementById("attendance-result");
+  const attendanceReminderPanel = document.getElementById("attendance-reminder-panel");
   const attendanceLocation = document.getElementById("attendance-location");
   const attendanceOffice = document.getElementById("attendance-office");
   const attendanceNetworkType = document.getElementById("attendance-network-type");
+  const attendanceShiftSelect = document.getElementById("attendance-shift-select");
   const clockInBtn = document.getElementById("clock-in-btn");
   const clockOutBtn = document.getElementById("clock-out-btn");
   const attendanceFilterName = document.getElementById("attendance-filter-name");
@@ -220,6 +228,16 @@ document.addEventListener("DOMContentLoaded", function () {
   const coordinateIsActiveInput = document.getElementById("coordinate-is-active");
   const coordinateCancelBtn = document.getElementById("coordinate-cancel-btn");
   const coordinateRegionList = document.getElementById("coordinate-region-list");
+  
+  const shiftSettingsForm = document.getElementById("shift-settings-form");
+  const shiftCodeSelect = document.getElementById("shift-code");
+  const shiftNameInput = document.getElementById("shift-name");
+  const shiftStartTimeInput = document.getElementById("shift-start-time");
+  const shiftEndTimeInput = document.getElementById("shift-end-time");
+  const shiftReminderTimeInput = document.getElementById("shift-reminder-time");
+  const shiftGraceMinutesInput = document.getElementById("shift-grace-minutes");
+  const shiftIsActiveInput = document.getElementById("shift-is-active");
+  const shiftSettingsList = document.getElementById("shift-settings-list");
   
   const pageTitle = document.getElementById("page-title");
   const menuButtons = document.querySelectorAll(".menu-btn");
@@ -279,14 +297,147 @@ document.addEventListener("DOMContentLoaded", function () {
   function getVisibleAttendanceLocations() {
     return attendanceLocations.filter((location) => !location.isHidden);
   }
+
+    function getActiveShiftSettings() {
+    return shiftSettings.filter((item) => item.isActive !== false);
+  }
+
+  function getSelectedShiftCode() {
+    return attendanceShiftSelect?.value || getActiveShiftSettings()[0]?.code || shiftSettings[0]?.code || "";
+  }
+
+  function findShiftSetting(code) {
+    return shiftSettings.find((item) => item.code === code) || null;
+  }
+
+  function toMinutes(timeString) {
+    const [hours, minutes] = String(timeString || "").split(":").map(Number);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+    return hours * 60 + minutes;
+  }
+
+  function formatTimeText(timeString) {
+    if (!timeString) return "-";
+    const [hours, minutes] = String(timeString).split(":");
+    if (hours === undefined || minutes === undefined) return timeString;
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  }
+
+  function getShiftDateTime(baseDate, timeString) {
+    const totalMinutes = toMinutes(timeString);
+    if (totalMinutes === null) return null;
+    const result = new Date(baseDate);
+    result.setHours(Math.floor(totalMinutes / 60), totalMinutes % 60, 0, 0);
+    return result;
+  }
+
+  function getLateStatus(currentDate, shiftStartTime, graceMinutes) {
+    const shiftStart = getShiftDateTime(currentDate, shiftStartTime);
+    if (!shiftStart) {
+      return { isLate: false, lateMinutes: 0, status: "success", deadline: null };
+    }
+
+    const deadline = new Date(shiftStart.getTime() + Number(graceMinutes || 0) * 60000);
+    if (currentDate <= deadline) {
+      return { isLate: false, lateMinutes: 0, status: "success", deadline };
+    }
+
+    return {
+      isLate: true,
+      lateMinutes: Math.floor((currentDate - deadline) / 60000),
+      status: "late",
+      deadline
+    };
+  }
+
+  function buildReminderMessages(shift, now = new Date()) {
+    if (!shift) return [];
+    const shiftStart = getShiftDateTime(now, shift.startTime);
+    const reminder = getShiftDateTime(now, shift.reminderTime);
+    if (!shiftStart || !reminder) return [];
+    const deadline = new Date(shiftStart.getTime() + Number(shift.graceMinutes || 0) * 60000);
+    const tenMinuteReminder = new Date(shiftStart.getTime() - 10 * 60000);
+    const fiveMinuteReminder = new Date(shiftStart.getTime() - 5 * 60000);
+    const lastFiveMinuteReminder = new Date(deadline.getTime() - 5 * 60000);
+    return [
+      { label: "上班前提醒", time: formatAttendanceDateTime(reminder), message: `距離上班剩 ${Math.max(Math.round((shiftStart - reminder) / 60000), 0)} 分鐘` },
+      { label: "上班前 5 分鐘", time: formatAttendanceDateTime(fiveMinuteReminder), message: "距離上班剩 5 分鐘" },
+      { label: "到班提醒", time: formatAttendanceDateTime(shiftStart), message: "已到上班時間" },
+      { label: "最後打卡提醒", time: formatAttendanceDateTime(lastFiveMinuteReminder), message: "距離最後正常打卡剩 5 分鐘" },
+      { label: "逾時提醒", time: formatAttendanceDateTime(deadline), message: "已超過最後正常打卡時間" }
+    ].filter((item, index) => index !== 0 || tenMinuteReminder <= shiftStart);
+  }
+
+  function populateShiftSelectOptions() {
+    const activeShifts = getActiveShiftSettings();
+    if (attendanceShiftSelect) {
+      attendanceShiftSelect.innerHTML = activeShifts.map((shift) => `<option value="${shift.code}">${shift.name}</option>`).join("") || '<option value="">無可用班別</option>';
+    }
+    if (shiftCodeSelect) {
+      shiftCodeSelect.innerHTML = shiftSettings.map((shift) => `<option value="${shift.code}">${shift.name}（${shift.code}）</option>`).join("");
+    }
+  }
+
+  function syncShiftForm() {
+    const shift = findShiftSetting(shiftCodeSelect?.value || shiftSettings[0]?.code);
+    if (!shift) return;
+    if (shiftNameInput) shiftNameInput.value = shift.name || "";
+    if (shiftStartTimeInput) shiftStartTimeInput.value = formatTimeText(shift.startTime);
+    if (shiftEndTimeInput) shiftEndTimeInput.value = formatTimeText(shift.endTime);
+    if (shiftReminderTimeInput) shiftReminderTimeInput.value = formatTimeText(shift.reminderTime);
+    if (shiftGraceMinutesInput) shiftGraceMinutesInput.value = Number(shift.graceMinutes || 0);
+    if (shiftIsActiveInput) shiftIsActiveInput.checked = shift.isActive !== false;
+  }
+
+  function renderShiftSettingsList() {
+    if (!shiftSettingsList) return;
+    shiftSettingsList.innerHTML = shiftSettings.map((shift) => `
+      <div class="list-item">
+        <div class="employee-card-header">
+          <div>
+            <h4>${shift.name}</h4>
+            <div class="item-meta">代碼：${shift.code}</div>
+          </div>
+          <span class="status-badge ${shift.isActive !== false ? "status-success" : "status-fail"}">${shift.isActive !== false ? "啟用中" : "已停用"}</span>
+        </div>
+        <p>上班：${formatTimeText(shift.startTime)}｜下班：${formatTimeText(shift.endTime)}</p>
+        <p>提醒：${formatTimeText(shift.reminderTime)}｜寬限：${shift.graceMinutes} 分鐘</p>
+      </div>
+    `).join("");
+  }
+
+  function renderAttendanceReminderPanel() {
+    if (!attendanceReminderPanel) return;
+    const shift = findShiftSetting(getSelectedShiftCode()) || getActiveShiftSettings()[0];
+    if (!shift) {
+      attendanceReminderPanel.innerHTML = '<p>尚未設定班別提醒。</p>';
+      return;
+    }
+    const items = buildReminderMessages(shift);
+    attendanceReminderPanel.innerHTML = `
+      <h4>${shift.name} 站內提醒</h4>
+      <div class="reminder-list">
+        ${items.map((item) => `<div class="reminder-item"><strong>${item.label}</strong><p>${item.message}</p><div class="item-meta">預計時間：${item.time}</div></div>`).join("")}
+      </div>
+    `;
+  }
+
+  function refreshShiftSettingViews() {
+    populateShiftSelectOptions();
+    syncShiftForm();
+    renderShiftSettingsList();
+    renderAttendanceReminderPanel();
+  }
   
   function renderAttendanceSettingsSummary() {
     if (!attendanceSettingsSummary) return;
     const activeLocations = getVisibleAttendanceLocations().filter((location) => location.isActive);
+    const shift = findShiftSetting(getSelectedShiftCode()) || getActiveShiftSettings()[0];
     attendanceSettingsSummary.innerHTML = `
-      <p><strong>員工集合：</strong>employees</p>
-      <p><strong>打卡座標集合：</strong>attendanceLocations</p>
       <p><strong>啟用座標：</strong>${activeLocations.length} 筆</p>
+      <p><strong>目前班別：</strong>${shift ? `${shift.name}（${formatTimeText(shift.startTime)} - ${formatTimeText(shift.endTime)}）` : "尚未設定"}</p>
+      <p><strong>提醒時間：</strong>${shift ? formatTimeText(shift.reminderTime) : "-"}</p>
+      <p><strong>最後正常打卡：</strong>${shift ? `${formatTimeText(shift.startTime)} + ${shift.graceMinutes} 分鐘` : "-"}</p>
       <p><strong>定位打卡：</strong>先比對登入者地區，若該地區沒有符合點位，再回退為所有啟用點位。</p>
     `;
   }
@@ -343,6 +494,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function refreshAttendanceSettings() {
     renderAttendanceSettingsSummary();
+    renderAttendanceReminderPanel();
     renderAttendanceAttempt();
   }
 
@@ -414,25 +566,32 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
+    const selectedShift = findShiftSetting(getSelectedShiftCode());
+    if (!selectedShift) {
+      alert("請先設定並選擇班別");
+      return;
+    }
+
     try {
       const position = await getCurrentPositionAsync();
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
       const match = findMatchedOffice(lat, lng, attendanceLocations, currentUser.region);
       const networkType = getNetworkType();
+      const createdAtClient = new Date();
+      const lateStatus = type === "clockIn"
+        ? getLateStatus(createdAtClient, selectedShift.startTime, selectedShift.graceMinutes)
+        : { isLate: false, lateMinutes: 0, status: "success", deadline: null };
 
+      let outsideReason = "";
+      let status = lateStatus.status;
       if (!match) {
-        lastAttendanceAttempt = {
-          lat,
-          lng,
-          networkType,
-          badgeKind: "fail",
-          badgeText: "位置不符",
-          message: "不在可打卡範圍內"
-        };
-        renderAttendanceAttempt();
-        alert("不在可打卡範圍內");
-        return;
+       outsideReason = window.prompt("目前不在打卡範圍內，請輸入原因：", "")?.trim() || "";
+        if (!outsideReason) {
+          alert("超出範圍打卡必須填寫原因");
+          return;
+        }
+        status = lateStatus.isLate ? "late_outside" : "outside";
       }
 
       if (!db) {
@@ -443,47 +602,67 @@ document.addEventListener("DOMContentLoaded", function () {
         employeeId: currentUser.employeeId,
         employeeName: currentUser.name,
         type,
+        shiftCode: selectedShift.code,
+        shiftName: selectedShift.name,
+        scheduledStartTime: selectedShift.startTime,
+        scheduledEndTime: selectedShift.endTime,
+        reminderTime: selectedShift.reminderTime,
+        graceMinutes: Number(selectedShift.graceMinutes || 0),
         lat,
         lng,
-        officeName: match.name,
-        distanceMeters: match.distanceMeters,
+        officeName: match?.name || "",
+        distanceMeters: match?.distanceMeters ?? null,
+        locationMatched: Boolean(match),
+        outsideReason,
+        isLate: Boolean(lateStatus.isLate),
+        lateMinutes: lateStatus.lateMinutes || 0,
+        status,
+        networkType,
         createdAt: serverTimestamp(),
-        createdAtClient: new Date()
+        createdAtClient
       };
 
       await addDoc(collection(db, "attendanceRecords"), attendancePayload);
       await addDoc(collection(db, "notifications"), {
-        message: `${currentUser.name} ${type === "clockIn" ? "上班" : "下班"}打卡成功`,
+        message: `${currentUser.name}${type === "clockIn" ? "上班" : "下班"}打卡${status === "success" ? "成功" : "完成"}`,
         employeeId: currentUser.employeeId,
         employeeName: currentUser.name,
         type,
-        officeName: match.name,
-        createdAt: serverTimestamp()
+        shiftCode: selectedShift.code,
+        status,
+        createdAt: serverTimestamp(),
+        createdAtClient
       });
+
+      const statusMessages = {
+        success: "正常打卡",
+        late: `遲到 ${lateStatus.lateMinutes} 分鐘`,
+        outside: `範圍外打卡：${outsideReason}`,
+        late_outside: `遲到 ${lateStatus.lateMinutes} 分鐘，且為範圍外打卡：${outsideReason}`
+      };
 
       lastAttendanceAttempt = {
         lat,
         lng,
-        officeName: match.name,
-        distanceMeters: match.distanceMeters,
+        officeName: match?.name || "",
+        distanceMeters: match?.distanceMeters,
         networkType,
-        badgeKind: "success",
-        badgeText: type === "clockIn" ? "已上班" : "已下班",
-        message: `${type === "clockIn" ? "上班" : "下班"}打卡成功`
+        badgeKind: status === "success" ? "success" : status,
+        badgeText: statusMessages[status],
+        message: `${selectedShift.name} ${type === "clockIn" ? "上班" : "下班"}打卡完成。${statusMessages[status]}`
       };
       renderAttendanceAttempt();
-    alert(`${type === "clockIn" ? "上班" : "下班"}打卡成功`);
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error("打卡失敗", error);
       lastAttendanceAttempt = {
         lat: null,
         lng: null,
         badgeKind: "fail",
         badgeText: "打卡失敗",
-        message: "打卡失敗"
+        message: error?.message || "打卡失敗"
       };
       renderAttendanceAttempt();
-      alert("打卡失敗");
+      alert(error?.message || "打卡失敗");
     }
   }
 
@@ -606,8 +785,10 @@ document.addEventListener("DOMContentLoaded", function () {
           <strong>${item.employeeName || "未知員工"}</strong><br />
           類型：${item.type === "clockIn" ? "上班打卡" : "下班打卡"}<br />
           時間：${item.createdAtClient ? new Date(item.createdAtClient).toLocaleString("zh-TW") : "-"}<br />
-          地點：${item.officeName || "-"}<br />
-          距離：${item.distanceMeters !== undefined ? `${item.distanceMeters}m` : "-"}
+          地點：${item.officeName || "範圍外"}<br />
+          班別：${item.shiftName || "-"}<br />
+          狀態：${item.status || "-"}<br />
+          距離：${item.distanceMeters !== undefined && item.distanceMeters !== null ? `${item.distanceMeters}m` : "-"}
         </div>
       `);
 
@@ -710,9 +891,12 @@ document.addEventListener("DOMContentLoaded", function () {
             return `
               <div class="item-meta">
                 ${record.type === "clockIn" ? "上班打卡" : "下班打卡"}｜
+                ${record.shiftName || "未指定班別"}｜
                 ${formatTimeOnly(record.createdAtClient)}｜
-                ${record.officeName || "未命名座標"}｜
-                ${record.distanceMeters !== undefined ? `距離 ${record.distanceMeters}m` : "未記錄距離"}
+                ${record.officeName || "範圍外打卡"}｜
+                <span class="record-status-text">${record.status || "success"}</span>｜
+                ${record.distanceMeters !== undefined && record.distanceMeters !== null ? `距離 ${record.distanceMeters}m` : "未記錄距離"}
+                ${record.outsideReason ? `｜原因：${record.outsideReason}` : ""}
               </div>
             `;
           })
@@ -732,6 +916,7 @@ document.addEventListener("DOMContentLoaded", function () {
             <p>下班時間：${item.endTime ? formatTimeOnly(item.endTime) : "-"}</p>
             <p>打卡地點：${item.officeName || "-"}</p>
             <p>當日打卡筆數：${item.recordCount}</p>
+            <p>班別：${item.records[0]?.shiftName || "-"}｜最終狀態：<span class="status-badge status-${item.records[item.records.length - 1]?.status || "success"}">${item.records[item.records.length - 1]?.status || "success"}</span></p>
 
             <div style="margin-top: 10px;">
               ${detailHtml}
@@ -740,6 +925,24 @@ document.addEventListener("DOMContentLoaded", function () {
         `;
       })
       .join("");
+  }
+
+    function startShiftSettingsListener() {
+    if (!db) {
+      refreshShiftSettingViews();
+      refreshAttendanceSettings();
+      return;
+    }
+    const q = query(collection(db, "shiftSettings"), orderBy("code", "asc"));
+    onSnapshot(q, async function (snapshot) {
+      if (snapshot.empty) {
+        await Promise.all(DEFAULT_SHIFT_SETTINGS.map((item) => addDoc(collection(db, "shiftSettings"), { ...item, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })));
+        return;
+      }
+      shiftSettings = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
+      refreshShiftSettingViews();
+      refreshAttendanceSettings();
+    });
   }
 
   function startAttendanceRecordsListener() {
@@ -777,6 +980,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     
     populateCoordinateRegionOptions();
+    refreshShiftSettingViews();
   }
 
   function syncAdminPermissionState() {
@@ -1354,6 +1558,46 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  if (shiftCodeSelect) {
+    shiftCodeSelect.addEventListener("change", syncShiftForm);
+  }
+
+  if (shiftSettingsForm) {
+    shiftSettingsForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      const selectedCode = shiftCodeSelect?.value || "";
+      const targetShift = findShiftSetting(selectedCode);
+      if (!targetShift) return alert("找不到班別設定");
+      const payload = {
+        code: selectedCode,
+        name: shiftNameInput?.value.trim() || "",
+        startTime: shiftStartTimeInput?.value || "",
+        endTime: shiftEndTimeInput?.value || "",
+        reminderTime: shiftReminderTimeInput?.value || "",
+        graceMinutes: Number(shiftGraceMinutesInput?.value || 0),
+        isActive: shiftIsActiveInput?.checked ?? true,
+        updatedAt: serverTimestamp()
+      };
+      if (!payload.name || !payload.startTime || !payload.endTime || !payload.reminderTime) return alert("請填寫完整班別資訊");
+      try {
+        if (!db) {
+          shiftSettings = shiftSettings.map((item) => item.code === selectedCode ? { ...item, ...payload } : item);
+          refreshShiftSettingViews();
+          refreshAttendanceSettings();
+          return;
+        }
+        await updateDoc(doc(db, "shiftSettings", targetShift.id), payload);
+      } catch (error) {
+        console.error("儲存班別設定失敗", error);
+        alert("儲存班別設定失敗");
+      }
+    });
+  }
+
+  if (attendanceShiftSelect) {
+    attendanceShiftSelect.addEventListener("change", refreshAttendanceSettings);
+  }
+  
   if (attendanceFilterBtn) {
     attendanceFilterBtn.addEventListener("click", function () {
       renderAttendanceRecords();
@@ -1514,6 +1758,7 @@ document.addEventListener("DOMContentLoaded", function () {
   startLeaveListener();
   startScheduleListener();
   startAttendanceLocationsListener();
+  startShiftSettingsListener();
   refreshAttendanceSettings();
   startAttendanceRecordsListener();
   renderAttendanceRecords();
