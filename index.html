@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-12</title>
+  <title>班表系統-13</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -112,7 +112,7 @@
             </div>
           </div>
           
-          <div class="card">
+          <div id="employee-form-card" class="card">
             <h3>系統狀態</h3>
             <p>你已成功登入系統。</p>
             <p>可透過左側選單切換功能頁面。</p>
@@ -180,9 +180,14 @@
                   <label class="field-label"><span>職稱</span><input id="employee-form-title" type="text" /></label>
                   <label class="field-label"><span>類別</span><input id="employee-form-category" type="text" /></label>
                   <label class="field-label email-field"><span>Email</span><div class="email-input-wrap"><input id="employee-form-email-prefix" type="text" /><span class="input-suffix">@goldbricks.com.tw</span></div></label>
+                  <label class="field-label"><span>員工照片</span><input id="employee-form-photo" type="file" accept="image/*" /></label>
                   <label class="field-label"><span>電話</span><input id="employee-form-phone" type="tel" /></label>
                   <label class="field-label"><span>生日 (MM/DD)</span><input id="employee-form-birthday" type="text" /></label>
                   <label class="field-label"><span>年度特休天數</span><input id="employee-form-annual-leave-days" type="number" min="0" /></label>
+                </div>
+                <div id="employee-photo-paste-zone" class="photo-paste-zone" tabindex="0">
+                  <img id="employee-photo-preview" class="employee-photo-preview hidden" alt="員工照片預覽" />
+                  <div id="employee-photo-placeholder" class="photo-placeholder">支援上傳或在此區塊直接貼上圖片。</div>
                 </div>
               </div>
 
@@ -316,10 +321,13 @@
             <h3>班別設定</h3>
             <p class="helper-text">管理員可設定上班、下班、提醒與最後打卡寬限時間。</p>
             <form id="shift-settings-form" class="form-grid">
-              <label class="field-label">
-                <span>班別代碼</span>
-                <select id="shift-code" required></select>
-              </label>
+              <div class="two-column-grid">
+                <label class="field-label"><span>設定層級</span><select id="shift-scope"><option value="template">部門預設</option><option value="employee">員工覆蓋</option></select></label>
+                <label class="field-label"><span>班別</span><select id="shift-code" required></select></label>
+                <label class="field-label"><span>地區</span><select id="shift-region" required></select></label>
+                <label class="field-label"><span>部門</span><select id="shift-department" required></select></label>
+                <label class="field-label"><span>員工</span><select id="shift-employee"></select></label>
+              </div>
               <div class="two-column-grid">
                 <label class="field-label"><span>班別名稱</span><input id="shift-name" type="text" required /></label>
                 <label class="field-label"><span>提醒時間</span><input id="shift-reminder-time" type="time" required /></label>
@@ -372,16 +380,6 @@
           </div>
           
           <div id="attendance-summary-list" class="list-wrap" style="margin-top: 20px;"></div>
-          
-          <div class="card" style="margin-top: 20px;">
-            <div class="section-header-row">
-              <div>
-                <h3>打卡地圖</h3>
-                <p class="helper-text">顯示目前篩選條件下的打卡位置。</p>
-              </div>
-            </div>
-            <div id="attendance-map" class="attendance-map"></div>
-          </div>
         </div>
       </section>
 
