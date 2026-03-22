@@ -1021,3 +1021,12 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+.attendance-map {
+  width: 100%;
+  height: 420px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #e5e7eb;
+}

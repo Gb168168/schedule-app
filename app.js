@@ -75,6 +75,8 @@ let attendanceLocations = DEFAULT_ATTENDANCE_LOCATIONS.map((item, index) => ({ i
 let attendanceRecords = [];
 let editingCoordinateId = null;
 let lastAttendanceAttempt = null;
+let attendanceMap = null;
+let attendanceMapMarkers = [];
 
 function isAdmin(user) {
  return Boolean(user?.permissions?.admin || user?.role === "管理員");
@@ -191,6 +193,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const attendanceFilterBtn = document.getElementById("attendance-filter-btn");
   const attendanceFilterResetBtn = document.getElementById("attendance-filter-reset-btn");
   const attendanceSummaryList = document.getElementById("attendance-summary-list");
+  const attendanceMapElement = document.getElementById("attendance-map");
   
   const employeeForm = document.getElementById("employee-form");
   const employeeList = document.getElementById("employee-list");
@@ -443,6 +446,7 @@ document.addEventListener("DOMContentLoaded", function () {
         lat,
         lng,
         officeName: match.name,
+        distanceMeters: match.distanceMeters,
         createdAt: serverTimestamp(),
         createdAtClient: new Date()
       };
@@ -551,6 +555,77 @@ document.addEventListener("DOMContentLoaded", function () {
     return visibleRecords;
   }
 
+  function initAttendanceMap() {
+    if (!attendanceMapElement || typeof L === "undefined") return;
+    if (attendanceMap) return;
+
+    attendanceMap = L.map(attendanceMapElement).setView([23.7, 121], 7);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap"
+    }).addTo(attendanceMap);
+  }
+
+  function clearAttendanceMapMarkers() {
+    if (!attendanceMap) return;
+
+    attendanceMapMarkers.forEach(function (marker) {
+      attendanceMap.removeLayer(marker);
+    });
+    attendanceMapMarkers = [];
+  }
+
+  function renderAttendanceMap(records) {
+    if (!attendanceMapElement || typeof L === "undefined") return;
+
+    initAttendanceMap();
+    if (!attendanceMap) return;
+
+    clearAttendanceMapMarkers();
+
+    const validRecords = records.filter(function (item) {
+      return Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lng));
+    });
+
+    if (validRecords.length === 0) {
+      attendanceMap.setView([23.7, 121], 7);
+      return;
+    }
+
+    const bounds = [];
+
+    validRecords.forEach(function (item) {
+      const lat = Number(item.lat);
+      const lng = Number(item.lng);
+
+      const marker = L.marker([lat, lng]).addTo(attendanceMap);
+
+      marker.bindPopup(`
+        <div style="min-width: 220px;">
+          <strong>${item.employeeName || "未知員工"}</strong><br />
+          類型：${item.type === "clockIn" ? "上班打卡" : "下班打卡"}<br />
+          時間：${item.createdAtClient ? new Date(item.createdAtClient).toLocaleString("zh-TW") : "-"}<br />
+          地點：${item.officeName || "-"}<br />
+          距離：${item.distanceMeters !== undefined ? `${item.distanceMeters}m` : "-"}
+        </div>
+      `);
+
+      attendanceMapMarkers.push(marker);
+      bounds.push([lat, lng]);
+    });
+
+    if (bounds.length === 1) {
+      attendanceMap.setView(bounds[0], 16);
+    } else {
+      attendanceMap.fitBounds(bounds, { padding: [30, 30] });
+    }
+
+    setTimeout(function () {
+      attendanceMap.invalidateSize();
+    }, 100);
+  }
+
   function buildAttendanceSummary(records) {
     const grouped = {};
 
@@ -620,6 +695,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const filteredRecords = getFilteredAttendanceRecords();
     const summaryList = buildAttendanceSummary(filteredRecords);
+
+    renderAttendanceMap(filteredRecords);
 
     if (summaryList.length === 0) {
       attendanceSummaryList.innerHTML = `<div class="list-item"><p>目前沒有符合條件的打卡紀錄。</p></div>`;
@@ -1116,6 +1193,12 @@ document.addEventListener("DOMContentLoaded", function () {
       const targetSection = document.getElementById(`page-${targetPage}`);
       if (targetSection) targetSection.classList.remove("hidden");
       if (pageTitle) pageTitle.textContent = button.textContent;
+
+      if (targetPage === "attendance") {
+        setTimeout(function () {
+          if (attendanceMap) attendanceMap.invalidateSize();
+        }, 100);
+      }
     });
   });
 
