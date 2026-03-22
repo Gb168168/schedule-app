@@ -54,6 +54,12 @@ const users = [
     manageScopes: {
       regions: [...REGIONS],
       departments: [...DEPARTMENTS]
+    },
+    fcmToken: "",
+    notificationSettings: {
+      announcement: true,
+      attendance: true,
+      leave: true
     }
   },
   {
@@ -78,6 +84,12 @@ const users = [
     manageScopes: {
       regions: [],
       departments: []
+    },
+    fcmToken: "",
+    notificationSettings: {
+      announcement: true,
+      attendance: true,
+      leave: true
     }
   }
 ];
@@ -149,6 +161,7 @@ async function initMessaging() {
 
     await updateDoc(doc(db, "employees", currentUser.id), {
       fcmToken: token,
+      notificationSettings: getDefaultNotificationSettings(currentUser.notificationSettings),
       updatedAt: serverTimestamp()
     });
     
@@ -157,7 +170,11 @@ async function initMessaging() {
 
       const title = payload.notification?.title || "新通知";
       const body = payload.notification?.body || "";
+      const targetLink = payload.data?.link || payload.fcmOptions?.link || "";
       alert(`${title}\n${body}`);
+      if (targetLink && confirm("是否前往查看公告？")) {
+        window.location.href = targetLink;
+      }
     });
   } catch (error) {
     console.error("初始化推播失敗：", error);
@@ -254,8 +271,18 @@ function formatEmployeePermissions(employee) {
   return tags.length > 0 ? tags.join("、") : "一般員工";
 }
 
+function getDefaultNotificationSettings(settings = {}) {
+  return {
+    announcement: settings.announcement !== false,
+    attendance: settings.attendance !== false,
+    leave: settings.leave !== false
+  };
+}
+
 function createEmployee(employeeData) {
   return addDoc(collection(db, "employees"), {
+    fcmToken: "",
+    notificationSettings: getDefaultNotificationSettings(employeeData.notificationSettings),
     ...employeeData,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
@@ -290,6 +317,8 @@ function mergeEmployeesWithBuiltin(remoteEmployees = []) {
       ...builtinEmployee,
       status: "active",
       isHidden: false,
+      notificationSettings: getDefaultNotificationSettings(employee.notificationSettings || builtinEmployee.notificationSettings),
+      fcmToken: employee.fcmToken || builtinEmployee.fcmToken || "",
       ...employee
     });
   });
@@ -1408,6 +1437,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
           content: data.content || "",
           author: data.author || "",
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleString() : ""
+          authorId: data.authorId || "",
         };
       });
       renderAnnouncements();
@@ -1752,7 +1782,14 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         return;
       }
       try {
-        await addDoc(collection(db, "announcements"), { title, content, author: currentUser ? currentUser.name : "未知使用者", createdAt: serverTimestamp(), createdAtClient: new Date() });
+        await addDoc(collection(db, "announcements"), {
+          title,
+          content,
+          author: currentUser ? currentUser.name : "未知使用者",
+          authorId: currentUser?.employeeId || "",
+          createdAt: serverTimestamp(),
+          createdAtClient: new Date()
+        });
         announcementForm.reset();
       } catch (error) {
         console.error("新增公告失敗", error);
@@ -1829,7 +1866,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
           departments: Array.from(document.querySelectorAll('input[name="manage-departments"]:checked')).map((el) => el.value)
         },
         status: "active",
-        isHidden: false
+        isHidden: false,
+        fcmToken: editingEmployeeId ? (employees.find((item) => item.id === editingEmployeeId)?.fcmToken || "") : "",
+        notificationSettings: getDefaultNotificationSettings(
+          editingEmployeeId
+            ? employees.find((item) => item.id === editingEmployeeId)?.notificationSettings || {}
+            : {}
+        )
       };
 
       const isSuperAdmin = isSuperAdminEmployee(employeeData.employeeId);
