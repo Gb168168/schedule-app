@@ -4,6 +4,7 @@
  */
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 
 admin.initializeApp();
@@ -22,6 +23,9 @@ const DEFAULT_ATTENDANCE_LOCATIONS = [
   { region: "台中區", category: "office", name: "台中辦公點", lat: 24.17779, lng: 120.713161, radiusMeters: 500, isActive: true, isHidden: false },
   { region: "嘉義區", category: "office", name: "嘉義辦公點", lat: 23.4801, lng: 120.4491, radiusMeters: 500, isActive: true, isHidden: false }
 ];
+
+const ANNOUNCEMENT_LINK = process.env.ANNOUNCEMENT_LINK || "https://schedule-app-5845b.web.app/#announcement";
+const MULTICAST_CHUNK_SIZE = 500;
 
 function getDistanceMeters(lat1, lng1, lat2, lng2) {
   const R = 6371000;
@@ -51,6 +55,86 @@ function normalizeLocation(location) {
     isActive: location.isActive !== false,
     isHidden: location.isHidden === true
   };
+}
+
+function getAnnouncementBody(content) {
+  return String(content || "").trim().slice(0, 60) || "請點擊查看完整公告內容。";
+}
+
+function getAnnouncementRecipients(employeeDocs, authorId) {
+  return employeeDocs
+    .map((docItem) => ({ id: docItem.id, ...docItem.data() }))
+    .filter((employee) => {
+      if (!employee.fcmToken) return false;
+      if (employee.isHidden || employee.status === "deleted") return false;
+      if (authorId && employee.employeeId === authorId) return false;
+      return employee.notificationSettings?.announcement !== false;
+    });
+}
+
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+async function cleanupInvalidTokens(tokensToDelete = []) {
+  if (tokensToDelete.length === 0) return;
+
+  const employeesSnapshot = await db.collection("employees").where("fcmToken", "in", tokensToDelete.slice(0, 10)).get();
+  await Promise.all(
+    employeesSnapshot.docs.map((docItem) => docItem.ref.update({
+      fcmToken: "",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }))
+  );
+
+  if (tokensToDelete.length > 10) {
+    await cleanupInvalidTokens(tokensToDelete.slice(10));
+  }
+}
+
+async function sendAnnouncementNotifications(tokens, announcement) {
+  const invalidTokens = [];
+
+  for (const tokenChunk of chunkArray(tokens, MULTICAST_CHUNK_SIZE)) {
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens: tokenChunk,
+      notification: {
+        title: `新公告：${announcement.title || "未命名公告"}`,
+        body: getAnnouncementBody(announcement.content)
+      },
+      data: {
+        announcementId: announcement.id || "",
+        link: ANNOUNCEMENT_LINK
+      },
+      webpush: {
+        fcmOptions: {
+          link: ANNOUNCEMENT_LINK
+        }
+      }
+    });
+
+    response.responses.forEach((result, index) => {
+      if (result.success) return;
+      const errorCode = result.error?.code || "";
+      if (
+        errorCode === "messaging/invalid-registration-token" ||
+        errorCode === "messaging/registration-token-not-registered"
+      ) {
+        invalidTokens.push(tokenChunk[index]);
+      }
+      console.error("Announcement notification send failed", {
+        token: tokenChunk[index],
+        errorCode,
+        message: result.error?.message || "unknown"
+      });
+    });
+  }
+
+  await cleanupInvalidTokens([...new Set(invalidTokens)]);
 }
 
 async function loadAttendanceLocations() {
@@ -170,6 +254,29 @@ exports.submitAttendance = functions.https.onRequest(async (request, response) =
   }
 });
 
+exports.sendAnnouncementNotification = onDocumentCreated("announcements/{announcementId}", async (event) => {
+  if (!event.data) return;
+
+  const announcement = {
+    id: event.params.announcementId,
+    ...event.data.data()
+  };
+
+  const employeesSnapshot = await db.collection("employees").get();
+  const recipients = getAnnouncementRecipients(employeesSnapshot.docs, announcement.authorId);
+  const tokens = recipients.map((employee) => employee.fcmToken).filter(Boolean);
+
+  if (tokens.length === 0) {
+    console.log("No announcement recipients found", {
+      announcementId: announcement.id,
+      authorId: announcement.authorId || ""
+    });
+    return;
+  }
+
+  await sendAnnouncementNotifications(tokens, announcement);
+});
+
 exports.sendWorkReminder = onSchedule("every 5 minutes", async () => {
   const employeesSnapshot = await db.collection("employees").get();
   const notifications = [];
@@ -178,6 +285,7 @@ exports.sendWorkReminder = onSchedule("every 5 minutes", async () => {
     const user = docItem.data();
 
     if (!user.fcmToken) return;
+    if (user.notificationSettings?.attendance === false) return;
 
     notifications.push(
       admin.messaging().send({
@@ -185,6 +293,9 @@ exports.sendWorkReminder = onSchedule("every 5 minutes", async () => {
         notification: {
           title: "上班提醒",
           body: "距離上班還有 10 分鐘"
+          },
+        data: {
+          link: ANNOUNCEMENT_LINK.replace(/#announcement$/, "")
         }
       })
     );
