@@ -1030,3 +1030,49 @@ textarea {
   border: 1px solid var(--border);
   background: #e5e7eb;
 }
+
+
+.attendance-actions-stack {
+  align-items: flex-end;
+}
+
+.attendance-shift-picker {
+  min-width: 220px;
+  flex: 1 1 220px;
+}
+
+.status-late {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-outside {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.status-late_outside {
+  background: #fecaca;
+  color: #7f1d1d;
+}
+
+.status-neutral {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.reminder-list {
+  display: grid;
+  gap: 10px;
+}
+
+.reminder-item {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.record-status-text {
+  font-weight: 700;
+}
