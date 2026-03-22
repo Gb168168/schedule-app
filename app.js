@@ -1,4 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-messaging.js";
 import {
   getFirestore,
   collection,
@@ -28,6 +29,7 @@ const DEFAULT_ATTENDANCE_LOCATIONS = [
 const firebaseConfig = window.__FIREBASE_CONFIG__;
 const firebaseApp = firebaseConfig ? initializeApp(firebaseConfig) : null;
 const db = firebaseApp ? getFirestore(firebaseApp) : null;
+const messaging = firebaseApp ? getMessaging(firebaseApp) : null;
 
 const users = [
   {
@@ -106,6 +108,47 @@ let employeeShiftSettings = [];
 let editingCoordinateId = null;
 let lastAttendanceAttempt = null;
 let attendanceDetailMaps = {};
+let messagingServiceWorkerRegistration = null;
+
+async function registerMessagingServiceWorker() {
+  if (messagingServiceWorkerRegistration) return messagingServiceWorkerRegistration;
+  if (!("serviceWorker" in navigator)) return null;
+
+  try {
+    messagingServiceWorkerRegistration = await navigator.serviceWorker.register("./firebase-messaging-sw.js");
+    return messagingServiceWorkerRegistration;
+  } catch (error) {
+    console.error("FCM Service Worker 註冊失敗", error);
+    return null;
+  }
+}
+
+async function initFCM() {
+  if (!messaging || !db || !currentUser?.id || String(currentUser.id).startsWith("builtin-")) return;
+  if (!("Notification" in window)) return;
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return;
+
+    const serviceWorkerRegistration = await registerMessagingServiceWorker();
+    const token = await getToken(messaging, {
+      vapidKey: "BAiisudW3eTSyOOkA_WMPmpWGa0Rrny0G9FI6T2W1KSIU_JiegUeIs7AplJCPIkYpr_1uIedG2oC7R_Qiik0F5c",
+      serviceWorkerRegistration: serviceWorkerRegistration || undefined
+    });
+
+    if (!token) return;
+
+    console.log("FCM Token:", token);
+
+    await updateDoc(doc(db, "employees", currentUser.id), {
+      fcmToken: token,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error("FCM 初始化失敗", error);
+  }
+}
 
 function isAdmin(user) {
  return Boolean(user?.permissions?.admin || user?.role === "管理員");
@@ -1617,6 +1660,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     renderSchedules();
     renderCalendar();
     renderCoordinates();
+    initFCM();
   }
 
   function restoreLogin() {
