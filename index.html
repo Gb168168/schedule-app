@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-14</title>
+  <title>班表系統-15</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -56,24 +56,21 @@
       <section id="page-home" class="page-section">
         <div class="hero-card">
           <div>
-            <h3>首頁</h3>
-            <p>歡迎使用班表管理系統</p>
+            <h3>今日出勤打卡</h3>
+            <p id="today-shift-info">載入班別中...</p>
+          </div>
+          <div class="hero-card-actions">
+            <button id="clock-in-btn" type="button" class="primary-btn">上班打卡</button>
+            <button id="clock-out-btn" type="button" class="secondary-btn">下班打卡</button>
           </div>
         </div>
 
         <div class="content-grid home-grid">
-          <div class="card">
-            <h3>使用者資訊</h3>
-            <p>權限：<span id="user-role"></span></p>
-            <p>區域：<span id="user-region"></span></p>
-            <p>部門：<span id="user-department"></span></p>
-          </div>
-
            <div class="card attendance-card">
             <div class="section-header-row">
               <div>
                 <h3>出勤打卡</h3>
-                <p class="helper-text">打卡前先選班別；超出範圍可填寫原因後送出，逾時會自動標示遲到。</p>
+                <p class="helper-text">系統會自動帶入今日班別；超出範圍可填寫原因後送出，逾時會自動標示遲到。</p>
               </div>
               <span id="attendance-status-badge" class="status-badge status-pending">待操作</span>
             </div>
@@ -82,14 +79,6 @@
               <p>尚未載入打卡資訊。</p>
             </div>
 
-            <div class="attendance-actions attendance-actions-stack">
-              <label class="field-label attendance-shift-picker">
-                <span>本次班別</span>
-                <select id="attendance-shift-select"></select>
-              </label>
-              <button id="clock-in-btn" type="button" class="primary-btn">上班打卡</button>
-              <button id="clock-out-btn" type="button" class="secondary-btn">下班打卡</button>
-            </div>
 
             <div id="attendance-result" class="attendance-result">
               <p>系統會依序檢查：登入者 → 班別時間 → 定位權限 → 公司據點。</p>
@@ -180,15 +169,16 @@
                   <label class="field-label"><span>職稱</span><input id="employee-form-title" type="text" /></label>
                   <label class="field-label"><span>類別</span><input id="employee-form-category" type="text" /></label>
                   <label class="field-label email-field"><span>Email</span><div class="email-input-wrap"><input id="employee-form-email-prefix" type="text" /><span class="input-suffix">@goldbricks.com.tw</span></div></label>
-                  
-                  <label class="field-label"><span>員工照片</span><input id="employee-form-photo" type="file" accept="image/*" /></label>
+                  <label class="field-label">
+                    <span>員工照片</span>
+                    <div id="photo-zone">
+                      <input id="photo-file" type="file" accept="image/*" />
+                      <img id="photo-preview" class="employee-photo-preview hidden" style="max-width:200px; display:none;" alt="員工照片預覽" />
+                    </div>
+                  </label>
                   <label class="field-label"><span>電話</span><input id="employee-form-phone" type="tel" /></label>
                   <label class="field-label"><span>生日 (MM/DD)</span><input id="employee-form-birthday" type="text" /></label>
                   <label class="field-label"><span>年度特休天數</span><input id="employee-form-annual-leave-days" type="number" min="0" /></label>
-                </div>
-                <div id="employee-photo-paste-zone" class="photo-paste-zone" tabindex="0">
-                  <img id="employee-photo-preview" class="employee-photo-preview hidden" alt="員工照片預覽" />
-                  <div id="employee-photo-placeholder" class="photo-placeholder">支援上傳或在此區塊直接貼上圖片。</div>
                 </div>
               </div>
 
