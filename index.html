@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-7</title>
+  <title>班表系統-8</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -34,6 +34,7 @@
         <button class="menu-btn" data-page="staff">人員資訊</button>
         <button class="menu-btn" data-page="leave">請假</button>
         <button class="menu-btn hidden" id="menu-coordinate-btn" data-page="coordinates">打卡座標</button>
+        <button class="menu-btn" data-page="attendance">打卡紀錄</button>
         <button class="menu-btn" data-page="schedule">排程表</button>
       </nav>
     </aside>
@@ -298,6 +299,20 @@
           <div id="coordinate-region-list" class="coordinate-region-list"></div>
         </div>
       </section>
+      <section id="page-attendance" class="page-section hidden">
+        <div class="content-grid attendance-records-grid">
+          <div class="card">
+            <h3>打卡紀錄</h3>
+            <div id="attendance-list" class="list-wrap"></div>
+          </div>
+
+          <div class="card">
+            <h3>每日工時</h3>
+            <div id="attendance-summary-list" class="list-wrap"></div>
+          </div>
+        </div>
+      </section>
+
       <section id="page-schedule" class="page-section hidden">
         <div class="card">
           <h3>排程表</h3>
