@@ -1625,10 +1625,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const employeeIdInput = document.getElementById("employeeId");
       const passwordInput = document.getElementById("password");
 
-      const employeeId = employeeIdInput ? employeeIdInput.value : "";
-      const password = passwordInput ? passwordInput.value : "";
+      const loginId = employeeIdInput ? employeeIdInput.value.trim() : "";
+      const password = passwordInput ? passwordInput.value.trim() : "";
 
-      const matchedUser = findLoginUser(employeeId, password);
+      const matchedUser = findLoginUser(loginId, password);
 
       if (!matchedUser) {
         if (loginError) loginError.textContent = "帳號或密碼錯誤";
@@ -2181,7 +2181,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   renderLeaves();
   renderSchedules();
   renderCalendar();
-  restoreLogin();
 
   startAnnouncementsListener();
   startLeaveListener();
