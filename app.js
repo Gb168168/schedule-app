@@ -1606,14 +1606,17 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (!savedEmployeeId) return;
 
     const normalizedSavedId = normalizeLoginValue(savedEmployeeId);
+    
     const matchedUser = employees.find(function (user) {
       if (!isLoginEligible(user)) return false;
+      
       const identifiers = [user.employeeId, user.account, user.email]
         .map(normalizeLoginValue)
         .filter(Boolean);
+      
       return identifiers.includes(normalizedSavedId);
     });
-    
+
     if (!matchedUser) return;
     setLoggedInUser(matchedUser);
   }
@@ -1621,12 +1624,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   if (loginForm) {
     loginForm.addEventListener("submit", function (event) {
       event.preventDefault();
-      
-      const employeeIdInput = document.getElementById("employeeId");
-      const passwordInput = document.getElementById("password");
 
-      const loginId = employeeIdInput ? employeeIdInput.value.trim() : "";
-      const password = passwordInput ? passwordInput.value.trim() : "";
+      const loginId = document.getElementById("employeeId")?.value.trim() || "";
+      const password = document.getElementById("password")?.value.trim() || "";
 
       const matchedUser = findLoginUser(loginId, password);
 
@@ -1634,7 +1634,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         if (loginError) loginError.textContent = "帳號或密碼錯誤";
         return;
       }
-      
+
       if (loginError) loginError.textContent = "";
       setLoggedInUser(matchedUser);
     });
