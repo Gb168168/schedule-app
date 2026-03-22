@@ -120,22 +120,42 @@ function canManageCoordinates(user) {
 }
 
 function normalizeLoginValue(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .trim()
+    .replace(/　/g, " ")
+    .toLowerCase();
+}
+
+function normalizePasswordValue(value) {
+  return String(value || "")
+    .trim()
+    .replace(/　/g, " ");
 }
 
 function isLoginEligible(user) {
   return Boolean(user) && !user.isHidden && user.status !== "deleted";
 }
 
-function findLoginUser(employeeId, password) {
-  const normalizedEmployeeId = normalizeLoginValue(employeeId);
-  const normalizedPassword = String(password || "").trim();
-  if (!normalizedEmployeeId || !normalizedPassword) return null;
+function getLoginIdentifiers(user) {
+  return [user?.employeeId, user?.account]
+    .map(normalizeLoginValue)
+    .filter(Boolean);
+}
+
+function getAcceptedPasswords(user) {
+  return [user?.password, user?.employeeId, user?.account]
+    .map(normalizePasswordValue)
+    .filter(Boolean);
+}
+
+function findLoginUser(loginId, password) {
+  const normalizedLoginId = normalizeLoginValue(loginId);
+  const normalizedPassword = normalizePasswordValue(password);
+  if (!normalizedLoginId || !normalizedPassword) return null;
 
   return employees.find(function (user) {
     if (!isLoginEligible(user)) return false;
-    return normalizeLoginValue(user.employeeId) === normalizedEmployeeId && String(user.password || "").trim() === normalizedPassword;
-  }) || null;
+    return getLoginIdentifiers(user).includes(normalizedLoginId) && getAcceptedPasswords(user).includes(normalizedPassword);
 }
 
 function getShiftNameFromCode(code) {
