@@ -119,6 +119,28 @@ function canManageCoordinates(user) {
   return Boolean(user?.permissions?.admin || user?.permissions?.coordinateAdmin);
 }
 
+function normalizeLoginValue(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isLoginEligible(user) {
+  return Boolean(user) && !user.isHidden && user.status !== "deleted";
+}
+
+function findLoginUser(loginId, password) {
+  const normalizedLoginId = normalizeLoginValue(loginId);
+  const normalizedPassword = String(password || "").trim();
+  if (!normalizedLoginId || !normalizedPassword) return null;
+
+  return employees.find(function (user) {
+    if (!isLoginEligible(user)) return false;
+    const identifiers = [user.employeeId, user.account, user.email]
+      .map(normalizeLoginValue)
+      .filter(Boolean);
+    return identifiers.includes(normalizedLoginId) && String(user.password || "").trim() === normalizedPassword;
+  }) || null;
+}
+
 function getShiftNameFromCode(code) {
   return code === "evening" ? "晚班" : "早班";
 }
@@ -1552,8 +1574,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   function restoreLogin() {
     const savedEmployeeId = localStorage.getItem(STORAGE_KEYS.currentUser);
     if (!savedEmployeeId) return;
-    const matchedUser = employees.find(function (u) {
-      return u.employeeId === savedEmployeeId && !u.isHidden && u.status !== "deleted";
+    const normalizedSavedEmployeeId = normalizeLoginValue(savedEmployeeId);
+    const matchedUser = employees.find(function (user) {
+      return isLoginEligible(user) && normalizeLoginValue(user.employeeId) === normalizedSavedEmployeeId;
     });
     if (!matchedUser) return;
     setLoggedInUser(matchedUser);
@@ -1566,17 +1589,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const employeeIdInput = document.getElementById("employeeId");
       const passwordInput = document.getElementById("password");
 
-      const employeeId = employeeIdInput ? employeeIdInput.value.trim() : "";
-      const password = passwordInput ? passwordInput.value.trim() : "";
+      const employeeId = employeeIdInput ? employeeIdInput.value : "";
+      const password = passwordInput ? passwordInput.value : "";
 
-      const matchedUser = employees.find(function (u) {
-        return (
-          u.employeeId === employeeId &&
-          u.password === password &&
-          !u.isHidden &&
-          u.status !== "deleted"
-        );
-      });
+      const matchedUser = findLoginUser(employeeId, password);
 
       if (!matchedUser) {
         if (loginError) loginError.textContent = "帳號或密碼錯誤";
