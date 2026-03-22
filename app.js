@@ -268,6 +268,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const leaveApproveCheckbox = document.getElementById("permission-leave-approve");
   const announcementManageCheckbox = document.getElementById("permission-announcement-manage");
   const adminScopePanel = document.getElementById("admin-scope-panel");
+  const employeeSubmitBtn = document.getElementById("employee-submit-btn");
+  const employeeShiftSection = document.getElementById("employee-shift-section");
+  const employeeIdField = document.getElementById("employee-form-id");
   
   const coordinateMenuBtn = document.getElementById("menu-coordinate-btn");
   const coordinateAdminDisabled = document.getElementById("coordinate-admin-disabled");
@@ -1062,6 +1065,19 @@ document.addEventListener("DOMContentLoaded", function () {
     if (userDepartment) userDepartment.textContent = user.department;
   }
 
+    function isSuperAdminEmployee(employeeId) {
+    return employeeId === "GoldBricks";
+  }
+
+  function updateSuperAdminFormState() {
+    const employeeId = employeeIdField ? employeeIdField.value.trim() : "";
+    const isSuperAdmin = isSuperAdminEmployee(employeeId);
+
+    if (employeeShiftSection) {
+      employeeShiftSection.classList.toggle("hidden", isSuperAdmin);
+    }
+  }
+
   function renderEmployees() {
     if (!employeeList) return;
 
@@ -1070,38 +1086,84 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    employeeList.innerHTML = employees.map(function (employee) {
-      const shifts = [];
-      if (employee.shifts?.morning) shifts.push("早班");
-      if (employee.shifts?.evening) shifts.push("晚班");
-      if (employee.weekendsOff) shifts.push("週休二日 & 國定假日");
+      const grouped = {}
 
-      const scopeRegions = employee.manageScopes?.regions?.length
-        ? employee.manageScopes.regions.join("、")
-        : "未設定";
-      const scopeDepartments = employee.manageScopes?.departments?.length
-        ? employee.manageScopes.departments.join("、")
-        : "未設定";
+      employees.forEach(function (employee) {
+      const region = employee.region || "未分類地區";
+      const department = employee.department || "未分類部門";
 
-       return `
-        <div class="list-item">
-          <div class="employee-card-header">
-            <h4>${employee.name || "未命名員工"}</h4>
-            <span class="status-badge status-${employee.status || "active"}">${employee.status || "active"}</span>
-          </div>
-          <div class="item-meta">員工代號：${employee.employeeId || "-"}｜帳號：${employee.account || "-"}｜Email：${employee.email || "-"}</div>
-          <p>部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}</p>
-          <p>類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}</p>
-          <p>年度特休：${employee.annualLeaveDays || 0} 天｜班別與休假：${shifts.join("、") || "未設定"}</p>
-          <p>權限：${formatEmployeePermissions(employee)}</p>
-          ${employee.permissions?.admin ? `<p>管理地區：${scopeRegions}</p><p>管理部門：${scopeDepartments}</p>` : ""}
-          <div class="item-actions">
-            <button type="button" class="small-btn edit-btn" onclick="editEmployee('${employee.id}')">編輯</button>
-            <button type="button" class="small-btn delete-btn" onclick="deleteEmployee('${employee.id}')">刪除</button>
-          </div>
-        </div>
-      `;
-    }).join("");
+             if (!grouped[region]) grouped[region] = {};
+      if (!grouped[region][department]) grouped[region][department] = [];
+
+      grouped[region][department].push(employee);
+    });
+
+    employeeList.innerHTML = Object.keys(grouped)
+      .map(function (region) {
+        const departments = grouped[region];
+
+        return `
+          <details class="scope-collapse">
+            <summary>${region}</summary>
+            ${Object.keys(departments)
+              .map(function (department) {
+                return `
+                  <details class="scope-collapse">
+                    <summary>${department}（${departments[department].length} 人）</summary>
+                    <div class="list-wrap">
+                      ${departments[department]
+                        .map(function (employee) {
+                          const shifts = [];
+                          if (employee.shifts?.morning) shifts.push("早班");
+                          if (employee.shifts?.evening) shifts.push("晚班");
+                          if (employee.weekendsOff) shifts.push("週休二日 & 國定假日");
+
+                          const scopeRegions = employee.manageScopes?.regions?.length
+                            ? employee.manageScopes.regions.join("、")
+                            : "未設定";
+                          const scopeDepartments = employee.manageScopes?.departments?.length
+                            ? employee.manageScopes.departments.join("、")
+                            : "未設定";
+
+                          return `
+                            <div class="list-item">
+                              <div class="employee-card-header">
+                                <div>
+                                  <h4>${employee.name || "未命名員工"}</h4>
+                                  <div class="item-meta">
+                                    員工代號：${employee.employeeId || "-"}｜
+                                    帳號：${employee.account || "-"}｜
+                                    Email：${employee.email || "-"}
+                                  </div>
+                                </div>
+                                <span class="status-badge status-${employee.status || "active"}">
+                                  ${employee.status || "active"}
+                                </span>
+                              </div>
+
+                              <p>部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}</p>
+                              <p>類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}</p>
+                              <p>年度特休：${employee.annualLeaveDays || 0} 天｜班別與休假：${shifts.join("、") || "未設定"}</p>
+                              <p>權限：${formatEmployeePermissions(employee)}</p>
+                              ${employee.permissions?.admin ? `<p>管理地區：${scopeRegions}</p><p>管理部門：${scopeDepartments}</p>` : ""}
+
+                              <div class="item-actions">
+                                <button type="button" class="small-btn edit-btn" onclick="editEmployee('${employee.id}')">編輯</button>
+                                <button type="button" class="small-btn delete-btn" onclick="deleteEmployee('${employee.id}')">刪除</button>
+                              </div>
+                            </div>
+                          `;
+                        })
+                        .join("")}
+                    </div>
+                  </details>
+                `;
+              })
+              .join("")}
+          </details>
+        `;
+      })
+      .join("");
   }
 
   function startEmployeesListener() {
@@ -1601,14 +1663,30 @@ document.addEventListener("DOMContentLoaded", function () {
         isHidden: false
       };
 
+      const isSuperAdmin = isSuperAdminEmployee(employeeData.employeeId);
+      
       if (!employeeData.employeeId) return alert("請輸入員工代號");
       if (!employeeData.name) return alert("請輸入姓名");
       if (!employeeData.password) return alert("請輸入密碼");
       if (!employeeData.department) return alert("請選擇部門");
       if (!employeeData.region) return alert("請選擇地區");
-      if (!employeeData.shifts.morning && !employeeData.shifts.evening && !employeeData.weekendsOff) return alert("請至少選擇一個班別或休假設定");
+      if (!isSuperAdmin && !employeeData.shifts.morning && !employeeData.shifts.evening) return alert("請至少勾選一個班別");
 
-      if (!employeeData.permissions.admin) {
+      if (isSuperAdmin) {
+        employeeData.permissions.admin = true;
+        employeeData.permissions.leaveApprove = true;
+        employeeData.permissions.announcementManage = true;
+        employeeData.permissions.coordinateAdmin = true;
+        employeeData.shifts = {
+          morning: false,
+          evening: false
+        };
+        employeeData.weekendsOff = false;
+        employeeData.manageScopes = {
+          regions: ["新竹區", "台中區", "嘉義區"],
+          departments: ["管理部", "TSE", "FAE", "新場", "倉管", "RD", "線上客服"]
+        };
+      } else if (!employeeData.permissions.admin) {
         employeeData.manageScopes = { regions: [], departments: [] };
       }
 
@@ -1632,7 +1710,11 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         
         employeeForm.reset();
+        if (employeeSubmitBtn) {
+          employeeSubmitBtn.textContent = "新增員工";
+        }
         if (adminScopePanel) adminScopePanel.classList.add("hidden");
+        updateSuperAdminFormState();
       } catch (error) {
         console.error("儲存員工失敗", error);
         alert("儲存失敗");
@@ -1642,6 +1724,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (adminCheckbox) {
     adminCheckbox.addEventListener("change", syncAdminPermissionState);
+  }
+  
+  if (employeeIdField) {
+    employeeIdField.addEventListener("input", updateSuperAdminFormState);
   }
   
   window.editEmployee = function (id) {
@@ -1686,8 +1772,15 @@ document.addEventListener("DOMContentLoaded", function () {
       adminScopePanel.classList.toggle("hidden", !adminCheckbox?.checked);
     }
 
+    if (employeeSubmitBtn) {
+      employeeSubmitBtn.textContent = "更新員工";
+    }
+
+    updateSuperAdminFormState();
     employeeForm?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  updateSuperAdminFormState();
 
   window.deleteEmployee = async function (id) {
     if (!db) return;
