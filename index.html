@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-8</title>
+  <title>班表系統-9</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -300,16 +300,34 @@
         </div>
       </section>
       <section id="page-attendance" class="page-section hidden">
-        <div class="content-grid attendance-records-grid">
-          <div class="card">
-            <h3>打卡紀錄</h3>
-            <div id="attendance-list" class="list-wrap"></div>
+        <div class="card">
+          <div class="section-header-row">
+            <div>
+              <h3>打卡紀錄</h3>
+              <p class="helper-text">可依員工與日期查看每日上下班與工時。</p>
+            </div>
           </div>
 
-          <div class="card">
-            <h3>每日工時</h3>
-            <div id="attendance-summary-list" class="list-wrap"></div>
+                   <div class="form-section">
+            <div class="two-column-grid">
+              <label class="field-label">
+                <span>員工姓名</span>
+                <input id="attendance-filter-name" type="text" placeholder="輸入姓名，可留空" />
+              </label>
+
+              <label class="field-label">
+                <span>日期</span>
+                <input id="attendance-filter-date" type="date" />
+              </label>
+            </div>
+
+            <div class="item-actions" style="margin-top: 14px;">
+              <button id="attendance-filter-btn" type="button" class="primary-btn">查詢</button>
+              <button id="attendance-filter-reset-btn" type="button" class="small-btn">清除條件</button>
+            </div>
           </div>
+          
+          <div id="attendance-summary-list" class="list-wrap" style="margin-top: 20px;"></div>
         </div>
       </section>
 
