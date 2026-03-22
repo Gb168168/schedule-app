@@ -198,6 +198,30 @@ function getBuiltinEmployees() {
   });
 }
 
+function mergeEmployeesWithBuiltin(remoteEmployees = []) {
+  const mergedByEmployeeId = new Map();
+
+  getBuiltinEmployees().forEach(function (employee) {
+    const key = normalizeLoginValue(employee.employeeId);
+    if (!key) return;
+    mergedByEmployeeId.set(key, employee);
+  });
+
+  remoteEmployees.forEach(function (employee) {
+    const key = normalizeLoginValue(employee.employeeId);
+    if (!key) return;
+    const builtinEmployee = mergedByEmployeeId.get(key) || {};
+    mergedByEmployeeId.set(key, {
+      ...builtinEmployee,
+      status: "active",
+      isHidden: false,
+      ...employee
+    });
+  });
+
+  return Array.from(mergedByEmployeeId.values()).filter(isLoginEligible);
+}
+
 async function seedDefaultEmployees() {
   if (!db || isBootstrappingEmployees) return;
 
@@ -1264,7 +1288,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         return;
       }
 
-      employees = visibleEmployees;
+      employees = mergeEmployeesWithBuiltin(visibleEmployees);
+      ensureBaseShiftTemplates();
+      renderEmployees();
+      restoreLogin();
+    }, function (error) {
+      console.error("載入員工資料失敗，改用內建帳號", error);
+      employees = getBuiltinEmployees();
       ensureBaseShiftTemplates();
       renderEmployees();
       restoreLogin();
