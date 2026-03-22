@@ -1003,3 +1003,21 @@ textarea {
     overflow-x: auto;
   }
 }
+
+.attendance-records-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.attendance-record-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 960px) {
+  .attendance-records-grid {
+    grid-template-columns: 1fr;
+  }
+}
