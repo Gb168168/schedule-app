@@ -1238,7 +1238,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                             <div class="list-item">
                               <div class="employee-card-main">
                                 <div class="employee-avatar-wrap">
-                                  <img class="employee-avatar" src="${employee.photoURL || getEmployeePhotoUrl(employee)}" alt="${employee.nam
+                                 <img class="employee-avatar" src="${employee.photoURL || getEmployeePhotoUrl(employee)}" alt="${employee.name || "員工照片"}" />
                                 </div>
                                 <div>
                                   <div class="employee-card-header">
