@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-9</title>
+  <title>班表系統-10</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -328,6 +329,16 @@
           </div>
           
           <div id="attendance-summary-list" class="list-wrap" style="margin-top: 20px;"></div>
+          
+          <div class="card" style="margin-top: 20px;">
+            <div class="section-header-row">
+              <div>
+                <h3>打卡地圖</h3>
+                <p class="helper-text">顯示目前篩選條件下的打卡位置。</p>
+              </div>
+            </div>
+            <div id="attendance-map" class="attendance-map"></div>
+          </div>
         </div>
       </section>
 
@@ -408,6 +419,7 @@
     };
     window.__ATTENDANCE_API_URL__ = window.__ATTENDANCE_API_URL__ || "https://us-central1-schedule-app-5845b.cloudfunctions.net/submitAttendance";
   </script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
