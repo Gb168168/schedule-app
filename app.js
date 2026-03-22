@@ -101,10 +101,11 @@ let isBootstrappingEmployees = false;
 let attendanceLocations = DEFAULT_ATTENDANCE_LOCATIONS.map((item, index) => ({ id: `default-${index}`, ...item }));
 let attendanceRecords = [];
 let shiftSettings = DEFAULT_SHIFT_SETTINGS.map((item) => ({ ...item }));
+let shiftTemplates = [];
+let employeeShiftSettings = [];
 let editingCoordinateId = null;
 let lastAttendanceAttempt = null;
-let attendanceMap = null;
-let attendanceMapMarkers = [];
+let attendanceDetailMaps = {};
 
 function isAdmin(user) {
  return Boolean(user?.permissions?.admin || user?.role === "管理員");
@@ -116,6 +117,14 @@ function canManageAnnouncements(user) {
 
 function canManageCoordinates(user) {
   return Boolean(user?.permissions?.admin || user?.permissions?.coordinateAdmin);
+}
+
+function getShiftNameFromCode(code) {
+  return code === "evening" ? "晚班" : "早班";
+}
+
+function getEmployeePhotoUrl(employee) {
+  return employee?.photoURL || "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><rect width='120' height='120' rx='24' fill='#dbeafe'/><circle cx='60' cy='45' r='24' fill='#60a5fa'/><path d='M24 104c7-20 24-30 36-30s29 10 36 30' fill='#60a5fa'/></svg>`);
 }
 
 function formatDate(date) {
@@ -256,9 +265,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const attendanceFilterBtn = document.getElementById("attendance-filter-btn");
   const attendanceFilterResetBtn = document.getElementById("attendance-filter-reset-btn");
   const attendanceSummaryList = document.getElementById("attendance-summary-list");
-   const attendanceMapElement = document.getElementById("attendance-map");
   
   const employeeForm = document.getElementById("employee-form");
+  const employeeFormCard = document.getElementById("employee-form-card");
   const employeeList = document.getElementById("employee-list");
   const employeeDepartmentSelect = document.getElementById("employee-form-department");
   const employeeRegionSelect = document.getElementById("employee-form-region");
@@ -271,6 +280,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const employeeSubmitBtn = document.getElementById("employee-submit-btn");
   const employeeShiftSection = document.getElementById("employee-shift-section");
   const employeeIdField = document.getElementById("employee-form-id");
+  const employeePhotoInput = document.getElementById("employee-form-photo");
+  const employeePhotoPreview = document.getElementById("employee-photo-preview");
+  const employeePhotoPlaceholder = document.getElementById("employee-photo-placeholder");
+  const employeePhotoPasteZone = document.getElementById("employee-photo-paste-zone");
   
   const coordinateMenuBtn = document.getElementById("menu-coordinate-btn");
   const coordinateAdminDisabled = document.getElementById("coordinate-admin-disabled");
@@ -288,7 +301,11 @@ document.addEventListener("DOMContentLoaded", function () {
   const coordinateRegionList = document.getElementById("coordinate-region-list");
   
   const shiftSettingsForm = document.getElementById("shift-settings-form");
+  const shiftScopeSelect = document.getElementById("shift-scope");
   const shiftCodeSelect = document.getElementById("shift-code");
+  const shiftRegionSelect = document.getElementById("shift-region");
+  const shiftDepartmentSelect = document.getElementById("shift-department");
+  const shiftEmployeeSelect = document.getElementById("shift-employee");
   const shiftNameInput = document.getElementById("shift-name");
   const shiftStartTimeInput = document.getElementById("shift-start-time");
   const shiftEndTimeInput = document.getElementById("shift-end-time");
@@ -368,6 +385,63 @@ document.addEventListener("DOMContentLoaded", function () {
     return shiftSettings.find((item) => item.code === code) || null;
   }
 
+  function ensureBaseShiftTemplates() {
+    const combos = new Map();
+    employees.forEach(function (employee) {
+      const region = employee.region || "";
+      const department = employee.department || "";
+      if (!region || !department || department === "最高權限") return;
+      DEFAULT_SHIFT_SETTINGS.forEach(function (shift) {
+        const key = `${region}__${department}__${shift.code}`;
+        if (!combos.has(key)) {
+          combos.set(key, {
+            id: `template-${key}`,
+            region,
+            department,
+            shiftType: shift.code,
+            startTime: shift.startTime,
+            endTime: shift.endTime,
+            reminderTime: shift.reminderTime,
+            graceMinutes: shift.graceMinutes,
+            isDefault: true,
+            isActive: shift.isActive !== false
+          });
+        }
+      });
+    });
+
+    shiftTemplates = Array.from(new Map([...combos, ...shiftTemplates.map((item) => [`${item.region}__${item.department}__${item.shiftType}`, item])]).values());
+  }
+
+  function getTemplateShift(region, department, shiftCode) {
+    return shiftTemplates.find((item) => item.region === region && item.department === department && item.shiftType === shiftCode) || null;
+  }
+
+  function getEmployeeShiftOverride(employeeId, shiftCode) {
+    return employeeShiftSettings.find((item) => item.employeeId === employeeId && item.shiftType === shiftCode) || null;
+  }
+
+  function getEffectiveShiftSetting(user, shiftCode) {
+    const override = getEmployeeShiftOverride(user?.employeeId, shiftCode);
+    if (override) {
+      return {
+        code: override.shiftType,
+        name: getShiftNameFromCode(override.shiftType),
+        ...override
+      };
+    }
+    const template = getTemplateShift(user?.region, user?.department, shiftCode);
+    if (template) {
+      return {
+        code: template.shiftType,
+        name: getShiftNameFromCode(template.shiftType),
+        ...template
+      };
+    }
+    const legacy = findShiftSetting(shiftCode);
+    return legacy ? { ...legacy } : null;
+  }
+
   function toMinutes(timeString) {
     const [hours, minutes] = String(timeString || "").split(":").map(Number);
     if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
@@ -427,19 +501,44 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function populateShiftSelectOptions() {
-    const activeShifts = getActiveShiftSettings();
+    const activeShifts = getActiveShiftSettings().filter((shift) => {
+      if (!currentUser || isSuperAdminEmployee(currentUser.employeeId)) return true;
+      return Boolean(currentUser.shifts?.[shift.code]);
+    });
     if (attendanceShiftSelect) {
       attendanceShiftSelect.innerHTML = activeShifts.map((shift) => `<option value="${shift.code}">${shift.name}</option>`).join("") || '<option value="">無可用班別</option>';
     }
     if (shiftCodeSelect) {
       shiftCodeSelect.innerHTML = shiftSettings.map((shift) => `<option value="${shift.code}">${shift.name}（${shift.code}）</option>`).join("");
     }
+        if (shiftRegionSelect) {
+      shiftRegionSelect.innerHTML = REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("");
+    }
+    if (shiftDepartmentSelect) {
+      shiftDepartmentSelect.innerHTML = DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("");
+    }
+    refreshShiftEmployeeOptions();
+  }
+
+  function refreshShiftEmployeeOptions() {
+    if (!shiftEmployeeSelect) return;
+    const region = shiftRegionSelect?.value || "";
+    const department = shiftDepartmentSelect?.value || "";
+    const options = employees.filter((employee) => employee.region === region && employee.department === department);
+    shiftEmployeeSelect.innerHTML = `<option value="">請選擇員工</option>${options.map((employee) => `<option value="${employee.employeeId}">${employee.name}（${employee.employeeId}）</option>`).join("")}`;
+    shiftEmployeeSelect.parentElement?.classList.toggle("hidden", shiftScopeSelect?.value !== "employee");
   }
 
   function syncShiftForm() {
-    const shift = findShiftSetting(shiftCodeSelect?.value || shiftSettings[0]?.code);
+    const code = shiftCodeSelect?.value || shiftSettings[0]?.code;
+    const region = shiftRegionSelect?.value || REGIONS[0];
+    const department = shiftDepartmentSelect?.value || DEPARTMENTS[0];
+    const employeeId = shiftEmployeeSelect?.value || "";
+    const shift = shiftScopeSelect?.value === "employee"
+      ? (getEmployeeShiftOverride(employeeId, code) || getTemplateShift(region, department, code) || findShiftSetting(code))
+      : (getTemplateShift(region, department, code) || findShiftSetting(code));
     if (!shift) return;
-    if (shiftNameInput) shiftNameInput.value = shift.name || "";
+    if (shiftNameInput) shiftNameInput.value = shift.name || getShiftNameFromCode(code);
     if (shiftStartTimeInput) shiftStartTimeInput.value = formatTimeText(shift.startTime);
     if (shiftEndTimeInput) shiftEndTimeInput.value = formatTimeText(shift.endTime);
     if (shiftReminderTimeInput) shiftReminderTimeInput.value = formatTimeText(shift.reminderTime);
@@ -449,24 +548,48 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function renderShiftSettingsList() {
     if (!shiftSettingsList) return;
-    shiftSettingsList.innerHTML = shiftSettings.map((shift) => `
-      <div class="list-item">
-        <div class="employee-card-header">
-          <div>
-            <h4>${shift.name}</h4>
-            <div class="item-meta">代碼：${shift.code}</div>
-          </div>
-          <span class="status-badge ${shift.isActive !== false ? "status-success" : "status-fail"}">${shift.isActive !== false ? "啟用中" : "已停用"}</span>
-        </div>
-        <p>上班：${formatTimeText(shift.startTime)}｜下班：${formatTimeText(shift.endTime)}</p>
-        <p>提醒：${formatTimeText(shift.reminderTime)}｜寬限：${shift.graceMinutes} 分鐘</p>
-      </div>
+    ensureBaseShiftTemplates();
+    const grouped = {};
+    shiftTemplates.forEach(function (item) {
+      if (!grouped[item.region]) grouped[item.region] = {};
+      if (!grouped[item.region][item.department]) grouped[item.region][item.department] = { templates: [], employees: [] };
+      grouped[item.region][item.department].templates.push(item);
+    });
+    employeeShiftSettings.forEach(function (item) {
+      if (!grouped[item.region]) grouped[item.region] = {};
+      if (!grouped[item.region][item.department]) grouped[item.region][item.department] = { templates: [], employees: [] };
+      grouped[item.region][item.department].employees.push(item);
+    });
+    shiftSettingsList.innerHTML = Object.keys(grouped).map((region) => `
+      <details class="scope-collapse">
+        <summary>${region}</summary>
+        ${Object.keys(grouped[region]).map((department) => {
+          const bucket = grouped[region][department];
+          return `
+            <details class="scope-collapse">
+              <summary>${department}</summary>
+              <div class="attendance-tree-node">
+                <div class="list-item">
+                  <h4>預設早班 / 晚班</h4>
+                  ${bucket.templates.sort((a, b) => a.shiftType.localeCompare(b.shiftType)).map((item) => `<p>${getShiftNameFromCode(item.shiftType)}｜上班 ${formatTimeText(item.startTime)}｜下班 ${formatTimeText(item.endTime)}｜提醒 ${formatTimeText(item.reminderTime)}｜寬限 ${item.graceMinutes} 分鐘</p>`).join("") || "<p>尚未設定。</p>"}
+                </div>
+                <details class="scope-collapse">
+                  <summary>個別員工班別設定（${bucket.employees.length} 筆）</summary>
+                  <div class="list-wrap">
+                    ${bucket.employees.length ? bucket.employees.map((item) => `<div class="list-item"><h4>${item.employeeName}</h4><p>${getShiftNameFromCode(item.shiftType)}｜上班 ${formatTimeText(item.startTime)}｜下班 ${formatTimeText(item.endTime)}｜提醒 ${formatTimeText(item.reminderTime)}｜寬限 ${item.graceMinutes} 分鐘</p></div>`).join("") : "<div class='list-item'><p>尚未設定員工覆蓋班別。</p></div>"}
+                  </div>
+                </details>
+              </div>
+            </details>
+          `;
+        }).join("")}
+      </details>
     `).join("");
   }
 
   function renderAttendanceReminderPanel() {
     if (!attendanceReminderPanel) return;
-    const shift = findShiftSetting(getSelectedShiftCode()) || getActiveShiftSettings()[0];
+    const shift = getEffectiveShiftSetting(currentUser, getSelectedShiftCode()) || getActiveShiftSettings()[0];
     if (!shift) {
       attendanceReminderPanel.innerHTML = '<p>尚未設定班別提醒。</p>';
       return;
@@ -490,7 +613,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function renderAttendanceSettingsSummary() {
     if (!attendanceSettingsSummary) return;
     const activeLocations = getVisibleAttendanceLocations().filter((location) => location.isActive);
-    const shift = findShiftSetting(getSelectedShiftCode()) || getActiveShiftSettings()[0];
+    const shift = getEffectiveShiftSetting(currentUser, getSelectedShiftCode()) || getActiveShiftSettings()[0];
     attendanceSettingsSummary.innerHTML = `
       <p><strong>啟用座標：</strong>${activeLocations.length} 筆</p>
       <p><strong>目前班別：</strong>${shift ? `${shift.name}（${formatTimeText(shift.startTime)} - ${formatTimeText(shift.endTime)}）` : "尚未設定"}</p>
@@ -624,7 +747,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    const selectedShift = findShiftSetting(getSelectedShiftCode());
+    const selectedShift = getEffectiveShiftSetting(currentUser, getSelectedShiftCode());
     if (!selectedShift) {
       alert("請先設定並選擇班別");
       return;
@@ -659,9 +782,12 @@ document.addEventListener("DOMContentLoaded", function () {
       const attendancePayload = {
         employeeId: currentUser.employeeId,
         employeeName: currentUser.name,
+        region: currentUser.region,
+        department: currentUser.department,
         type,
         shiftCode: selectedShift.code,
         shiftName: selectedShift.name,
+        shiftType: selectedShift.code,
         scheduledStartTime: selectedShift.startTime,
         scheduledEndTime: selectedShift.endTime,
         reminderTime: selectedShift.reminderTime,
@@ -792,201 +918,78 @@ document.addEventListener("DOMContentLoaded", function () {
     return visibleRecords;
   }
 
-  function initAttendanceMap() {
-    if (!attendanceMapElement || typeof L === "undefined") return;
-    if (attendanceMap) return;
-
-    attendanceMap = L.map(attendanceMapElement).setView([23.7, 121], 7);
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "&copy; OpenStreetMap"
-    }).addTo(attendanceMap);
+  function renderAttendanceDetailMap(container) {
+    if (!container || typeof L === "undefined" || container.dataset.mapReady === "true") return;
+    const lat = Number(container.dataset.lat);
+    const lng = Number(container.dataset.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const map = L.map(container).setView([lat, lng], 16);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(map);
+    L.marker([lat, lng]).addTo(map).bindPopup(`${container.dataset.name || "打卡位置"}<br>${lat.toFixed(6)}, ${lng.toFixed(6)}`).openPopup();
+    container.dataset.mapReady = "true";
+    attendanceDetailMaps[container.dataset.mapId] = map;
+    setTimeout(function () { map.invalidateSize(); }, 50);
   }
 
-  function clearAttendanceMapMarkers() {
-    if (!attendanceMap) return;
-
-    attendanceMapMarkers.forEach(function (marker) {
-      attendanceMap.removeLayer(marker);
-    });
-    attendanceMapMarkers = [];
-  }
-
-  function renderAttendanceMap(records) {
-    if (!attendanceMapElement || typeof L === "undefined") return;
-
-    initAttendanceMap();
-    if (!attendanceMap) return;
-
-    clearAttendanceMapMarkers();
-
-    const validRecords = records.filter(function (item) {
-      return Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lng));
-    });
-
-    if (validRecords.length === 0) {
-      attendanceMap.setView([23.7, 121], 7);
-      return;
-    }
-
-    const bounds = [];
-
-    validRecords.forEach(function (item) {
-      const lat = Number(item.lat);
-      const lng = Number(item.lng);
-
-      const marker = L.marker([lat, lng]).addTo(attendanceMap);
-
-      marker.bindPopup(`
-        <div style="min-width: 220px;">
-          <strong>${item.employeeName || "未知員工"}</strong><br />
-          類型：${item.type === "clockIn" ? "上班打卡" : "下班打卡"}<br />
-          時間：${item.createdAtClient ? new Date(item.createdAtClient).toLocaleString("zh-TW") : "-"}<br />
-          地點：${item.officeName || "範圍外"}<br />
-          班別：${item.shiftName || "-"}<br />
-          狀態：${item.status || "-"}<br />
-          距離：${item.distanceMeters !== undefined && item.distanceMeters !== null ? `${item.distanceMeters}m` : "-"}
-        </div>
-      `);
-
-      attendanceMapMarkers.push(marker);
-      bounds.push([lat, lng]);
-    });
-
-    if (bounds.length === 1) {
-      attendanceMap.setView(bounds[0], 16);
-    } else {
-      attendanceMap.fitBounds(bounds, { padding: [30, 30] });
-    }
-
-    setTimeout(function () {
-      attendanceMap.invalidateSize();
-    }, 100);
-  }
-
-  function buildAttendanceSummary(records) {
-    const grouped = {};
-
+  function buildAttendanceTree(records) {
+    const tree = {};
     records.forEach(function (item) {
-      const dateKey = formatDateKey(item.createdAtClient);
-      const employeeKey = item.employeeId || "unknown";
-      const groupKey = `${employeeKey}__${dateKey}`;
-
-      if (!grouped[groupKey]) {
-        grouped[groupKey] = {
-          employeeId: item.employeeId || "",
-          employeeName: item.employeeName || "未知員工",
-          date: dateKey,
-          officeName: item.officeName || "",
-          records: []
-        };
+      const date = formatDateKey(item.createdAtClient);
+      const region = item.region || "未分類地區";
+      const department = item.department || "未分類部門";
+      const shiftType = item.shiftType || item.shiftCode || "morning";
+      const employeeKey = item.employeeId || item.employeeName || "unknown";
+      if (!tree[date]) tree[date] = {};
+      if (!tree[date][region]) tree[date][region] = {};
+      if (!tree[date][region][department]) tree[date][region][department] = {};
+      if (!tree[date][region][department][shiftType]) tree[date][region][department][shiftType] = {};
+      if (!tree[date][region][department][shiftType][employeeKey]) {
+        tree[date][region][department][shiftType][employeeKey] = { employeeName: item.employeeName || "未知員工", employeeId: item.employeeId || "", records: [] };
       }
-
-      grouped[groupKey].records.push(item);
+      tree[date][region][department][shiftType][employeeKey].records.push(item);
     });
+    return tree;
+  }
 
-   return Object.values(grouped)
-      .map(function (group) {
-        const sortedRecords = group.records.slice().sort(function (a, b) {
-          return new Date(a.createdAtClient) - new Date(b.createdAtClient);
-        });
-
-        const clockInRecord =
-          sortedRecords.find(function (item) {
-            return item.type === "clockIn";
-          }) || sortedRecords[0];
-
-        const reverseRecords = sortedRecords.slice().reverse();
-        const clockOutRecord =
-          reverseRecords.find(function (item) {
-            return item.type === "clockOut";
-          }) || (sortedRecords.length > 1 ? sortedRecords[sortedRecords.length - 1] : null);
-
-        const startTime = clockInRecord ? clockInRecord.createdAtClient : "";
-        const endTime = clockOutRecord ? clockOutRecord.createdAtClient : "";
-        const workHours =
-          startTime && endTime && clockOutRecord && clockOutRecord !== clockInRecord
-             ? calculateHours(startTime, endTime)
-            : "-";
-    
-        return {
-          employeeId: group.employeeId,
-          employeeName: group.employeeName,
-          date: group.date,
-          officeName: group.officeName,
-          startTime,
-          endTime,
-          workHours,
-          recordCount: sortedRecords.length,
-          records: sortedRecords
-        };
-        })
-      .sort(function (a, b) {
-        const dateCompare = new Date(b.date) - new Date(a.date);
-        if (dateCompare !== 0) return dateCompare;
-        return a.employeeName.localeCompare(b.employeeName, "zh-Hant");
-      });
+   function summarizeEmployeeAttendance(group) {
+    const sortedRecords = group.records.slice().sort((a, b) => new Date(a.createdAtClient) - new Date(b.createdAtClient));
+    const clockInRecord = sortedRecords.find((item) => item.type === "clockIn") || sortedRecords[0];
+    const clockOutRecord = sortedRecords.slice().reverse().find((item) => item.type === "clockOut") || null;
+    return {
+      ...group,
+      records: sortedRecords,
+      clockInRecord,
+      clockOutRecord,
+      latestRecord: sortedRecords[sortedRecords.length - 1],
+      workHours: clockInRecord && clockOutRecord ? calculateHours(clockInRecord.createdAtClient, clockOutRecord.createdAtClient) : "-"
+    };
   }
 
   function renderAttendanceRecords() {
     if (!attendanceSummaryList) return;
-
     const filteredRecords = getFilteredAttendanceRecords();
-    const summaryList = buildAttendanceSummary(filteredRecords);
-
-    renderAttendanceMap(filteredRecords);
-
-    if (summaryList.length === 0) {
+    const tree = buildAttendanceTree(filteredRecords);
+    if (!filteredRecords.length) {
       attendanceSummaryList.innerHTML = `<div class="list-item"><p>目前沒有符合條件的打卡紀錄。</p></div>`;
       return;
     }
-
-    attendanceSummaryList.innerHTML = summaryList
-      .map(function (item) {
-        const detailHtml = item.records
-          .map(function (record) {
-            return `
-              <div class="item-meta">
-                ${record.type === "clockIn" ? "上班打卡" : "下班打卡"}｜
-                ${record.shiftName || "未指定班別"}｜
-                ${formatTimeOnly(record.createdAtClient)}｜
-                ${record.officeName || "範圍外打卡"}｜
-                <span class="record-status-text">${record.status || "success"}</span>｜
-                ${record.distanceMeters !== undefined && record.distanceMeters !== null ? `距離 ${record.distanceMeters}m` : "未記錄距離"}
-                ${record.outsideReason ? `｜原因：${record.outsideReason}` : ""}
-              </div>
-            `;
-          })
-          .join("");
-
-        return `
-          <div class="list-item">
-            <div class="employee-card-header">
-              <div>
-                <h4>${item.employeeName}</h4>
-                <div class="item-meta">日期：${item.date}｜員工編號：${item.employeeId}</div>
-              </div>
-              <span class="status-badge status-active">工時 ${item.workHours} 小時</span>
-            </div>
-
-            <p>上班時間：${item.startTime ? formatTimeOnly(item.startTime) : "-"}</p>
-            <p>下班時間：${item.endTime ? formatTimeOnly(item.endTime) : "-"}</p>
-            <p>打卡地點：${item.officeName || "-"}</p>
-            <p>當日打卡筆數：${item.recordCount}</p>
-            <p>班別：${item.records[0]?.shiftName || "-"}｜最終狀態：<span class="status-badge status-${item.records[item.records.length - 1]?.status || "success"}">${item.records[item.records.length - 1]?.status || "success"}</span></p>
-
-            <div style="margin-top: 10px;">
-              ${detailHtml}
-            </div>
-          </div>
-        `;
-      })
-      .join("");
+attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tree).sort((a, b) => new Date(b) - new Date(a)).map((date) => `
+      <details>
+        <summary>${date}</summary>
+        <div class="attendance-tree-node">
+          ${Object.keys(tree[date]).map((region) => `<details><summary>${region}</summary><div class="attendance-tree-node">${Object.keys(tree[date][region]).map((department) => `<details><summary>${department}</summary><div class="attendance-tree-node">${Object.keys(tree[date][region][department]).map((shiftType) => `<details><summary>${getShiftNameFromCode(shiftType)}</summary><div class="attendance-tree-node">${Object.values(tree[date][region][department][shiftType]).sort((a, b) => a.employeeName.localeCompare(b.employeeName, "zh-Hant")).map((group) => {
+            const item = summarizeEmployeeAttendance(group);
+            const focusRecord = item.clockInRecord || item.latestRecord || {};
+            const mapId = `${date}-${item.employeeId}-${shiftType}`.replace(/[^a-zA-Z0-9-_]/g, "");
+            return `<details class="attendance-record-card"><summary>${item.employeeName}（${item.employeeId || "未填編號"}）</summary><div class="list-item"><p>上班時間：${item.clockInRecord ? formatTimeOnly(item.clockInRecord.createdAtClient) : "-"}</p><p>下班時間：${item.clockOutRecord ? formatTimeOnly(item.clockOutRecord.createdAtClient) : "-"}</p><p>打卡地點：${focusRecord.officeName || "範圍外打卡"}</p><p>座標：<span class="coordinate-text">${Number(focusRecord.lat || 0).toFixed(6)}, ${Number(focusRecord.lng || 0).toFixed(6)}</span></p><p>工時：${item.workHours} 小時｜最終狀態：<span class="status-badge status-${item.latestRecord?.status || "success"}">${item.latestRecord?.status || "success"}</span></p><div class="attendance-map" data-map-id="${mapId}" data-lat="${focusRecord.lat || ""}" data-lng="${focusRecord.lng || ""}" data-name="${focusRecord.officeName || item.employeeName}"></div><div style="margin-top:10px;">${item.records.map((record) => `<div class="item-meta">${record.type === "clockIn" ? "上班時間" : "下班時間"}｜${formatTimeOnly(record.createdAtClient)}｜${record.officeName || "範圍外"}｜座標 ${Number(record.lat || 0).toFixed(6)}, ${Number(record.lng || 0).toFixed(6)}${record.outsideReason ? `｜原因：${record.outsideReason}` : ""}</div>`).join("")}</div></div></details>`;
+          }).join("")}</div></details>`).join("")}</div></details>`).join("")}</div></details>`).join("")}
+        </div>
+      </details>`).join("")}</div>`;
   }
 
     function startShiftSettingsListener() {
     if (!db) {
+      ensureBaseShiftTemplates();
       refreshShiftSettingViews();
       refreshAttendanceSettings();
       return;
@@ -998,6 +1001,20 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
       shiftSettings = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
+      ensureBaseShiftTemplates();
+      refreshShiftSettingViews();
+      refreshAttendanceSettings();
+    });
+
+    onSnapshot(query(collection(db, "shiftTemplates"), orderBy("region", "asc")), function (snapshot) {
+      shiftTemplates = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
+      ensureBaseShiftTemplates();
+      refreshShiftSettingViews();
+      refreshAttendanceSettings();
+    });
+
+    onSnapshot(query(collection(db, "employeeShiftSettings"), orderBy("employeeName", "asc")), function (snapshot) {
+      employeeShiftSettings = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
       refreshShiftSettingViews();
       refreshAttendanceSettings();
     });
@@ -1078,6 +1095,20 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  function setEmployeePhotoPreview(photoURL = "") {
+    if (!employeePhotoPreview || !employeePhotoPlaceholder) return;
+    employeePhotoPreview.classList.toggle("hidden", !photoURL);
+    employeePhotoPlaceholder.classList.toggle("hidden", Boolean(photoURL));
+    if (photoURL) employeePhotoPreview.src = photoURL;
+    else employeePhotoPreview.removeAttribute("src");
+  }
+
+  function toggleEmployeeManagementUI() {
+    const canManageEmployees = isAdmin(currentUser);
+    if (employeeFormCard) employeeFormCard.classList.toggle("hidden", !canManageEmployees);
+    renderEmployees();
+  }
+
   function renderEmployees() {
     if (!employeeList) return;
 
@@ -1125,31 +1156,32 @@ document.addEventListener("DOMContentLoaded", function () {
                             ? employee.manageScopes.departments.join("、")
                             : "未設定";
 
+                          const canManageEmployees = isAdmin(currentUser);
                           return `
                             <div class="list-item">
-                              <div class="employee-card-header">
-                                <div>
-                                  <h4>${employee.name || "未命名員工"}</h4>
-                                  <div class="item-meta">
-                                    員工代號：${employee.employeeId || "-"}｜
-                                    帳號：${employee.account || "-"}｜
-                                    Email：${employee.email || "-"}
-                                  </div>
+                              <div class="employee-card-main">
+                                <div class="employee-avatar-wrap">
+                                  <img class="employee-avatar" src="${getEmployeePhotoUrl(employee)}" alt="${employee.name || "員工"}照片" />
                                 </div>
-                                <span class="status-badge status-${employee.status || "active"}">
-                                  ${employee.status || "active"}
-                                </span>
-                              </div>
-
+                                <div>
+                                  <div class="employee-card-header">
+                                    <div>
+                                      <h4>${employee.name || "未命名員工"}</h4>
+                                      <div class="item-meta">
+                                        員工代號：${employee.employeeId || "-"}｜
+                                        帳號：${employee.account || "-"}｜
+                                        Email：${employee.email || "-"}
+                                      </div>
+                                    </div>
+                                    <span class="status-badge status-${employee.status || "active"}">${employee.status || "active"}</span>
+                                  </div>
                               <p>部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}</p>
-                              <p>類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}</p>
-                              <p>年度特休：${employee.annualLeaveDays || 0} 天｜班別與休假：${shifts.join("、") || "未設定"}</p>
-                              <p>權限：${formatEmployeePermissions(employee)}</p>
-                              ${employee.permissions?.admin ? `<p>管理地區：${scopeRegions}</p><p>管理部門：${scopeDepartments}</p>` : ""}
-
-                              <div class="item-actions">
-                                <button type="button" class="small-btn edit-btn" onclick="editEmployee('${employee.id}')">編輯</button>
-                                <button type="button" class="small-btn delete-btn" onclick="deleteEmployee('${employee.id}')">刪除</button>
+                                  <p>類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}</p>
+                                  <p>年度特休：${employee.annualLeaveDays || 0} 天｜班別與休假：${shifts.join("、") || "未設定"}</p>
+                                  <p>權限：${formatEmployeePermissions(employee)}</p>
+                                  ${employee.permissions?.admin ? `<p>管理地區：${scopeRegions}</p><p>管理部門：${scopeDepartments}</p>` : ""}
+                                  ${canManageEmployees ? `<div class="item-actions"><button type="button" class="small-btn edit-btn" onclick="editEmployee('${employee.id}')">編輯</button><button type="button" class="small-btn delete-btn" onclick="deleteEmployee('${employee.id}')">刪除</button></div>` : ""}
+                              </div>
                               </div>
                             </div>
                           `;
@@ -1164,6 +1196,7 @@ document.addEventListener("DOMContentLoaded", function () {
         `;
       })
       .join("");
+    refreshShiftEmployeeOptions();
   }
 
   function startEmployeesListener() {
@@ -1197,6 +1230,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       employees = visibleEmployees;
+      ensureBaseShiftTemplates();
       renderEmployees();
       restoreLogin();
     });
@@ -1494,6 +1528,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (mainPage) mainPage.classList.remove("hidden");
     localStorage.setItem(STORAGE_KEYS.currentUser, user.employeeId);
     updateMenuPermissions(user);
+    toggleEmployeeManagementUI();
     renderLeaves();
     renderSchedules();
     renderCalendar();
@@ -1566,11 +1601,6 @@ document.addEventListener("DOMContentLoaded", function () {
       if (targetSection) targetSection.classList.remove("hidden");
       if (pageTitle) pageTitle.textContent = button.textContent;
       
-      if (targetPage === "attendance") {
-        setTimeout(function () {
-          if (attendanceMap) attendanceMap.invalidateSize();
-        }, 100);
-      }
     });
   });
 
@@ -1618,6 +1648,7 @@ document.addEventListener("DOMContentLoaded", function () {
   if (employeeForm) {
     employeeForm.addEventListener("submit", async function (event) {
       event.preventDefault();
+      if (!isAdmin(currentUser)) return alert("非管理員只能查看員工資料");
       const employeeId = document.getElementById("employee-form-id")?.value.trim() || "";
       const account = document.getElementById("employee-form-account")?.value.trim() || "";
       const name = document.getElementById("employee-form-name")?.value.trim() || "";
@@ -1630,6 +1661,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const phone = document.getElementById("employee-form-phone")?.value.trim() || "";
       const birthday = document.getElementById("employee-form-birthday")?.value.trim() || "";
       const annualLeaveDays = Number(document.getElementById("employee-form-annual-leave-days")?.value || 0);
+      const photoURL = employeePhotoPreview?.getAttribute("src") || "";
       const employeeData = {
         employeeId,
         account,
@@ -1644,6 +1676,7 @@ document.addEventListener("DOMContentLoaded", function () {
         phone,
         birthday,
         annualLeaveDays,
+        photoURL,
         shifts: {
           morning: document.getElementById("shift-morning")?.checked || false,
           evening: document.getElementById("shift-evening")?.checked || false
@@ -1710,6 +1743,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         
         employeeForm.reset();
+        setEmployeePhotoPreview("");
         if (employeeSubmitBtn) {
           employeeSubmitBtn.textContent = "新增員工";
         }
@@ -1726,11 +1760,39 @@ document.addEventListener("DOMContentLoaded", function () {
     adminCheckbox.addEventListener("change", syncAdminPermissionState);
   }
   
+  if (employeePhotoInput) {
+    employeePhotoInput.addEventListener("change", function (event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function () {
+        setEmployeePhotoPreview(String(reader.result || ""));
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (employeePhotoPasteZone) {
+    employeePhotoPasteZone.addEventListener("paste", function (event) {
+      const imageItem = Array.from(event.clipboardData?.items || []).find((item) => item.type.startsWith("image/"));
+      if (!imageItem) return;
+      const file = imageItem.getAsFile();
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function () {
+        setEmployeePhotoPreview(String(reader.result || ""));
+      };
+      reader.readAsDataURL(file);
+      event.preventDefault();
+    });
+  }
+  
   if (employeeIdField) {
     employeeIdField.addEventListener("input", updateSuperAdminFormState);
   }
   
   window.editEmployee = function (id) {
+    if (!isAdmin(currentUser)) return;
     const employee = employees.find(function (item) {
       return item.id === id;
     });
@@ -1751,7 +1813,8 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("employee-form-phone").value = employee.phone || "";
     document.getElementById("employee-form-birthday").value = employee.birthday || "";
     document.getElementById("employee-form-annual-leave-days").value = employee.annualLeaveDays || 0;
-
+    setEmployeePhotoPreview(employee.photoURL || "");
+    
     document.getElementById("shift-morning").checked = !!employee.shifts?.morning;
     document.getElementById("shift-evening").checked = !!employee.shifts?.evening;
     document.getElementById("weekends-off").checked = !!employee.weekendsOff;
@@ -1781,8 +1844,10 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   updateSuperAdminFormState();
+  setEmployeePhotoPreview("");
 
   window.deleteEmployee = async function (id) {
+    if (!isAdmin(currentUser)) return;
     if (!db) return;
 
     const confirmed = confirm("確定要刪除此員工嗎？");
@@ -1836,15 +1901,27 @@ document.addEventListener("DOMContentLoaded", function () {
     shiftCodeSelect.addEventListener("change", syncShiftForm);
   }
 
+  if (shiftScopeSelect) shiftScopeSelect.addEventListener("change", function () { refreshShiftEmployeeOptions(); syncShiftForm(); });
+  if (shiftRegionSelect) shiftRegionSelect.addEventListener("change", function () { refreshShiftEmployeeOptions(); syncShiftForm(); });
+  if (shiftDepartmentSelect) shiftDepartmentSelect.addEventListener("change", function () { refreshShiftEmployeeOptions(); syncShiftForm(); });
+  if (shiftEmployeeSelect) shiftEmployeeSelect.addEventListener("change", syncShiftForm);
+
   if (shiftSettingsForm) {
     shiftSettingsForm.addEventListener("submit", async function (event) {
       event.preventDefault();
       const selectedCode = shiftCodeSelect?.value || "";
-      const targetShift = findShiftSetting(selectedCode);
-      if (!targetShift) return alert("找不到班別設定");
+      const scope = shiftScopeSelect?.value || "template";
+      const region = shiftRegionSelect?.value || "";
+      const department = shiftDepartmentSelect?.value || "";
+      const employeeId = shiftEmployeeSelect?.value || "";
+      const employee = employees.find((item) => item.employeeId === employeeId);
       const payload = {
-        code: selectedCode,
-        name: shiftNameInput?.value.trim() || "",
+        shiftType: selectedCode,
+        name: shiftNameInput?.value.trim() || getShiftNameFromCode(selectedCode),
+        region,
+        department,
+        employeeId,
+        employeeName: employee?.name || "",
         startTime: shiftStartTimeInput?.value || "",
         endTime: shiftEndTimeInput?.value || "",
         reminderTime: shiftReminderTimeInput?.value || "",
@@ -1853,14 +1930,21 @@ document.addEventListener("DOMContentLoaded", function () {
         updatedAt: serverTimestamp()
       };
       if (!payload.name || !payload.startTime || !payload.endTime || !payload.reminderTime) return alert("請填寫完整班別資訊");
+      if (!region || !department) return alert("請選擇地區與部門");
+      if (scope === "employee" && !employeeId) return alert("請選擇員工");
       try {
+        const targetCollection = scope === "employee" ? "employeeShiftSettings" : "shiftTemplates";
+        const existing = scope === "employee" ? getEmployeeShiftOverride(employeeId, selectedCode) : getTemplateShift(region, department, selectedCode);
         if (!db) {
-          shiftSettings = shiftSettings.map((item) => item.code === selectedCode ? { ...item, ...payload } : item);
+          const localItem = { id: existing?.id || `${targetCollection}-${Date.now()}`, ...payload };
+          if (scope === "employee") employeeShiftSettings = existing ? employeeShiftSettings.map((item) => item.id === existing.id ? localItem : item) : [localItem, ...employeeShiftSettings];
+          else shiftTemplates = existing ? shiftTemplates.map((item) => item.id === existing.id ? localItem : item) : [localItem, ...shiftTemplates];
           refreshShiftSettingViews();
           refreshAttendanceSettings();
           return;
         }
-        await updateDoc(doc(db, "shiftSettings", targetShift.id), payload);
+        if (existing?.id) await updateDoc(doc(db, targetCollection, existing.id), payload);
+        else await addDoc(collection(db, targetCollection), { ...payload, createdAt: serverTimestamp(), isDefault: scope === "template" });
       } catch (error) {
         console.error("儲存班別設定失敗", error);
         alert("儲存班別設定失敗");
@@ -1884,6 +1968,15 @@ document.addEventListener("DOMContentLoaded", function () {
       if (attendanceFilterDate) attendanceFilterDate.value = "";
       renderAttendanceRecords();
     });
+  }
+
+  if (attendanceSummaryList) {
+    attendanceSummaryList.addEventListener("toggle", function (event) {
+      const detail = event.target;
+      if (!(detail instanceof HTMLDetailsElement) || !detail.open) return;
+      const mapContainer = detail.querySelector(".attendance-map[data-map-id]");
+      if (mapContainer) renderAttendanceDetailMap(mapContainer);
+    }, true);
   }
 
   if (scheduleAddBtn) {
