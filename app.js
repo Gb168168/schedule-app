@@ -1070,84 +1070,38 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    const grouped = {};
+    employeeList.innerHTML = employees.map(function (employee) {
+      const shifts = [];
+      if (employee.shifts?.morning) shifts.push("早班");
+      if (employee.shifts?.evening) shifts.push("晚班");
+      if (employee.weekendsOff) shifts.push("週休二日 & 國定假日");
 
-     employees.forEach(function (employee) {
-      const region = employee.region || "未分類地區";
-      const department = employee.department || "未分類部門";
+      const scopeRegions = employee.manageScopes?.regions?.length
+        ? employee.manageScopes.regions.join("、")
+        : "未設定";
+      const scopeDepartments = employee.manageScopes?.departments?.length
+        ? employee.manageScopes.departments.join("、")
+        : "未設定";
 
-            if (!grouped[region]) grouped[region] = {};
-      if (!grouped[region][department]) grouped[region][department] = [];
-
-      grouped[region][department].push(employee);
-    });
-
-    employeeList.innerHTML = Object.keys(grouped)
-      .map(function (region) {
-        const departments = grouped[region];
-
-        return `
-          <details class="scope-collapse" open>
-            <summary>${region}</summary>
-            ${Object.keys(departments)
-              .map(function (department) {
-                return `
-                  <details class="scope-collapse" open>
-                    <summary>${department}（${departments[department].length} 人）</summary>
-                    <div class="list-wrap">
-                      ${departments[department]
-                        .map(function (employee) {
-                          const shifts = [];
-                          if (employee.shifts?.morning) shifts.push("早班");
-                          if (employee.shifts?.evening) shifts.push("晚班");
-                          if (employee.weekendsOff) shifts.push("週休二日 &amp; 國定假日");
-
-                          const scopeRegions = employee.manageScopes?.regions?.length
-                            ? employee.manageScopes.regions.join("、")
-                            : "未設定";
-                          const scopeDepartments = employee.manageScopes?.departments?.length
-                            ? employee.manageScopes.departments.join("、")
-                            : "未設定";
-
-                          return `
-                            <div class="list-item">
-                              <div class="employee-card-header">
-                                <div>
-                                  <h4>${employee.name || "未命名員工"}</h4>
-                                  <div class="item-meta">
-                                    員工代號：${employee.employeeId || "-"}｜
-                                    帳號：${employee.account || "-"}｜
-                                    Email：${employee.email || "-"}
-                                  </div>
-                                </div>
-                                <span class="status-badge status-${employee.status || "active"}">
-                                  ${employee.status || "active"}
-                                </span>
-                              </div>
-
-                              <p>部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}</p>
-                              <p>類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}</p>
-                              <p>年度特休：${employee.annualLeaveDays || 0} 天｜班別與休假：${shifts.join("、") || "未設定"}</p>
-                              <p>權限：${formatEmployeePermissions(employee)}</p>
-                              ${employee.permissions?.admin ? `<p>管理地區：${scopeRegions}</p><p>管理部門：${scopeDepartments}</p>` : ""}
-
-                              <div class="item-actions">
-                                <button type="button" class="small-btn edit-btn" onclick="editEmployee('${employee.id}')">編輯</button>
-                                <button type="button" class="small-btn delete-btn" onclick="deleteEmployee('${employee.id}')">刪除</button>
-                              </div>
-                            </div>
-                          `;
-                        })
-                        .join("")}
-                    </div>
-                  </details>
-                `;
-              })
-              .join("")}
-          </details>
-        `;
-      })
-      .join("");
+       return `
+        <div class="list-item">
+          <div class="employee-card-header">
+            <h4>${employee.name || "未命名員工"}</h4>
+            <span class="status-badge status-${employee.status || "active"}">${employee.status || "active"}</span>
+          </div>
+          <div class="item-meta">員工代號：${employee.employeeId || "-"}｜帳號：${employee.account || "-"}｜Email：${employee.email || "-"}</div>
+          <p>部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}</p>
+          <p>類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}</p>
+          <p>年度特休：${employee.annualLeaveDays || 0} 天｜班別與休假：${shifts.join("、") || "未設定"}</p>
+          <p>權限：${formatEmployeePermissions(employee)}</p>
+          ${employee.permissions?.admin ? `<p>管理地區：${scopeRegions}</p><p>管理部門：${scopeDepartments}</p>` : ""}
+          <div class="item-actions">
+            <button type="button" class="small-btn edit-btn" onclick="editEmployee('${employee.id}')">編輯</button>
+            <button type="button" class="small-btn delete-btn" onclick="deleteEmployee('${employee.id}')">刪除</button>
+          </div>
+        </div>
+      `;
+    }).join("");
   }
 
   function startEmployeesListener() {
@@ -1654,30 +1608,34 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!employeeData.region) return alert("請選擇地區");
       if (!employeeData.shifts.morning && !employeeData.shifts.evening && !employeeData.weekendsOff) return alert("請至少選擇一個班別或休假設定");
 
-      if (employeeData.permissions.admin) {
-        employeeData.permissions.leaveApprove = true;
-      } else {
+      if (!employeeData.permissions.admin) {
         employeeData.manageScopes = { regions: [], departments: [] };
       }
 
       if (!db) return alert("Firebase 未設定，無法新增員工。");
 
       try {
+        if (employeeData.permissions.admin) {
+          employeeData.permissions.leaveApprove = true;
+        }
+
         if (editingEmployeeId) {
           await updateDoc(doc(db, "employees", editingEmployeeId), {
             ...employeeData,
             updatedAt: serverTimestamp()
           });
           editingEmployeeId = null;
+          alert("員工資料已更新");
         } else {
           await createEmployee(employeeData);
+          alert("員工新增成功");
         }
+        
         employeeForm.reset();
-        populateFixedOptions();
-        syncAdminPermissionState();
+        if (adminScopePanel) adminScopePanel.classList.add("hidden");
       } catch (error) {
-        console.error("新增員工失敗", error);
-        alert("新增員工失敗，請稍後再試。");
+        console.error("儲存員工失敗", error);
+        alert("儲存失敗");
       }
     });
   }
@@ -1719,11 +1677,16 @@ document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll('input[name="manage-regions"]').forEach(function (input) {
       input.checked = !!employee.manageScopes?.regions?.includes(input.value);
     });
+    
     document.querySelectorAll('input[name="manage-departments"]').forEach(function (input) {
       input.checked = !!employee.manageScopes?.departments?.includes(input.value);
     });
 
-    syncAdminPermissionState();
+    if (adminScopePanel) {
+      adminScopePanel.classList.toggle("hidden", !adminCheckbox?.checked);
+    }
+
+    employeeForm?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   window.deleteEmployee = async function (id) {
@@ -1738,13 +1701,6 @@ document.addEventListener("DOMContentLoaded", function () {
         status: "deleted",
         updatedAt: serverTimestamp()
       });
-
-      if (editingEmployeeId === id) {
-        editingEmployeeId = null;
-        if (employeeForm) employeeForm.reset();
-        populateFixedOptions();
-        syncAdminPermissionState();
-      }
     } catch (error) {
       console.error("刪除員工失敗", error);
       alert("刪除失敗");
