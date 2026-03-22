@@ -4,6 +4,7 @@
  */
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -167,4 +168,27 @@ exports.submitAttendance = functions.https.onRequest(async (request, response) =
     console.error("submitAttendance failed", error);
     response.status(500).json({ ok: false, message: "伺服器錯誤，請稍後再試" });
   }
+});
+
+exports.sendWorkReminder = onSchedule("every 5 minutes", async () => {
+  const employeesSnapshot = await db.collection("employees").get();
+  const notifications = [];
+
+  employeesSnapshot.forEach((docItem) => {
+    const user = docItem.data();
+
+    if (!user.fcmToken) return;
+
+    notifications.push(
+      admin.messaging().send({
+        token: user.fcmToken,
+        notification: {
+          title: "上班提醒",
+          body: "距離上班還有 10 分鐘"
+        }
+      })
+    );
+  });
+
+  await Promise.all(notifications);
 });
