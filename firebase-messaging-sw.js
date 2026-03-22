@@ -15,8 +15,33 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage(function (payload) {
   const title = payload?.notification?.title || "新通知";
   const body = payload?.notification?.body || "";
+  const link = payload?.data?.link || payload?.fcmOptions?.link || "https://schedule-app-5845b.web.app/#announcement";
 
   self.registration.showNotification(title, {
-    body
+    body,
+    data: {
+      link
+    }
   });
+});
+
+self.addEventListener("notificationclick", function (event) {
+  event.notification.close();
+  const targetLink = event.notification.data?.link || "https://schedule-app-5845b.web.app/#announcement";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (clientList) {
+      for (const client of clientList) {
+        if (client.url === targetLink && "focus" in client) {
+          return client.focus();
+        }
+      }
+
+      if (clients.openWindow) {
+        return clients.openWindow(targetLink);
+      }
+
+      return undefined;
+    })
+  );
 });
