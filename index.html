@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-10</title>
+  <title>班表系統-11</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -35,6 +35,7 @@
         <button class="menu-btn" data-page="staff">人員資訊</button>
         <button class="menu-btn" data-page="leave">請假</button>
         <button class="menu-btn hidden" id="menu-coordinate-btn" data-page="coordinates">打卡座標</button>
+        <button class="menu-btn" data-page="shift-settings">班別設定</button>
         <button class="menu-btn" data-page="attendance">打卡紀錄</button>
         <button class="menu-btn" data-page="schedule">排程表</button>
       </nav>
@@ -72,7 +73,7 @@
             <div class="section-header-row">
               <div>
                 <h3>出勤打卡</h3>
-                <p class="helper-text">定位與公司據點檢查通過後才會送出。</p>
+                <p class="helper-text">打卡前先選班別；超出範圍可填寫原因後送出，逾時會自動標示遲到。</p>
               </div>
               <span id="attendance-status-badge" class="status-badge status-pending">待操作</span>
             </div>
@@ -81,13 +82,21 @@
               <p>尚未載入打卡資訊。</p>
             </div>
 
-            <div class="attendance-actions">
+            <div class="attendance-actions attendance-actions-stack">
+              <label class="field-label attendance-shift-picker">
+                <span>本次班別</span>
+                <select id="attendance-shift-select"></select>
+              </label>
               <button id="clock-in-btn" type="button" class="primary-btn">上班打卡</button>
               <button id="clock-out-btn" type="button" class="secondary-btn">下班打卡</button>
             </div>
 
             <div id="attendance-result" class="attendance-result">
-              <p>系統會依序檢查：登入者 → 定位權限 → 公司據點。</p>
+              <p>系統會依序檢查：登入者 → 班別時間 → 定位權限 → 公司據點。</p>
+            </div>
+
+            <div id="attendance-reminder-panel" class="attendance-summary">
+              <p>尚未載入提醒資訊。</p>
             </div>
 
             <div class="attendance-meta-grid">
@@ -300,6 +309,40 @@
           <div id="coordinate-region-list" class="coordinate-region-list"></div>
         </div>
       </section>
+
+      <section id="page-shift-settings" class="page-section hidden">
+        <div class="content-grid staff-grid">
+          <div class="card">
+            <h3>班別設定</h3>
+            <p class="helper-text">管理員可設定上班、下班、提醒與最後打卡寬限時間。</p>
+            <form id="shift-settings-form" class="form-grid">
+              <label class="field-label">
+                <span>班別代碼</span>
+                <select id="shift-code" required></select>
+              </label>
+              <div class="two-column-grid">
+                <label class="field-label"><span>班別名稱</span><input id="shift-name" type="text" required /></label>
+                <label class="field-label"><span>提醒時間</span><input id="shift-reminder-time" type="time" required /></label>
+                <label class="field-label"><span>上班時間</span><input id="shift-start-time" type="time" required /></label>
+                <label class="field-label"><span>下班時間</span><input id="shift-end-time" type="time" required /></label>
+                <label class="field-label"><span>寬限分鐘數</span><input id="shift-grace-minutes" type="number" min="0" required /></label>
+                <label class="field-label checkbox-inline"><span>啟用班別</span><input id="shift-is-active" type="checkbox" checked /></label>
+              </div>
+              <button type="submit" class="primary-btn">儲存班別設定</button>
+            </form>
+          </div>
+          <div class="card">
+            <div class="section-header-row">
+              <div>
+                <h3>目前班別規則</h3>
+                <p class="helper-text">每筆班別會同步提供首頁打卡判定與站內提醒。</p>
+              </div>
+            </div>
+            <div id="shift-settings-list" class="list-wrap"></div>
+          </div>
+        </div>
+      </section>
+      
       <section id="page-attendance" class="page-section hidden">
         <div class="card">
           <div class="section-header-row">
