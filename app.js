@@ -127,17 +127,14 @@ function isLoginEligible(user) {
   return Boolean(user) && !user.isHidden && user.status !== "deleted";
 }
 
-function findLoginUser(loginId, password) {
-  const normalizedLoginId = normalizeLoginValue(loginId);
+function findLoginUser(employeeId, password) {
+  const normalizedEmployeeId = normalizeLoginValue(employeeId);
   const normalizedPassword = String(password || "").trim();
-  if (!normalizedLoginId || !normalizedPassword) return null;
+  if (!normalizedEmployeeId || !normalizedPassword) return null;
 
   return employees.find(function (user) {
     if (!isLoginEligible(user)) return false;
-    const identifiers = [user.employeeId, user.account, user.email]
-      .map(normalizeLoginValue)
-      .filter(Boolean);
-    return identifiers.includes(normalizedLoginId) && String(user.password || "").trim() === normalizedPassword;
+    return normalizeLoginValue(user.employeeId) === normalizedEmployeeId && String(user.password || "").trim() === normalizedPassword;
   }) || null;
 }
 
@@ -1606,15 +1603,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (!savedEmployeeId) return;
 
     const normalizedSavedId = normalizeLoginValue(savedEmployeeId);
-    
+
     const matchedUser = employees.find(function (user) {
       if (!isLoginEligible(user)) return false;
-      
-      const identifiers = [user.employeeId, user.account, user.email]
-        .map(normalizeLoginValue)
-        .filter(Boolean);
-      
-      return identifiers.includes(normalizedSavedId);
+      return normalizeLoginValue(user.employeeId) === normalizedSavedId;
     });
 
     if (!matchedUser) return;
@@ -1631,7 +1623,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const matchedUser = findLoginUser(loginId, password);
 
       if (!matchedUser) {
-        if (loginError) loginError.textContent = "帳號或密碼錯誤";
+        if (loginError) loginError.textContent = "員工編號或密碼錯誤";
         return;
       }
 
