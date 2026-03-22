@@ -123,6 +123,20 @@ function getShiftNameFromCode(code) {
   return code === "evening" ? "晚班" : "早班";
 }
 
+function getUserShiftType(user) {
+  if (user?.defaultShiftType) return user.defaultShiftType;
+  if (user?.shifts?.morning && !user?.shifts?.evening) return "早班";
+  if (!user?.shifts?.morning && user?.shifts?.evening) return "晚班";
+  return "未設定";
+}
+
+function getUserShiftCode(user) {
+  const shiftType = getUserShiftType(user);
+  if (shiftType === "早班") return "morning";
+  if (shiftType === "晚班") return "evening";
+  return "";
+}
+
 function getEmployeePhotoUrl(employee) {
   return employee?.photoURL || "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><rect width='120' height='120' rx='24' fill='#dbeafe'/><circle cx='60' cy='45' r='24' fill='#60a5fa'/><path d='M24 104c7-20 24-30 36-30s29 10 36 30' fill='#60a5fa'/></svg>`);
 }
@@ -246,9 +260,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const logoutBtn = document.getElementById("logout-btn");
 
   const currentUserName = document.getElementById("current-user-name");
-  const userRole = document.getElementById("user-role");
-  const userRegion = document.getElementById("user-region");
-  const userDepartment = document.getElementById("user-department");
+  const shiftInfo = document.getElementById("today-shift-info");
 
   const attendanceStatusBadge = document.getElementById("attendance-status-badge");
   const attendanceSettingsSummary = document.getElementById("attendance-settings-summary");
@@ -257,7 +269,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const attendanceLocation = document.getElementById("attendance-location");
   const attendanceOffice = document.getElementById("attendance-office");
   const attendanceNetworkType = document.getElementById("attendance-network-type");
-  const attendanceShiftSelect = document.getElementById("attendance-shift-select");
   const clockInBtn = document.getElementById("clock-in-btn");
   const clockOutBtn = document.getElementById("clock-out-btn");
   const attendanceFilterName = document.getElementById("attendance-filter-name");
@@ -280,10 +291,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const employeeSubmitBtn = document.getElementById("employee-submit-btn");
   const employeeShiftSection = document.getElementById("employee-shift-section");
   const employeeIdField = document.getElementById("employee-form-id");
-  const employeePhotoInput = document.getElementById("employee-form-photo");
-  const employeePhotoPreview = document.getElementById("employee-photo-preview");
-  const employeePhotoPlaceholder = document.getElementById("employee-photo-placeholder");
-  const employeePhotoPasteZone = document.getElementById("employee-photo-paste-zone");
+  let photoData = "";
+  const photoZone = document.getElementById("photo-zone");
+  const photoFile = document.getElementById("photo-file");
+  const photoPreview = document.getElementById("photo-preview");
   
   const coordinateMenuBtn = document.getElementById("menu-coordinate-btn");
   const coordinateAdminDisabled = document.getElementById("coordinate-admin-disabled");
@@ -378,7 +389,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function getSelectedShiftCode() {
-    return attendanceShiftSelect?.value || getActiveShiftSettings()[0]?.code || shiftSettings[0]?.code || "";
+    return getUserShiftCode(currentUser) || getActiveShiftSettings()[0]?.code || shiftSettings[0]?.code || "";
   }
 
   function findShiftSetting(code) {
@@ -501,13 +512,6 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function populateShiftSelectOptions() {
-    const activeShifts = getActiveShiftSettings().filter((shift) => {
-      if (!currentUser || isSuperAdminEmployee(currentUser.employeeId)) return true;
-      return Boolean(currentUser.shifts?.[shift.code]);
-    });
-    if (attendanceShiftSelect) {
-      attendanceShiftSelect.innerHTML = activeShifts.map((shift) => `<option value="${shift.code}">${shift.name}</option>`).join("") || '<option value="">無可用班別</option>';
-    }
     if (shiftCodeSelect) {
       shiftCodeSelect.innerHTML = shiftSettings.map((shift) => `<option value="${shift.code}">${shift.name}（${shift.code}）</option>`).join("");
     }
@@ -747,9 +751,11 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    const selectedShift = getEffectiveShiftSetting(currentUser, getSelectedShiftCode());
-    if (!selectedShift) {
-      alert("請先設定並選擇班別");
+    const shiftCode = getUserShiftCode(currentUser);
+    const shiftType = getUserShiftType(currentUser);
+    const selectedShift = getEffectiveShiftSetting(currentUser, shiftCode);
+    if (!selectedShift || !shiftCode || shiftType === "未設定") {
+      alert("請先設定班別");
       return;
     }
 
@@ -787,7 +793,7 @@ document.addEventListener("DOMContentLoaded", function () {
         type,
         shiftCode: selectedShift.code,
         shiftName: selectedShift.name,
-        shiftType: selectedShift.code,
+        shiftType,
         scheduledStartTime: selectedShift.startTime,
         scheduledEndTime: selectedShift.endTime,
         reminderTime: selectedShift.reminderTime,
@@ -1077,9 +1083,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   
   function updateUserInfo(user) {
     if (currentUserName) currentUserName.textContent = user.name;
-    if (userRole) userRole.textContent = user.role;
-    if (userRegion) userRegion.textContent = user.region;
-    if (userDepartment) userDepartment.textContent = user.department;
+    if (shiftInfo && user) {
+      const shift = getUserShiftType(user);
+      shiftInfo.textContent = `今日班別：${shift}`;
+    }
   }
 
     function isSuperAdminEmployee(employeeId) {
@@ -1095,12 +1102,18 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     }
   }
 
-  function setEmployeePhotoPreview(photoURL = "") {
-    if (!employeePhotoPreview || !employeePhotoPlaceholder) return;
-    employeePhotoPreview.classList.toggle("hidden", !photoURL);
-    employeePhotoPlaceholder.classList.toggle("hidden", Boolean(photoURL));
-    if (photoURL) employeePhotoPreview.src = photoURL;
-    else employeePhotoPreview.removeAttribute("src");
+  function setPhoto(src) {
+    photoData = src || "";
+    if (!photoPreview) return;
+    if (src) {
+      photoPreview.src = src;
+      photoPreview.style.display = "block";
+      photoPreview.classList.remove("hidden");
+    } else {
+      photoPreview.removeAttribute("src");
+      photoPreview.style.display = "none";
+      photoPreview.classList.add("hidden");
+    }
   }
 
   function toggleEmployeeManagementUI() {
@@ -1161,7 +1174,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                             <div class="list-item">
                               <div class="employee-card-main">
                                 <div class="employee-avatar-wrap">
-                                  <img class="employee-avatar" src="${getEmployeePhotoUrl(employee)}" alt="${employee.name || "員工"}照片" />
+                                  <img class="employee-avatar" src="${employee.photoURL || getEmployeePhotoUrl(employee)}" alt="${employee.nam
                                 </div>
                                 <div>
                                   <div class="employee-card-header">
@@ -1529,6 +1542,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     localStorage.setItem(STORAGE_KEYS.currentUser, user.employeeId);
     updateMenuPermissions(user);
     toggleEmployeeManagementUI();
+    refreshAttendanceSettings();
     renderLeaves();
     renderSchedules();
     renderCalendar();
@@ -1661,7 +1675,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const phone = document.getElementById("employee-form-phone")?.value.trim() || "";
       const birthday = document.getElementById("employee-form-birthday")?.value.trim() || "";
       const annualLeaveDays = Number(document.getElementById("employee-form-annual-leave-days")?.value || 0);
-      const photoURL = employeePhotoPreview?.getAttribute("src") || "";
       const employeeData = {
         employeeId,
         account,
@@ -1676,7 +1689,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         phone,
         birthday,
         annualLeaveDays,
-        photoURL,
+        photoURL: photoData,
         shifts: {
           morning: document.getElementById("shift-morning")?.checked || false,
           evening: document.getElementById("shift-evening")?.checked || false
@@ -1743,7 +1756,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         }
         
         employeeForm.reset();
-        setEmployeePhotoPreview("");
+        setPhoto("");
         if (employeeSubmitBtn) {
           employeeSubmitBtn.textContent = "新增員工";
         }
@@ -1760,30 +1773,30 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     adminCheckbox.addEventListener("change", syncAdminPermissionState);
   }
   
-  if (employeePhotoInput) {
-    employeePhotoInput.addEventListener("change", function (event) {
-      const file = event.target.files?.[0];
+  if (photoFile) {
+    photoFile.addEventListener("change", (e) => {
+      const file = e.target.files?.[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = function () {
-        setEmployeePhotoPreview(String(reader.result || ""));
-      };
+      reader.onload = () => setPhoto(String(reader.result || ""));
       reader.readAsDataURL(file);
     });
   }
 
-  if (employeePhotoPasteZone) {
-    employeePhotoPasteZone.addEventListener("paste", function (event) {
-      const imageItem = Array.from(event.clipboardData?.items || []).find((item) => item.type.startsWith("image/"));
-      if (!imageItem) return;
-      const file = imageItem.getAsFile();
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function () {
-        setEmployeePhotoPreview(String(reader.result || ""));
-      };
-      reader.readAsDataURL(file);
-      event.preventDefault();
+  if (photoZone) {
+    photoZone.addEventListener("paste", (e) => {
+      const items = e.clipboardData?.items || [];
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (!file) continue;
+          const reader = new FileReader();
+          reader.onload = () => setPhoto(String(reader.result || ""));
+          reader.readAsDataURL(file);
+          e.preventDefault();
+          break;
+        }
+      }
     });
   }
   
@@ -1813,7 +1826,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     document.getElementById("employee-form-phone").value = employee.phone || "";
     document.getElementById("employee-form-birthday").value = employee.birthday || "";
     document.getElementById("employee-form-annual-leave-days").value = employee.annualLeaveDays || 0;
-    setEmployeePhotoPreview(employee.photoURL || "");
+    setPhoto(employee.photoURL || "");   
     
     document.getElementById("shift-morning").checked = !!employee.shifts?.morning;
     document.getElementById("shift-evening").checked = !!employee.shifts?.evening;
@@ -1844,7 +1857,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   };
 
   updateSuperAdminFormState();
-  setEmployeePhotoPreview("");
+  setPhoto("");
 
   window.deleteEmployee = async function (id) {
     if (!isAdmin(currentUser)) return;
@@ -1951,10 +1964,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       }
     });
   }
-
-  if (attendanceShiftSelect) {
-    attendanceShiftSelect.addEventListener("change", refreshAttendanceSettings);
-  }
+  
   
   if (attendanceFilterBtn) {
     attendanceFilterBtn.addEventListener("click", function () {
