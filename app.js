@@ -1604,10 +1604,16 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   function restoreLogin() {
     const savedEmployeeId = localStorage.getItem(STORAGE_KEYS.currentUser);
     if (!savedEmployeeId) return;
-    const normalizedSavedEmployeeId = normalizeLoginValue(savedEmployeeId);
+
+    const normalizedSavedId = normalizeLoginValue(savedEmployeeId);
     const matchedUser = employees.find(function (user) {
-      return isLoginEligible(user) && normalizeLoginValue(user.employeeId) === normalizedSavedEmployeeId;
+      if (!isLoginEligible(user)) return false;
+      const identifiers = [user.employeeId, user.account, user.email]
+        .map(normalizeLoginValue)
+        .filter(Boolean);
+      return identifiers.includes(normalizedSavedId);
     });
+    
     if (!matchedUser) return;
     setLoggedInUser(matchedUser);
   }
