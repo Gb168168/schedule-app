@@ -72,6 +72,7 @@ let leaveRequests = [];
 let schedules = [];
 let employees = [];
 let attendanceLocations = DEFAULT_ATTENDANCE_LOCATIONS.map((item, index) => ({ id: `default-${index}`, ...item }));
+let attendanceRecords = [];
 let editingCoordinateId = null;
 let lastAttendanceAttempt = null;
 
@@ -185,7 +186,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const attendanceNetworkType = document.getElementById("attendance-network-type");
   const clockInBtn = document.getElementById("clock-in-btn");
   const clockOutBtn = document.getElementById("clock-out-btn");
-
+  const attendanceList = document.getElementById("attendance-list");
+  const attendanceSummaryList = document.getElementById("attendance-summary-list");
+  
   const employeeForm = document.getElementById("employee-form");
   const employeeList = document.getElementById("employee-list");
   const employeeDepartmentSelect = document.getElementById("employee-form-department");
@@ -430,7 +433,7 @@ document.addEventListener("DOMContentLoaded", function () {
         throw new Error("Firebase 未設定");
       }
 
-      await addDoc(collection(db, "attendanceRecords"), {
+      const attendancePayload = {
         employeeId: currentUser.employeeId,
         employeeName: currentUser.name,
         type,
@@ -439,6 +442,16 @@ document.addEventListener("DOMContentLoaded", function () {
         officeName: match.name,
         createdAt: serverTimestamp(),
         createdAtClient: new Date()
+      };
+
+      await addDoc(collection(db, "attendanceRecords"), attendancePayload);
+      await addDoc(collection(db, "notifications"), {
+        message: `${currentUser.name} ${type === "clockIn" ? "上班" : "下班"}打卡成功`,
+        employeeId: currentUser.employeeId,
+        employeeName: currentUser.name,
+        type,
+        officeName: match.name,
+        createdAt: serverTimestamp()
       });
 
       lastAttendanceAttempt = {
@@ -465,6 +478,109 @@ document.addEventListener("DOMContentLoaded", function () {
       renderAttendanceAttempt();
       alert("打卡失敗");
     }
+  }
+
+  function formatAttendanceDateTime(value) {
+    if (!value) return "-";
+    const date = value?.toDate ? value.toDate() : new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleString("zh-TW", { hour12: false });
+  }
+
+  function getAttendanceRecordDate(value) {
+    const date = value?.toDate ? value.toDate() : new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toISOString().slice(0, 10);
+  }
+
+  function calculateWorkHours(records) {
+    const grouped = {};
+
+    records.forEach((record) => {
+      const dateKey = getAttendanceRecordDate(record.createdAtClient || record.createdAt);
+      if (!dateKey) return;
+      if (!grouped[dateKey]) grouped[dateKey] = [];
+      grouped[dateKey].push(record);
+    });
+
+    return Object.keys(grouped)
+      .sort((a, b) => new Date(b) - new Date(a))
+      .map((date) => {
+        const dayRecords = grouped[date].slice().sort((a, b) => {
+          const aDate = new Date(a.createdAtClient || a.createdAt?.toDate?.() || a.createdAt);
+          const bDate = new Date(b.createdAtClient || b.createdAt?.toDate?.() || b.createdAt);
+          return aDate - bDate;
+        });
+
+        const first = dayRecords[0];
+        const last = dayRecords[dayRecords.length - 1];
+        const firstDate = new Date(first.createdAtClient || first.createdAt?.toDate?.() || first.createdAt);
+        const lastDate = new Date(last.createdAtClient || last.createdAt?.toDate?.() || last.createdAt);
+        const hours = dayRecords.length > 1 ? (lastDate - firstDate) / 1000 / 3600 : 0;
+
+        return {
+          date,
+          start: first.createdAtClient || first.createdAt,
+          end: last.createdAtClient || last.createdAt,
+          hours: hours.toFixed(2),
+          totalRecords: dayRecords.length
+        };
+      });
+  }
+
+  function renderAttendanceRecords() {
+    if (attendanceList) {
+      if (attendanceRecords.length === 0) {
+        attendanceList.innerHTML = `<div class="list-item"><p>目前沒有打卡紀錄。</p></div>`;
+      } else {
+        attendanceList.innerHTML = attendanceRecords.map((item) => `
+          <div class="list-item">
+            <div class="attendance-record-header">
+              <h4>${item.employeeName || "未命名員工"}</h4>
+              <span class="status-badge status-${item.type === "clockIn" ? "success" : "pending"}">${item.type === "clockIn" ? "上班" : "下班"}</span>
+            </div>
+            <p>員工編號：${item.employeeId || "-"}</p>
+            <p>地點：${item.officeName || "-"}</p>
+            <p>時間：${formatAttendanceDateTime(item.createdAtClient || item.createdAt)}</p>
+            <p>座標：${item.lat ? Number(item.lat).toFixed(6) : "-"}，${item.lng ? Number(item.lng).toFixed(6) : "-"}</p>
+          </div>
+        `).join("");
+      }
+    }
+
+    if (attendanceSummaryList) {
+      const summaries = calculateWorkHours(attendanceRecords);
+      if (summaries.length === 0) {
+        attendanceSummaryList.innerHTML = `<div class="list-item"><p>尚無可計算的每日工時。</p></div>`;
+      } else {
+        attendanceSummaryList.innerHTML = summaries.map((item) => `
+          <div class="list-item">
+            <h4>${item.date}</h4>
+            <p>上班：${formatAttendanceDateTime(item.start)}</p>
+            <p>下班：${formatAttendanceDateTime(item.end)}</p>
+            <p>工時：${item.hours} 小時</p>
+            <p>打卡筆數：${item.totalRecords}</p>
+          </div>
+        `).join("");
+      }
+    }
+  }
+
+  function startAttendanceRecordsListener() {
+    if (!db) {
+      attendanceRecords = [];
+      renderAttendanceRecords();
+      return;
+    }
+
+    const q = query(collection(db, "attendanceRecords"), orderBy("createdAtClient", "desc"));
+    onSnapshot(q, function (snapshot) {
+      attendanceRecords = snapshot.docs.map((docItem) => ({
+        id: docItem.id,
+        ...docItem.data()
+      }));
+      renderAttendanceRecords();
+    });
   }
 
   function populateFixedOptions() {
@@ -1202,5 +1318,7 @@ document.addEventListener("DOMContentLoaded", function () {
   startLeaveListener();
   startScheduleListener();
   startAttendanceLocationsListener();
+  startAttendanceRecordsListener();
   refreshAttendanceSettings();
+  renderAttendanceRecords();
 });
