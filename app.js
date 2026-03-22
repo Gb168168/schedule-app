@@ -122,8 +122,7 @@ function canManageCoordinates(user) {
 function normalizeLoginValue(value) {
   return String(value || "")
     .trim()
-    .replace(/　/g, " ")
-    .toLowerCase();
+    .replace(/　/g, " ");
 }
 
 function normalizePasswordValue(value) {
@@ -136,26 +135,20 @@ function isLoginEligible(user) {
   return Boolean(user) && !user.isHidden && user.status !== "deleted";
 }
 
-function getLoginIdentifiers(user) {
-  return [user?.employeeId, user?.account]
-    .map(normalizeLoginValue)
-    .filter(Boolean);
-}
-
-function getAcceptedPasswords(user) {
-  return [user?.password, user?.employeeId, user?.account]
-    .map(normalizePasswordValue)
-    .filter(Boolean);
-}
-
-function findLoginUser(loginId, password) {
-  const normalizedLoginId = normalizeLoginValue(loginId);
+function findLoginUser(employeeId, password) {
+  const normalizedEmployeeId = normalizeLoginValue(employeeId);
   const normalizedPassword = normalizePasswordValue(password);
-  if (!normalizedLoginId || !normalizedPassword) return null;
+  
+  if (!normalizedEmployeeId || !normalizedPassword) return null;
 
   return employees.find(function (user) {
     if (!isLoginEligible(user)) return false;
-    return getLoginIdentifiers(user).includes(normalizedLoginId) && getAcceptedPasswords(user).includes(normalizedPassword);
+    
+    return (
+      normalizeLoginValue(user.employeeId) === normalizedEmployeeId &&
+      normalizePasswordValue(user.password) === normalizedPassword
+    );
+  }) || null;
 }
 
 function getShiftNameFromCode(code) {
@@ -1622,11 +1615,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     const savedEmployeeId = localStorage.getItem(STORAGE_KEYS.currentUser);
     if (!savedEmployeeId) return;
 
-    const normalizedSavedId = normalizeLoginValue(savedEmployeeId);
+    const normalizedEmployeeId = normalizeLoginValue(savedEmployeeId);
 
     const matchedUser = employees.find(function (user) {
-      if (!isLoginEligible(user)) return false;
-      return normalizeLoginValue(user.employeeId) === normalizedSavedId;
+      return (
+        isLoginEligible(user) &&
+        normalizeLoginValue(user.employeeId) === normalizedEmployeeId
+      );
     });
 
     if (!matchedUser) return;
@@ -1637,10 +1632,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     loginForm.addEventListener("submit", function (event) {
       event.preventDefault();
 
-      const loginId = document.getElementById("employeeId")?.value.trim() || "";
+      const employeeId = document.getElementById("employeeId")?.value.trim() || "";
       const password = document.getElementById("password")?.value.trim() || "";
 
-      const matchedUser = findLoginUser(loginId, password);
+      const matchedUser = findLoginUser(employeeId, password);
 
       if (!matchedUser) {
         if (loginError) loginError.textContent = "員工編號或密碼錯誤";
