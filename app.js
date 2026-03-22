@@ -186,7 +186,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const attendanceNetworkType = document.getElementById("attendance-network-type");
   const clockInBtn = document.getElementById("clock-in-btn");
   const clockOutBtn = document.getElementById("clock-out-btn");
-  const attendanceList = document.getElementById("attendance-list");
+  const attendanceFilterName = document.getElementById("attendance-filter-name");
+  const attendanceFilterDate = document.getElementById("attendance-filter-date");
+  const attendanceFilterBtn = document.getElementById("attendance-filter-btn");
+  const attendanceFilterResetBtn = document.getElementById("attendance-filter-reset-btn");
   const attendanceSummaryList = document.getElementById("attendance-summary-list");
   
   const employeeForm = document.getElementById("employee-form");
@@ -481,104 +484,200 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function formatAttendanceDateTime(value) {
-    if (!value) return "-";
-    const date = value?.toDate ? value.toDate() : new Date(value);
+    const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "-";
-    return date.toLocaleString("zh-TW", { hour12: false });
-  }
-
-  function getAttendanceRecordDate(value) {
-    const date = value?.toDate ? value.toDate() : new Date(value);
-    if (Number.isNaN(date.getTime())) return "";
-    return date.toISOString().slice(0, 10);
-  }
-
-  function calculateWorkHours(records) {
-    const grouped = {};
-
-    records.forEach((record) => {
-      const dateKey = getAttendanceRecordDate(record.createdAtClient || record.createdAt);
-      if (!dateKey) return;
-      if (!grouped[dateKey]) grouped[dateKey] = [];
-      grouped[dateKey].push(record);
+    return date.toLocaleString("zh-TW", {
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
     });
+  }
 
-    return Object.keys(grouped)
-      .sort((a, b) => new Date(b) - new Date(a))
-      .map((date) => {
-        const dayRecords = grouped[date].slice().sort((a, b) => {
-          const aDate = new Date(a.createdAtClient || a.createdAt?.toDate?.() || a.createdAt);
-          const bDate = new Date(b.createdAtClient || b.createdAt?.toDate?.() || b.createdAt);
-          return aDate - bDate;
+  function formatDateKey(dateValue) {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return "";
+    
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function formatTimeOnly(dateValue) {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleTimeString("zh-TW", {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+
+  function calculateHours(startValue, endValue) {
+    const start = new Date(startValue);
+    const end = new Date(endValue);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "-";
+    if (end < start) return "-";
+
+    const diffHours = (end - start) / 1000 / 60 / 60;
+    return diffHours.toFixed(2);
+  }
+
+  function getFilteredAttendanceRecords() {
+    const nameKeyword = attendanceFilterName ? attendanceFilterName.value.trim() : "";
+    const selectedDate = attendanceFilterDate ? attendanceFilterDate.value : "";
+
+    let visibleRecords = isAdmin(currentUser)
+      ? attendanceRecords.slice()
+      : attendanceRecords.filter(function (item) {
+          return currentUser && item.employeeId === currentUser.employeeId;
         });
 
-        const first = dayRecords[0];
-        const last = dayRecords[dayRecords.length - 1];
-        const firstDate = new Date(first.createdAtClient || first.createdAt?.toDate?.() || first.createdAt);
-        const lastDate = new Date(last.createdAtClient || last.createdAt?.toDate?.() || last.createdAt);
-        const hours = dayRecords.length > 1 ? (lastDate - firstDate) / 1000 / 3600 : 0;
+    if (nameKeyword) {
+      visibleRecords = visibleRecords.filter(function (item) {
+        return (item.employeeName || "").includes(nameKeyword);
+      });
+    }
 
-        return {
-          date,
-          start: first.createdAtClient || first.createdAt,
-          end: last.createdAtClient || last.createdAt,
-          hours: hours.toFixed(2),
-          totalRecords: dayRecords.length
+    if (selectedDate) {
+      visibleRecords = visibleRecords.filter(function (item) {
+        return formatDateKey(item.createdAtClient) === selectedDate;
+      });
+    }
+
+    return visibleRecords;
+  }
+
+  function buildAttendanceSummary(records) {
+    const grouped = {};
+
+    records.forEach(function (item) {
+      const dateKey = formatDateKey(item.createdAtClient);
+      const employeeKey = item.employeeId || "unknown";
+      const groupKey = `${employeeKey}__${dateKey}`;
+
+      if (!grouped[groupKey]) {
+        grouped[groupKey] = {
+          employeeId: item.employeeId || "",
+          employeeName: item.employeeName || "未知員工",
+          date: dateKey,
+          officeName: item.officeName || "",
+          records: []
         };
+      }
+
+      grouped[groupKey].records.push(item);
+    });
+
+   return Object.values(grouped)
+      .map(function (group) {
+        const sortedRecords = group.records.slice().sort(function (a, b) {
+          return new Date(a.createdAtClient) - new Date(b.createdAtClient);
+        });
+
+        const clockInRecord =
+          sortedRecords.find(function (item) {
+            return item.type === "clockIn";
+          }) || sortedRecords[0];
+
+        const reverseRecords = sortedRecords.slice().reverse();
+        const clockOutRecord =
+          reverseRecords.find(function (item) {
+            return item.type === "clockOut";
+          }) || (sortedRecords.length > 1 ? sortedRecords[sortedRecords.length - 1] : null);
+
+        const startTime = clockInRecord ? clockInRecord.createdAtClient : "";
+        const endTime = clockOutRecord ? clockOutRecord.createdAtClient : "";
+        const workHours =
+          startTime && endTime && clockOutRecord && clockOutRecord !== clockInRecord
+             ? calculateHours(startTime, endTime)
+            : "-";
+    
+        return {
+          employeeId: group.employeeId,
+          employeeName: group.employeeName,
+          date: group.date,
+          officeName: group.officeName,
+          startTime,
+          endTime,
+          workHours,
+          recordCount: sortedRecords.length,
+          records: sortedRecords
+        };
+        })
+      .sort(function (a, b) {
+        const dateCompare = new Date(b.date) - new Date(a.date);
+        if (dateCompare !== 0) return dateCompare;
+        return a.employeeName.localeCompare(b.employeeName, "zh-Hant");
       });
   }
 
   function renderAttendanceRecords() {
-    if (attendanceList) {
-      if (attendanceRecords.length === 0) {
-        attendanceList.innerHTML = `<div class="list-item"><p>目前沒有打卡紀錄。</p></div>`;
-      } else {
-        attendanceList.innerHTML = attendanceRecords.map((item) => `
-          <div class="list-item">
-            <div class="attendance-record-header">
-              <h4>${item.employeeName || "未命名員工"}</h4>
-              <span class="status-badge status-${item.type === "clockIn" ? "success" : "pending"}">${item.type === "clockIn" ? "上班" : "下班"}</span>
-            </div>
-            <p>員工編號：${item.employeeId || "-"}</p>
-            <p>地點：${item.officeName || "-"}</p>
-            <p>時間：${formatAttendanceDateTime(item.createdAtClient || item.createdAt)}</p>
-            <p>座標：${item.lat ? Number(item.lat).toFixed(6) : "-"}，${item.lng ? Number(item.lng).toFixed(6) : "-"}</p>
-          </div>
-        `).join("");
-      }
-    }
+    if (!attendanceSummaryList) return;
 
-    if (attendanceSummaryList) {
-      const summaries = calculateWorkHours(attendanceRecords);
-      if (summaries.length === 0) {
-        attendanceSummaryList.innerHTML = `<div class="list-item"><p>尚無可計算的每日工時。</p></div>`;
-      } else {
-        attendanceSummaryList.innerHTML = summaries.map((item) => `
-          <div class="list-item">
-            <h4>${item.date}</h4>
-            <p>上班：${formatAttendanceDateTime(item.start)}</p>
-            <p>下班：${formatAttendanceDateTime(item.end)}</p>
-            <p>工時：${item.hours} 小時</p>
-            <p>打卡筆數：${item.totalRecords}</p>
-          </div>
-        `).join("");
-      }
-    }
-  }
+    const filteredRecords = getFilteredAttendanceRecords();
+    const summaryList = buildAttendanceSummary(filteredRecords);
 
-  function startAttendanceRecordsListener() {
-    if (!db) {
-      attendanceRecords = [];
-      renderAttendanceRecords();
+    if (summaryList.length === 0) {
+      attendanceSummaryList.innerHTML = `<div class="list-item"><p>目前沒有符合條件的打卡紀錄。</p></div>`;
       return;
     }
 
+    attendanceSummaryList.innerHTML = summaryList
+      .map(function (item) {
+        const detailHtml = item.records
+          .map(function (record) {
+            return `
+              <div class="item-meta">
+                ${record.type === "clockIn" ? "上班打卡" : "下班打卡"}｜
+                ${formatTimeOnly(record.createdAtClient)}｜
+                ${record.officeName || "未命名座標"}｜
+                ${record.distanceMeters !== undefined ? `距離 ${record.distanceMeters}m` : "未記錄距離"}
+              </div>
+            `;
+          })
+          .join("");
+
+        return `
+          <div class="list-item">
+            <div class="employee-card-header">
+              <div>
+                <h4>${item.employeeName}</h4>
+                <div class="item-meta">日期：${item.date}｜員工編號：${item.employeeId}</div>
+              </div>
+              <span class="status-badge status-active">工時 ${item.workHours} 小時</span>
+            </div>
+
+            <p>上班時間：${item.startTime ? formatTimeOnly(item.startTime) : "-"}</p>
+            <p>下班時間：${item.endTime ? formatTimeOnly(item.endTime) : "-"}</p>
+            <p>打卡地點：${item.officeName || "-"}</p>
+            <p>當日打卡筆數：${item.recordCount}</p>
+
+            <div style="margin-top: 10px;">
+              ${detailHtml}
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  function startAttendanceRecordsListener() {
+    if (!db) return;
+
     const q = query(collection(db, "attendanceRecords"), orderBy("createdAtClient", "desc"));
+    
     onSnapshot(q, function (snapshot) {
-      attendanceRecords = snapshot.docs.map((docItem) => ({
-        id: docItem.id,
-        ...docItem.data()
-      }));
+     attendanceRecords = snapshot.docs.map(function (docItem) {
+        return {
+          id: docItem.id,
+          ...docItem.data()
+        };
+      });
+
       renderAttendanceRecords();
     });
   }
@@ -1172,6 +1271,20 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  if (attendanceFilterBtn) {
+    attendanceFilterBtn.addEventListener("click", function () {
+      renderAttendanceRecords();
+    });
+  }
+
+  if (attendanceFilterResetBtn) {
+    attendanceFilterResetBtn.addEventListener("click", function () {
+      if (attendanceFilterName) attendanceFilterName.value = "";
+      if (attendanceFilterDate) attendanceFilterDate.value = "";
+      renderAttendanceRecords();
+    });
+  }
+
   if (scheduleAddBtn) {
     scheduleAddBtn.addEventListener("click", function () {
       editingScheduleId = null;
@@ -1318,7 +1431,7 @@ document.addEventListener("DOMContentLoaded", function () {
   startLeaveListener();
   startScheduleListener();
   startAttendanceLocationsListener();
-  startAttendanceRecordsListener();
   refreshAttendanceSettings();
+  startAttendanceRecordsListener();
   renderAttendanceRecords();
 });
