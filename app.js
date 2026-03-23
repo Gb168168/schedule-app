@@ -357,6 +357,25 @@ function getBuiltinEmployees() {
   });
 }
 
+function getComparableTimestampValue(value) {
+  if (!value) return 0;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value.seconds === "number") {
+    const nanoseconds = typeof value.nanoseconds === "number" ? value.nanoseconds : 0;
+    return (value.seconds * 1000) + Math.floor(nanoseconds / 1000000);
+  }
+
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function sortEmployeesForDisplay(employeeList = []) {
+  return [...employeeList].sort(function (a, b) {
+    return getComparableTimestampValue(b.createdAt) - getComparableTimestampValue(a.createdAt);
+  });
+}
+
 function mergeEmployeesWithBuiltin(remoteEmployees = []) {
   const mergedByEmployeeId = new Map();
 
@@ -1427,10 +1446,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       return;
     }
 
-    const q = query(collection(db, "employees"), orderBy("createdAt", "desc"));
+    const q = collection(db, "employees");
     
     onSnapshot(q, function (snapshot) {
-      const visibleEmployees = snapshot.docs
+      const visibleEmployees = sortEmployeesForDisplay(snapshot.docs
         .map(function (docItem) {
           return {
             id: docItem.id,
@@ -1439,7 +1458,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         })
         .filter(function (employee) {
           return !employee.isHidden;
-        });
+        }));
 
          if (visibleEmployees.length === 0) {
         employees = getBuiltinEmployees();
