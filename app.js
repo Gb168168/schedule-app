@@ -100,6 +100,17 @@ const DEFAULT_SHIFT_SETTINGS = [
   { code: "evening", name: "晚班", startTime: "20:00", endTime: "08:00", reminderTime: "19:50", graceMinutes: 15, isActive: true }
 ];
 
+const SYMBOL_TYPES = {
+  rest: { icon: "▲", color: "black", label: "排休" },
+  must_rest: { icon: "▲", color: "red", label: "必休" },
+  new_year_rest: { icon: "★", color: "black", label: "過年休假" },
+  new_year_must_rest: { icon: "★", color: "red", label: "過年必休" },
+  event: { icon: "🎰", color: "default", label: "公司活動" }
+};
+const SYMBOL_BUTTON_ORDER = ["rest", "must_rest", "new_year_rest", "new_year_must_rest", "event"];
+const SYMBOL_LABELS = Object.fromEntries(Object.entries(SYMBOL_TYPES).map(([key, value]) => [key, value.label]));
+const HOLIDAY_DATES = new Set([]);
+
 const STORAGE_KEYS = {
   currentUser: "shift_current_user",
   currentUserSession: "shift_current_user_session"
@@ -114,6 +125,15 @@ let editingEmployeeId = null;
 let announcements = [];
 let leaveRequests = [];
 let schedules = [];
+let currentLeaveMonth = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, "0")}`;
+let activeSymbolType = "";
+let selectedEmployeeIds = [];
+let pendingSelectedEmployeeIds = [];
+let selectedRegion = "";
+let selectedDepartment = "";
+let selectedShiftType = "";
+let leaveMonthSettings = [];
+let leaveAssignments = [];
 let employees = users.map((user, index) => ({ id: `builtin-${index}`, status: "active", isHidden: false, ...user }));
 let isBootstrappingEmployees = false;
 let attendanceLocations = DEFAULT_ATTENDANCE_LOCATIONS.map((item, index) => ({ id: `default-${index}`, ...item }));
@@ -591,22 +611,22 @@ document.addEventListener("DOMContentLoaded", function () {
   const leaveList = document.getElementById("leave-list");
   const leaveStats = document.getElementById("leave-stats");
 
-  const scheduleForm = document.getElementById("schedule-form");
-  const scheduleDate = document.getElementById("schedule-date");
-  const scheduleTitle = document.getElementById("schedule-title");
-  const scheduleContent = document.getElementById("schedule-content");
-  const calendarGrid = document.getElementById("calendar-grid");
   const calendarTitle = document.getElementById("calendar-title");
   const prevMonthBtn = document.getElementById("prev-month");
   const nextMonthBtn = document.getElementById("next-month");
-  const schedulePopover = document.getElementById("schedule-popover");
-  const schedulePopoverClose = document.getElementById("schedule-popover-close");
-  const selectedDateText = document.getElementById("selected-date-text");
-  const selectedDateScheduleList = document.getElementById("selected-date-schedule-list");
-  const scheduleCancelBtn = document.getElementById("schedule-cancel-btn");
-  const scheduleAddBtn = document.getElementById("schedule-add-btn");
-  const scheduleEditorBox = document.getElementById("schedule-editor-box");
-  const scheduleEditorTitle = document.getElementById("schedule-editor-title");
+  const leaveMonthLabel = document.getElementById("leave-month-label");
+  const leaveOpenRange = document.getElementById("leave-open-range");
+  const leaveTotalRestDays = document.getElementById("leave-total-rest-days");
+  const leaveRegionFilter = document.getElementById("leave-region-filter");
+  const leaveDepartmentFilter = document.getElementById("leave-department-filter");
+  const leaveShiftFilter = document.getElementById("leave-shift-filter");
+  const leaveEmployeeSearch = document.getElementById("leave-employee-search");
+  const leaveSymbolToolbar = document.getElementById("leave-symbol-toolbar");
+  const leaveEditHint = document.getElementById("leave-edit-hint");
+  const leaveEmployeeFilterList = document.getElementById("leave-employee-filter-list");
+  const leaveEmployeeApplyBtn = document.getElementById("leave-employee-apply-btn");
+  const leaveEmployeeCancelBtn = document.getElementById("leave-employee-cancel-btn");
+  const leaveBoardTable = document.getElementById("leave-board-table");
 
   function setAttendanceBadge(kind, text) {
     if (!attendanceStatusBadge) return;
@@ -766,6 +786,7 @@ document.addEventListener("DOMContentLoaded", function () {
       shiftDepartmentSelect.innerHTML = DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("");
     }
     refreshShiftEmployeeOptions();
+    renderLeaveBoard();
   }
 
   function refreshShiftEmployeeOptions() {
@@ -1454,6 +1475,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       })
       .join("");
     refreshShiftEmployeeOptions();
+    renderLeaveBoard();
   }
 
   function startEmployeesListener() {
@@ -1505,20 +1527,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (announcementEditForm) announcementEditForm.reset();
   }
 
-  function showScheduleEditor(mode) {
-    if (scheduleEditorBox) scheduleEditorBox.classList.remove("hidden");
-    if (scheduleEditorTitle) scheduleEditorTitle.textContent = mode === "edit" ? "編輯排程" : "新增排程";
-    if (scheduleTitle) scheduleTitle.focus();
-  }
-
-  function hideScheduleEditor() {
-    editingScheduleId = null;
-    if (scheduleEditorBox) scheduleEditorBox.classList.add("hidden");
-    if (scheduleTitle) scheduleTitle.value = "";
-    if (scheduleContent) scheduleContent.value = "";
-    if (scheduleDate && selectedScheduleDate) scheduleDate.value = selectedScheduleDate;
-  }
-
   function startAnnouncementsListener() {
     if (!db) return;
     const q = query(collection(db, "announcements"), orderBy("createdAtClient", "desc"));
@@ -1566,150 +1574,220 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     });
   }
 
-  function startScheduleListener() {
+  function startLeaveMonthSettingsListener() {
     if (!db) return;
-    const q = query(collection(db, "schedules"), orderBy("createdAtClient", "desc"));
-    onSnapshot(q, function (snapshot) {
-      schedules = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
-      renderSchedules();
-      renderCalendar();
+    onSnapshot(query(collection(db, "leaveMonthSettings"), orderBy("monthKey", "desc")), function (snapshot) {
+      leaveMonthSettings = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
+      renderLeaveBoard();
     });
   }
 
-  function renderLeaveStats() {
-    if (!leaveStats) return;
-    const visibleLeaves = isAdmin(currentUser) ? leaveRequests : leaveRequests.filter((item) => currentUser && item.userName === currentUser.name);
-    const stats = { 特休: 0, 病假: 0, 事假: 0, 待審核: 0 };
-    visibleLeaves.forEach(function (item) {
-      if (stats[item.type] !== undefined) stats[item.type] += 1;
-      if (item.status === "待審核") stats.待審核 += 1;
+  function startLeaveAssignmentsListener() {
+    if (!db) return;
+    onSnapshot(query(collection(db, "leaveAssignments"), orderBy("date", "asc")), function (snapshot) {
+      leaveAssignments = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
+      renderLeaveBoard();
     });
-    leaveStats.innerHTML = `
-      <div class="stat-card"><h4>特休</h4><p>${stats.特休}</p></div>
-      <div class="stat-card"><h4>病假</h4><p>${stats.病假}</p></div>
-      <div class="stat-card"><h4>事假</h4><p>${stats.事假}</p></div>
-      <div class="stat-card"><h4>待審核</h4><p>${stats.待審核}</p></div>
-    `;
   }
 
-  function renderLeaves() {
-    if (!leaveList) return;
-    const visibleLeaves = isAdmin(currentUser) ? leaveRequests : leaveRequests.filter((item) => currentUser && item.userName === currentUser.name);
-    renderLeaveStats();
+  function getMonthKey(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  }
 
-    if (visibleLeaves.length === 0) {
-      leaveList.innerHTML = `<div class="list-item"><p>目前沒有請假申請。</p></div>`;
-      return;
+    function getCurrentLeaveMonthDate() {
+    const [year, month] = currentLeaveMonth.split("-").map(Number);
+    return new Date(year, (month || 1) - 1, 1);
+  }
+
+    function getDaysInCurrentLeaveMonth() {
+    const date = getCurrentLeaveMonthDate();
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  }
+
+  function getMonthSetting(monthKey) {
+    return leaveMonthSettings.find((item) => item.monthKey === monthKey) || null;
+  }
+
+  function getVisibleLeaveEmployees() {
+    const keyword = String(leaveEmployeeSearch?.value || "").trim();
+    return employees.filter((employee) => {
+      if (employee.isHidden || employee.status === "deleted") return false;
+      if (selectedRegion && employee.region !== selectedRegion) return false;
+      if (selectedDepartment && employee.department !== selectedDepartment) return false;
+      if (selectedShiftType && getUserShiftType(employee) !== selectedShiftType) return false;
+      if (selectedEmployeeIds.length > 0 && !selectedEmployeeIds.includes(employee.employeeId)) return false;
+      if (keyword) {
+        const haystack = `${employee.name || ""} ${employee.employeeId || ""}`.toLowerCase();
+        if (!haystack.includes(keyword.toLowerCase())) return false;
+      }
+      return true;
+    });
+  }
+  
+    function getMonthAssignments(monthKey) {
+    return leaveAssignments.filter((item) => item.monthKey === monthKey);
+  }
+
+  function getAssignmentForCell(monthKey, employeeId, dateString) {
+    return leaveAssignments.find((item) => item.monthKey === monthKey && item.employeeId === employeeId && item.date === dateString) || null;
+  }
+
+    function isGoldBricksUser(user) {
+    return user?.employeeId === "GoldBricks";
+  }
+
+     function canEditLeaveCell(targetEmployee, monthSetting) {
+    const todayString = formatDate(new Date());
+    const canEditInCurrentMonth = Boolean(monthSetting?.openStartDate && monthSetting?.openEndDate && todayString >= monthSetting.openStartDate && todayString <= monthSetting.openEndDate);
+    const canEmployeeEdit = canEditInCurrentMonth && currentUser?.employeeId === targetEmployee.employeeId;
+    const canGoldBricksEdit = isGoldBricksUser(currentUser);
+    return canEmployeeEdit || canGoldBricksEdit;
+  }
+
+  function getCellSymbolMeta(symbolType) {
+    return SYMBOL_TYPES[symbolType] || null;
+  }
+
+  function getEmployeeSummaryCounts(employeeId, monthKey) {
+    return getMonthAssignments(monthKey).filter((item) => item.employeeId === employeeId).reduce((acc, item) => {
+      if (["rest", "must_rest"].includes(item.symbolType)) acc.rest += 1;
+      if (["new_year_rest", "new_year_must_rest"].includes(item.symbolType)) acc.newYear += 1;
+      if (item.symbolType === "event") acc.event += 1;
+      return acc;
+    }, { rest: 0, newYear: 0, event: 0 });
+  }
+
+  
+  function syncLeaveFilterOptions() {
+    if (leaveRegionFilter) {
+      leaveRegionFilter.innerHTML = `<option value="">全部地區</option>${REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("")}`;
+      leaveRegionFilter.value = selectedRegion;
     }
+    if (leaveDepartmentFilter) {
+      leaveDepartmentFilter.innerHTML = `<option value="">全部部門</option>${DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("")}`;
+      leaveDepartmentFilter.value = selectedDepartment;
+    }
+    if (!pendingSelectedEmployeeIds.length && !selectedEmployeeIds.length) pendingSelectedEmployeeIds = [];
+  }
 
-    leaveList.innerHTML = visibleLeaves.map(function (item) {
-      let actionButtons = "";
-      if (isAdmin(currentUser) && item.status === "待審核") {
-        actionButtons += `<button type="button" class="small-btn approve-btn" onclick="approveLeave('${item.id}')">核准</button><button type="button" class="small-btn reject-btn" onclick="rejectLeave('${item.id}')">駁回</button>`;
-      }
-      if (currentUser && item.userName === currentUser.name && item.status === "待審核") {
-        actionButtons += `<button type="button" class="small-btn cancel-btn" onclick="cancelLeave('${item.id}')">取消請假</button>`;
-      }
+    function renderLeaveToolbar() {
+    if (!leaveSymbolToolbar) return;
+    leaveSymbolToolbar.innerHTML = SYMBOL_BUTTON_ORDER.map((type) => {
+      const meta = SYMBOL_TYPES[type];
+      const activeClass = activeSymbolType === type ? "active" : "";
+      return `<button type="button" class="leave-symbol-btn ${activeClass} ${meta.color === "red" ? "symbol-red" : ""}" data-symbol-type="${type}" title="${meta.label}"><span>${meta.icon}</span><small>${meta.label}</small></button>`;
+    }).join("");
+    if (leaveEditHint) leaveEditHint.textContent = activeSymbolType ? `目前模式：${SYMBOL_LABELS[activeSymbolType]}，點同圖示可取消模式。` : "請先選擇圖示，再點擊可編輯的格子。";
+  }
 
-      return `
-        <div class="list-item">
-          <h4>${item.userName} - ${item.type}</h4>
-          <div class="item-meta">部門：${item.department}｜區域：${item.region}${item.reviewedBy ? `｜審核人：${item.reviewedBy}` : ""}${item.reviewedAt ? `｜審核時間：${item.reviewedAt}` : ""}</div>
-          <p>日期：${item.startDate} ~ ${item.endDate}</p>
-          <p>原因：${item.reason}</p>
-          <p><span class="status-badge status-${item.status}">${item.status}</span></p>
-          ${actionButtons ? `<div class="item-actions">${actionButtons}</div>` : ""}
-       </div>`;
+   function renderLeaveEmployeeFilterPanel() {
+    if (!leaveEmployeeFilterList) return;
+    const candidates = employees.filter((employee) => !employee.isHidden && employee.status !== "deleted");
+    leaveEmployeeFilterList.innerHTML = candidates.map((employee) => {
+      const checked = pendingSelectedEmployeeIds.includes(employee.employeeId) ? "checked" : "";
+      return `<label class="leave-employee-option"><input type="checkbox" value="${employee.employeeId}" ${checked} /><span><strong>${employee.name || employee.employeeId}</strong><small>${employee.region || "-"}｜${employee.department || "-"}</small><small>${employee.category || getUserShiftType(employee) || "-"}</small></span></label>`;
     }).join("");
   }
 
-  function renderSchedules() {
-    if (!selectedDateScheduleList) return;
-    if (!selectedScheduleDate) {
-      selectedDateScheduleList.innerHTML = `<div class="list-item"><p>請先點選日期。</p></div>`;
+  function renderLeaveBoard() {
+    if (!leaveBoardTable) return;
+    currentLeaveMonth = getMonthKey(calendarDate);
+    const monthSetting = getMonthSetting(currentLeaveMonth);
+    const monthDate = getCurrentLeaveMonthDate();
+    const daysInMonth = getDaysInCurrentLeaveMonth();
+    const visibleEmployees = getVisibleLeaveEmployees();
+    if (calendarTitle) calendarTitle.textContent = `${monthDate.getFullYear()} 年 ${monthDate.getMonth() + 1} 月`;
+    if (leaveMonthLabel) leaveMonthLabel.textContent = currentLeaveMonth;
+    if (leaveOpenRange) leaveOpenRange.textContent = monthSetting?.openStartDate && monthSetting?.openEndDate ? `${monthSetting.openStartDate} ~ ${monthSetting.openEndDate}` : "尚未設定";
+    if (leaveTotalRestDays) leaveTotalRestDays.textContent = monthSetting?.totalRestDays != null ? String(monthSetting.totalRestDays) : "-";
+    syncLeaveFilterOptions();
+    renderLeaveToolbar();
+    renderLeaveEmployeeFilterPanel();
+
+    if (!visibleEmployees.length) {
+      leaveBoardTable.innerHTML = '<div class="list-item"><p>目前沒有符合篩選條件的人員。</p></div>';
       return;
     }
 
-    const selectedSchedules = schedules.filter((item) => item.date === selectedScheduleDate).sort((a, b) => a.title.localeCompare(b.title, "zh-Hant"));
-    if (selectedSchedules.length === 0) {
-      selectedDateScheduleList.innerHTML = `<div class="list-item"><p>這一天目前沒有排程。</p></div>`;
+     const headerDays = Array.from({ length: daysInMonth }, (_, index) => {
+      const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), index + 1);
+      const dateString = formatDate(date);
+      const isWeekend = [0, 6].includes(date.getDay());
+      const isHoliday = HOLIDAY_DATES.has(dateString);
+      return `<div class="leave-day-header ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}"><span>${index + 1}</span><small>${["日", "一", "二", "三", "四", "五", "六"][date.getDay()]}</small></div>`;
+    }).join("");
+
+    const rows = visibleEmployees.map((employee) => {
+      const canEditAny = canEditLeaveCell(employee, monthSetting);
+      const counts = getEmployeeSummaryCounts(employee.employeeId, currentLeaveMonth);
+      const cells = Array.from({ length: daysInMonth }, (_, index) => {
+        const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), index + 1);
+        const dateString = formatDate(date);
+        const assignment = getAssignmentForCell(currentLeaveMonth, employee.employeeId, dateString);
+        const meta = getCellSymbolMeta(assignment?.symbolType);
+        const isWeekend = [0, 6].includes(date.getDay());
+        const isHoliday = HOLIDAY_DATES.has(dateString);
+        return `<button type="button" class="leave-cell ${canEditAny ? "editable" : "readonly"} ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}" data-employee-id="${employee.employeeId}" data-date="${dateString}" title="${meta ? meta.label : dateString}">${meta ? `<span class="symbol ${meta.color === "red" ? "symbol-red" : ""}">${meta.icon}</span>` : ""}</button>`;
+      }).join("");
+      return `<div class="leave-board-row"><div class="leave-employee-card"><strong>${employee.name || employee.employeeId}</strong><small>${employee.region || "-"}｜${employee.department || "-"}</small><small>${employee.category || getUserShiftType(employee) || "-"}</small></div><div class="leave-row-cells" style="--days:${daysInMonth}">${cells}</div><div class="leave-summary-card"><div><span>▲</span><strong>${counts.rest}</strong></div><div><span>★</span><strong>${counts.newYear}</strong></div><div><span>🎰</span><strong>${counts.event}</strong></div></div></div>`;
+    }).join("");
+
+    leaveBoardTable.innerHTML = `<div class="leave-board-head"><div class="leave-sticky-col">人員</div><div class="leave-header-days" style="--days:${daysInMonth}">${headerDays}</div><div class="leave-summary-head"><div>▲</div><div>★</div><div>🎰</div></div></div>${rows}`;
+  }
+
+    async function toggleLeaveAssignment(employeeId, dateString) {
+    const targetEmployee = employees.find((employee) => employee.employeeId === employeeId);
+    const monthSetting = getMonthSetting(currentLeaveMonth);
+    if (!targetEmployee) return;
+    if (!activeSymbolType) return;
+    if (!canEditLeaveCell(targetEmployee, monthSetting)) {
+      alert("你只能在開放期間編輯自己的休假表，GoldBricks 可編輯所有人。");
       return;
     }
-
-     selectedDateScheduleList.innerHTML = selectedSchedules.map((item) => `
-      <div class="list-item schedule-list-item">
-        <div class="schedule-item-main">
-          <h4>${item.title}</h4>
-          <div class="item-meta">日期：${item.date}｜建立者：${item.author}</div>
-          <p>${item.content}</p>
-        </div>
-        <div class="item-actions schedule-item-actions">
-          <button type="button" class="small-btn edit-btn" data-action="edit-schedule" data-id="${item.id}">編輯</button>
-          <button type="button" class="small-btn delete-btn" data-action="delete-schedule" data-id="${item.id}">刪除</button>
-        </div>
-      </div>`).join("");
-  }
-
-  function positionSchedulePopover() {
-    if (!schedulePopover) return;
-    schedulePopover.style.left = "50%";
-    schedulePopover.style.top = "50%";
-  }
-
-  function openSchedulePopover(dateString) {
-    selectedScheduleDate = dateString;
-    editingScheduleId = null;
-    if (selectedDateText) selectedDateText.textContent = dateString;
-    if (scheduleDate) scheduleDate.value = dateString;
-    hideScheduleEditor();
-    renderSchedules();
-    renderCalendar();
-    if (schedulePopover) schedulePopover.classList.remove("hidden");
-    requestAnimationFrame(positionSchedulePopover);
-  }
-
-  function closeSchedulePopover() {
-    if (schedulePopover) schedulePopover.classList.add("hidden");
-    hideScheduleEditor();
-  }
-
-  function renderCalendar() {
-    if (!calendarGrid || !calendarTitle) return;
-    const year = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
-    calendarTitle.textContent = `${year} 年 ${month + 1} 月`;
-
-    const firstDay = new Date(year, month, 1);
-    const startDay = firstDay.getDay();
-    const firstCellDate = new Date(year, month, 1 - startDay);
-    const todayString = formatDate(new Date());
-    const cells = [];
-
-    for (let i = 0; i < 35; i += 1) {
-      const cellDate = new Date(firstCellDate);
-      cellDate.setDate(firstCellDate.getDate() + i);
-      const cellDateString = formatDate(cellDate);
-      const daySchedules = schedules.filter((item) => item.date === cellDateString);
-      const isOtherMonth = cellDate.getMonth() !== month;
-      const isToday = cellDateString === todayString;
-      const isSelected = cellDateString === selectedScheduleDate;
-
-      cells.push(`
-        <div class="calendar-day ${isOtherMonth ? "other-month" : ""} ${isToday ? "today" : ""} ${isSelected ? "selected" : ""}" data-date="${cellDateString}">
-          <div class="calendar-day-number">${cellDate.getDate()}</div>
-           <div class="calendar-events">${daySchedules.map((schedule) => `<div class="calendar-event">${schedule.title}</div>`).join("")}</div>
-        </div>`);
+    const existing = getAssignmentForCell(currentLeaveMonth, employeeId, dateString);
+    const sameSymbol = existing?.symbolType === activeSymbolType;
+    if (!db) {
+      if (existing && sameSymbol) leaveAssignments = leaveAssignments.filter((item) => item.id !== existing.id);
+      else if (existing) leaveAssignments = leaveAssignments.map((item) => item.id === existing.id ? { ...item, symbolType: activeSymbolType, updatedBy: currentUser?.employeeId || "", updatedByName: currentUser?.name || "" } : item);
+      else leaveAssignments = [{ id: `local-${Date.now()}`, employeeId, employeeName: targetEmployee.name, region: targetEmployee.region, department: targetEmployee.department, category: targetEmployee.category, date: dateString, monthKey: currentLeaveMonth, symbolType: activeSymbolType, createdBy: currentUser?.employeeId || "", createdByName: currentUser?.name || "", updatedBy: currentUser?.employeeId || "", updatedByName: currentUser?.name || "" }, ...leaveAssignments];
+      renderLeaveBoard();
+      return;
     }
-
-    calendarGrid.innerHTML = cells.join("");
-    calendarGrid.querySelectorAll(".calendar-day").forEach(function (cell) {
-      cell.addEventListener("click", function (event) {
-        openSchedulePopover(cell.dataset.date);
-        event.stopPropagation();
-      });
-    });
+    try {
+      if (existing && sameSymbol) {
+        await deleteDoc(doc(db, "leaveAssignments", existing.id));
+      } else if (existing) {
+        await updateDoc(doc(db, "leaveAssignments", existing.id), {
+          symbolType: activeSymbolType,
+          updatedBy: currentUser?.employeeId || "",
+          updatedByName: currentUser?.name || "",
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        await addDoc(collection(db, "leaveAssignments"), {
+          employeeId,
+          employeeName: targetEmployee.name || "",
+          region: targetEmployee.region || "",
+          department: targetEmployee.department || "",
+          category: targetEmployee.category || "",
+          date: dateString,
+          monthKey: currentLeaveMonth,
+          symbolType: activeSymbolType,
+          createdBy: currentUser?.employeeId || "",
+          createdByName: currentUser?.name || "",
+          updatedBy: currentUser?.employeeId || "",
+          updatedByName: currentUser?.name || "",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      }
+    } catch (error) {
+      console.error("儲存休假表失敗", error);
+      alert("儲存休假表失敗，請稍後再試。");
+    }
   }
 
+  function renderLeaveStats() {
   window.startEditAnnouncement = function (id) {
     if (!canManageAnnouncements(currentUser)) return;
     const item = announcements.find((announcement) => announcement.id === id);
@@ -1747,44 +1825,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     await updateDoc(doc(db, "leaveRequests", id), { status: "已取消", reviewedBy: currentUser.name, reviewedAt: new Date().toLocaleString() });
   };
 
-  window.editSchedule = function (id) {
-    const item = schedules.find((schedule) => schedule.id === id);
-    if (!item) return;
-    editingScheduleId = id;
-    selectedScheduleDate = item.date;
-    if (selectedDateText) selectedDateText.textContent = item.date;
-    if (scheduleDate) scheduleDate.value = item.date;
-    if (scheduleTitle) scheduleTitle.value = item.title;
-    if (scheduleContent) scheduleContent.value = item.content;
-    if (schedulePopover) schedulePopover.classList.remove("hidden");
-    showScheduleEditor("edit");
-    renderSchedules();
-    renderCalendar();
-    requestAnimationFrame(positionSchedulePopover);
-  };
-
-  window.deleteSchedule = async function (id) {
-    if (!db) return;
-    try {
-      await deleteDoc(doc(db, "schedules", id));
-      if (editingScheduleId === id) hideScheduleEditor();
-    } catch (error) {
-      console.error("刪除排程失敗", error);
-      alert("刪除失敗");
-    }
-  };
-
-  if (selectedDateScheduleList) {
-    selectedDateScheduleList.addEventListener("click", function (event) {
-      const actionButton = event.target.closest("[data-action]");
-      if (!actionButton) return;
-      const scheduleId = actionButton.dataset.id;
-      if (!scheduleId) return;
-      if (actionButton.dataset.action === "edit-schedule") window.editSchedule(scheduleId);
-      if (actionButton.dataset.action === "delete-schedule") window.deleteSchedule(scheduleId);
-    });
-  }
-
   function setLoggedInUser(user) {
     currentUser = user;
     updateUserInfo(user);
@@ -1795,8 +1835,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     toggleEmployeeManagementUI();
     refreshAttendanceSettings();
     renderLeaves();
-    renderSchedules();
-    renderCalendar();
+    renderLeaveBoard();
     renderCoordinates();
     initMessaging();
   }
@@ -2264,66 +2303,38 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     }, true);
   }
 
-  if (scheduleAddBtn) {
-    scheduleAddBtn.addEventListener("click", function () {
-      editingScheduleId = null;
-      if (scheduleDate) scheduleDate.value = selectedScheduleDate;
-      if (scheduleTitle) scheduleTitle.value = "";
-      if (scheduleContent) scheduleContent.value = "";
-      showScheduleEditor("add");
+   if (leaveSymbolToolbar) {
+    leaveSymbolToolbar.addEventListener("click", function (event) {
+      const button = event.target.closest("[data-symbol-type]");
+      if (!button) return;
+      const clickedType = button.dataset.symbolType || "";
+      activeSymbolType = activeSymbolType === clickedType ? "" : clickedType;
+      renderLeaveToolbar();
     });
   }
 
-  if (scheduleCancelBtn) scheduleCancelBtn.addEventListener("click", hideScheduleEditor);
-  if (schedulePopoverClose) schedulePopoverClose.addEventListener("click", closeSchedulePopover);
-  if (prevMonthBtn) prevMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() - 1); renderCalendar(); });
-  if (nextMonthBtn) nextMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() + 1); renderCalendar(); });
-  if (clockInBtn) {
-    clockInBtn.addEventListener("click", () => {
-      handleClock("clockIn");
+    if (leaveBoardTable) {
+    leaveBoardTable.addEventListener("click", function (event) {
+      const cell = event.target.closest(".leave-cell[data-employee-id][data-date]");
+      if (!cell) return;
+      toggleLeaveAssignment(cell.dataset.employeeId || "", cell.dataset.date || "");
     });
   }
-
-  if (clockOutBtn) {
-    clockOutBtn.addEventListener("click", () => {
-      handleClock("clockOut");
+ 
+ if (leaveRegionFilter) leaveRegionFilter.addEventListener("change", function () { selectedRegion = leaveRegionFilter.value || ""; renderLeaveBoard(); });
+  if (leaveDepartmentFilter) leaveDepartmentFilter.addEventListener("change", function () { selectedDepartment = leaveDepartmentFilter.value || ""; renderLeaveBoard(); });
+  if (leaveShiftFilter) leaveShiftFilter.addEventListener("change", function () { selectedShiftType = leaveShiftFilter.value || ""; renderLeaveBoard(); });
+  if (leaveEmployeeSearch) leaveEmployeeSearch.addEventListener("input", renderLeaveBoard);
+  if (leaveEmployeeFilterList) {
+    leaveEmployeeFilterList.addEventListener("change", function () {
+      pendingSelectedEmployeeIds = Array.from(leaveEmployeeFilterList.querySelectorAll('input[type="checkbox"]:checked')).map((input) => input.value);
     });
   }
-  
-  document.addEventListener("click", function (event) {
-    if (!schedulePopover || schedulePopover.classList.contains("hidden")) return;
-    if (schedulePopover.contains(event.target)) return;
-    if (event.target.closest(".calendar-day")) return;
-    closeSchedulePopover();
-  });
-
-  if (scheduleForm) {
-    scheduleForm.addEventListener("submit", async function (event) {
-      event.preventDefault();
-      if (!db) return alert("Firebase 未設定");
-      const payload = {
-        date: scheduleDate.value,
-        title: scheduleTitle.value.trim(),
-        content: scheduleContent.value.trim(),
-        author: currentUser ? currentUser.name : "未知使用者",
-        updatedAt: serverTimestamp(),
-        createdAtClient: new Date()
-      };
-      if (!payload.date || !payload.title || !payload.content) return alert("請填寫完整排程資料");
-      try {
-        if (editingScheduleId) {
-          await updateDoc(doc(db, "schedules", editingScheduleId), payload);
-        } else {
-          await addDoc(collection(db, "schedules"), { ...payload, createdAt: serverTimestamp() });
-        }
-        hideScheduleEditor();
-      } catch (error) {
-        console.error("儲存排程失敗", error);
-        alert("儲存排程失敗");
-      }
-    });
-  }
-
+  if (leaveEmployeeApplyBtn) leaveEmployeeApplyBtn.addEventListener("click", function () { selectedEmployeeIds = [...pendingSelectedEmployeeIds]; renderLeaveBoard(); });
+  if (leaveEmployeeCancelBtn) leaveEmployeeCancelBtn.addEventListener("click", function () { selectedEmployeeIds = []; pendingSelectedEmployeeIds = []; renderLeaveBoard(); });
+  if (prevMonthBtn) prevMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() - 1); renderLeaveBoard(); });
+  if (nextMonthBtn) nextMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() + 1); renderLeaveBoard(); });
+    
   if (coordinateForm) {
     coordinateForm.addEventListener("submit", async function (event) {
       event.preventDefault();
@@ -2402,12 +2413,12 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   startEmployeesListener();
 
   renderLeaves();
-  renderSchedules();
-  renderCalendar();
+  renderLeaveBoard();
 
   startAnnouncementsListener();
   startLeaveListener();
-  startScheduleListener();
+  startLeaveMonthSettingsListener();
+  startLeaveAssignmentsListener();
   startAttendanceLocationsListener();
   startShiftSettingsListener();
   refreshAttendanceSettings();
