@@ -276,6 +276,11 @@ function getLoginIdentifiers(user) {
     .filter(Boolean);
 }
 
+function getEmployeeMergeKeys(user) {
+  const uniqueKeys = new Set(getLoginIdentifiers(user));
+  return Array.from(uniqueKeys);
+}
+
 function getAcceptedPasswords(user) {
   return [user?.password, user?.employeeId, user?.account, ...getEmailAliases(user)]
     .map(normalizePasswordValue)
@@ -461,29 +466,62 @@ function sortEmployeesForDisplay(employeeList = []) {
 }
 
 function mergeEmployeesWithBuiltin(remoteEmployees = []) {
-  const mergedByEmployeeId = new Map();
+  const mergedEmployees = [];
+  const keyToIndex = new Map();
+
+  function registerEmployee(employee) {
+    const mergeKeys = getEmployeeMergeKeys(employee);
+    const existingKey = mergeKeys.find(function (key) {
+      return keyToIndex.has(key);
+    });
+    const existingIndex = existingKey !== undefined ? keyToIndex.get(existingKey) : undefined;
+
+    if (existingIndex !== undefined) {
+      mergeKeys.forEach(function (key) {
+        keyToIndex.set(key, existingIndex);
+      });
+      return existingIndex;
+    }
+
+    const index = mergedEmployees.push(employee) - 1;
+    mergeKeys.forEach(function (key) {
+      keyToIndex.set(key, index);
+    });
+    return index;
+  }
 
   getBuiltinEmployees().forEach(function (employee) {
-    const key = normalizeLoginValue(employee.employeeId);
-    if (!key) return;
-    mergedByEmployeeId.set(key, employee);
+    registerEmployee(employee);
   });
 
   remoteEmployees.forEach(function (employee) {
-    const key = normalizeLoginValue(employee.employeeId);
-    if (!key) return;
-    const builtinEmployee = mergedByEmployeeId.get(key) || {};
-    mergedByEmployeeId.set(key, {
+    const mergeKeys = getEmployeeMergeKeys(employee);
+    const existingKey = mergeKeys.find(function (key) {
+      return keyToIndex.has(key);
+    });
+    const existingIndex = existingKey !== undefined ? keyToIndex.get(existingKey) : undefined;
+    const builtinEmployee = existingIndex !== undefined ? mergedEmployees[existingIndex] || {} : {};
+    const mergedEmployee = {
       ...builtinEmployee,
       status: "active",
       isHidden: false,
       notificationSettings: getDefaultNotificationSettings(employee.notificationSettings || builtinEmployee.notificationSettings),
       fcmToken: employee.fcmToken || builtinEmployee.fcmToken || "",
       ...employee
-    });
+     };
+
+    if (existingIndex !== undefined) {
+      mergedEmployees[existingIndex] = mergedEmployee;
+      getEmployeeMergeKeys(mergedEmployee).forEach(function (key) {
+        keyToIndex.set(key, existingIndex);
+      });
+      return;
+    }
+
+    registerEmployee(mergedEmployee);
   });
 
-  return Array.from(mergedByEmployeeId.values()).filter(isLoginEligible);
+  return mergedEmployees.filter(isLoginEligible);
 }
 
 async function seedDefaultEmployees() {
