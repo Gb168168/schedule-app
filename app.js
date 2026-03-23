@@ -370,7 +370,7 @@ function setLoginLoadingState(isLoading, message = "") {
   }
 }
 
-async function waitForEmployeesReady(timeoutMs = 2500) {
+async function waitForEmployeesReady(timeoutMs = 10000) {
   if (hasLoadedEmployees) return true;
 
   const timeoutPromise = new Promise(function (resolve) {
@@ -1981,12 +1981,17 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
       if (!matchedUser && !hasLoadedEmployees) {
         setLoginLoadingState(true, "正在同步帳號資料，請稍候...");
-        await waitForEmployeesReady();
+        const employeesReady = await waitForEmployeesReady();
         matchedUser = findLoginUser(loginId, password);
+        
+        if (!employeesReady && !matchedUser) {
+          setLoginLoadingState(false, "帳號資料仍在同步中，請稍候 5-10 秒後再試一次");
+          return;
+        }
       }
 
       if (!matchedUser) {
-        setLoginLoadingState(false, "員工編號或密碼錯誤")
+        setLoginLoadingState(false, "員工編號或密碼錯誤");
         return;
       }
 
