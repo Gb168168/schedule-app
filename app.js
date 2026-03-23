@@ -136,6 +136,11 @@ let leaveMonthSettings = [];
 let leaveAssignments = [];
 let employees = users.map((user, index) => ({ id: `builtin-${index}`, status: "active", isHidden: false, ...user }));
 let isBootstrappingEmployees = false;
+let hasLoadedEmployees = false;
+let resolveEmployeesReady = null;
+const employeesReadyPromise = new Promise(function (resolve) {
+  resolveEmployeesReady = resolve;
+});
 let attendanceLocations = DEFAULT_ATTENDANCE_LOCATIONS.map((item, index) => ({ id: `default-${index}`, ...item }));
 let attendanceRecords = [];
 let shiftSettings = DEFAULT_SHIFT_SETTINGS.map((item) => ({ ...item }));
@@ -326,6 +331,30 @@ function findUserBySession(session = {}) {
       return userIdentifiers.includes(identifier);
     });
   }) || null;
+}
+
+function markEmployeesReady() {
+  if (hasLoadedEmployees) return;
+  hasLoadedEmployees = true;
+  setLoginLoadingState(false, "");
+  if (typeof resolveEmployeesReady === "function") {
+    resolveEmployeesReady();
+    resolveEmployeesReady = null;
+  }
+}
+
+function setLoginLoadingState(isLoading, message = "") {
+  const loginButton = document.getElementById("login-btn");
+  const loginError = document.getElementById("login-error");
+
+  if (loginButton) {
+    loginButton.disabled = isLoading;
+    loginButton.textContent = isLoading ? "登入中..." : "登入";
+  }
+
+  if (loginError) {
+    loginError.textContent = message;
+  }
 }
 
 function getShiftNameFromCode(code) {
@@ -1481,6 +1510,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   function startEmployeesListener() {
      if (!db) {
       employees = getBuiltinEmployees();
+      markEmployeesReady();
       renderEmployees();
       restoreLogin();
       return;
@@ -1502,6 +1532,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
          if (visibleEmployees.length === 0) {
         employees = getBuiltinEmployees();
+        markEmployeesReady();
         renderEmployees();
         restoreLogin();
         seedDefaultEmployees();
@@ -1509,12 +1540,14 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       }
 
       employees = mergeEmployeesWithBuiltin(visibleEmployees);
+      markEmployeesReady();
       ensureBaseShiftTemplates();
       renderEmployees();
       restoreLogin();
     }, function (error) {
       console.error("載入員工資料失敗，改用內建帳號", error);
       employees = getBuiltinEmployees();
+      markEmployeesReady();
       ensureBaseShiftTemplates();
       renderEmployees();
       restoreLogin();
@@ -1870,20 +1903,30 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   if (loginForm) {
-    loginForm.addEventListener("submit", function (event) {
+    loginForm.addEventListener("submit", async function (event) {
       event.preventDefault();
 
       const loginId = document.getElementById("employeeId")?.value.trim() || "";
       const password = document.getElementById("password")?.value.trim() || "";
 
-      const matchedUser = findLoginUser(loginId, password);
-
-      if (!matchedUser) {
-        if (loginError) loginError.textContent = "員工編號或密碼錯誤";
+      if (!loginId || !password) {
+        if (loginError) loginError.textContent = "請輸入員工編號與密碼";
         return;
       }
 
-      if (loginError) loginError.textContent = "";
+      if (!hasLoadedEmployees) {
+        setLoginLoadingState(true, "正在同步帳號資料，請稍候...");
+        await employeesReadyPromise;
+      }
+
+      const matchedUser = findLoginUser(loginId, password);
+
+      if (!matchedUser) {
+        setLoginLoadingState(false, "員工編號或密碼錯誤")
+        return;
+      }
+
+      setLoginLoadingState(false, "");
       setLoggedInUser(matchedUser);
     });
   }
@@ -2410,6 +2453,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   populateFixedOptions();
   syncAdminPermissionState();
+  setLoginLoadingState(true, "正在載入帳號資料...");
   startEmployeesListener();
 
   renderLeaves();
