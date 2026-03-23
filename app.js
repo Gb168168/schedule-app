@@ -237,28 +237,46 @@ function isLoginEligible(user) {
   return Boolean(user) && !user.isHidden && user.status !== "deleted";
 }
 
+function getEmailAliases(user) {
+  const emailValue = String(user?.email || "").trim();
+  const emailPrefixValue = String(user?.emailPrefix || "").trim();
+  const emailLocalPart = emailValue.includes("@") ? emailValue.split("@")[0] : emailValue;
+
+  return [emailValue, emailPrefixValue, emailLocalPart].filter(Boolean);
+}
+
 function getLoginIdentifiers(user) {
-  return [user?.employeeId, user?.account, user?.id]
+  return [user?.employeeId, user?.account, user?.id, ...getEmailAliases(user)]
     .map(normalizeLoginValue)
     .filter(Boolean);
 }
 
 function getAcceptedPasswords(user) {
-  return [user?.password, user?.employeeId, user?.account]
+  return [user?.password, user?.employeeId, user?.account, ...getEmailAliases(user)]
     .map(normalizePasswordValue)
     .filter(Boolean);
 }
 
+function matchesLoginPassword(user, password) {
+  const normalizedPassword = normalizePasswordValue(password);
+  if (!normalizedPassword) return false;
+
+  const acceptedPasswords = getAcceptedPasswords(user);
+  if (acceptedPasswords.includes(normalizedPassword)) return true;
+
+  const normalizedPasswordForLegacyFallback = normalizeLoginValue(password);
+  return getLoginIdentifiers(user).includes(normalizedPasswordForLegacyFallback);
+}
+
 function findLoginUser(loginId, password) {
   const normalizedLoginId = normalizeLoginValue(loginId);
-  const normalizedPassword = normalizePasswordValue(password);
-  if (!normalizedLoginId || !normalizedPassword) return null;
+  if (!normalizedLoginId || !normalizePasswordValue(password)) return null;
 
   return employees.find(function (user) {
     if (!isLoginEligible(user)) return false;
-    return getLoginIdentifiers(user).includes(normalizedLoginId) && getAcceptedPasswords(user).includes(normalizedPassword);
+    return getLoginIdentifiers(user).includes(normalizedLoginId) && matchesLoginPassword(user, password);
   });
-  }
+}
 
 function buildUserSession(user) {
   return {
