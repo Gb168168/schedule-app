@@ -2517,7 +2517,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   populateFixedOptions();
   syncAdminPermissionState();
-  setLoginLoadingState(true, "正在載入帳號資料...");
+  setLoginLoadingState(false, "");
   startEmployeesListener();
 
   renderLeaves();
