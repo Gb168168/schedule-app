@@ -357,6 +357,23 @@ function setLoginLoadingState(isLoading, message = "") {
   }
 }
 
+async function waitForEmployeesReady(timeoutMs = 2500) {
+  if (hasLoadedEmployees) return true;
+
+  const timeoutPromise = new Promise(function (resolve) {
+    window.setTimeout(function () {
+      resolve(false);
+    }, timeoutMs);
+  });
+
+  return Promise.race([
+    employeesReadyPromise.then(function () {
+      return true;
+    }),
+    timeoutPromise
+  ]);
+}
+
 function getShiftNameFromCode(code) {
   return code === "evening" ? "晚班" : "早班";
 }
@@ -1914,12 +1931,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         return;
       }
 
-      if (!hasLoadedEmployees) {
-        setLoginLoadingState(true, "正在同步帳號資料，請稍候...");
-        await employeesReadyPromise;
-      }
+      let matchedUser = findLoginUser(loginId, password);
 
-      const matchedUser = findLoginUser(loginId, password);
+      if (!matchedUser && !hasLoadedEmployees) {
+        setLoginLoadingState(true, "正在同步帳號資料，請稍候...");
+        await waitForEmployeesReady();
+        matchedUser = findLoginUser(loginId, password);
+      }
 
       if (!matchedUser) {
         setLoginLoadingState(false, "員工編號或密碼錯誤")
