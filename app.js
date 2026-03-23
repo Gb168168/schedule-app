@@ -266,8 +266,13 @@ function getEmailAliases(user) {
   const emailValue = String(user?.email || "").trim();
   const emailPrefixValue = String(user?.emailPrefix || "").trim();
   const emailLocalPart = emailValue.includes("@") ? emailValue.split("@")[0] : emailValue;
+  const companyEmailValue = emailPrefixValue ? `${emailPrefixValue}@goldbricks.com.tw` : "";
+  
+  return [emailValue, emailPrefixValue, emailLocalPart, companyEmailValue].filter(Boolean);
 
-  return [emailValue, emailPrefixValue, emailLocalPart].filter(Boolean);
+}
+function normalizeLegacyPasswordAliasValue(value) {
+  return normalizeLoginValue(value);
 }
 
 function getLoginIdentifiers(user) {
@@ -294,7 +299,10 @@ function matchesLoginPassword(user, password) {
   const acceptedPasswords = getAcceptedPasswords(user);
   if (acceptedPasswords.includes(normalizedPassword)) return true;
 
-  const normalizedPasswordForLegacyFallback = normalizeLoginValue(password);
+  const normalizedPasswordForLegacyFallback = normalizeLegacyPasswordAliasValue(password);
+  const normalizedAcceptedAliases = acceptedPasswords.map(normalizeLegacyPasswordAliasValue);
+  if (normalizedAcceptedAliases.includes(normalizedPasswordForLegacyFallback)) return true;
+
   return getLoginIdentifiers(user).includes(normalizedPasswordForLegacyFallback);
 }
 
