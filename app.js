@@ -100,7 +100,10 @@ const DEFAULT_SHIFT_SETTINGS = [
   { code: "evening", name: "晚班", startTime: "20:00", endTime: "08:00", reminderTime: "19:50", graceMinutes: 15, isActive: true }
 ];
 
-const STORAGE_KEYS = { currentUser: "shift_current_user" };
+const STORAGE_KEYS = {
+  currentUser: "shift_current_user",
+  currentUserSession: "shift_current_user_session"
+};
 
 let currentUser = null;
 let editingAnnouncementId = null;
@@ -235,7 +238,7 @@ function isLoginEligible(user) {
 }
 
 function getLoginIdentifiers(user) {
-  return [user?.employeeId, user?.account]
+  return [user?.employeeId, user?.account, user?.id]
     .map(normalizeLoginValue)
     .filter(Boolean);
 }
@@ -256,6 +259,36 @@ function findLoginUser(loginId, password) {
     return getLoginIdentifiers(user).includes(normalizedLoginId) && getAcceptedPasswords(user).includes(normalizedPassword);
   });
   }
+
+function buildUserSession(user) {
+  return {
+    employeeId: user?.employeeId || "",
+    account: user?.account || "",
+    id: user?.id || ""
+  };
+}
+
+function persistCurrentUserSession(user) {
+  const session = buildUserSession(user);
+  localStorage.setItem(STORAGE_KEYS.currentUser, session.employeeId);
+  localStorage.setItem(STORAGE_KEYS.currentUserSession, JSON.stringify(session));
+}
+
+function findUserBySession(session = {}) {
+  const identifiers = [session.employeeId, session.account, session.id]
+    .map(normalizeLoginValue)
+    .filter(Boolean);
+
+  if (identifiers.length === 0) return null;
+
+  return employees.find(function (user) {
+    if (!isLoginEligible(user)) return false;
+    const userIdentifiers = getLoginIdentifiers(user);
+    return identifiers.some(function (identifier) {
+      return userIdentifiers.includes(identifier);
+    });
+  }) || null;
+}
 
 function getShiftNameFromCode(code) {
   return code === "evening" ? "晚班" : "早班";
@@ -1720,7 +1753,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     updateUserInfo(user);
     if (loginPage) loginPage.classList.add("hidden");
     if (mainPage) mainPage.classList.remove("hidden");
-    localStorage.setItem(STORAGE_KEYS.currentUser, user.employeeId);
+    persistCurrentUserSession(user);
     updateMenuPermissions(user);
     toggleEmployeeManagementUI();
     refreshAttendanceSettings();
@@ -1732,17 +1765,31 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   function restoreLogin() {
+    const savedSessionRaw = localStorage.getItem(STORAGE_KEYS.currentUserSession);
     const savedEmployeeId = localStorage.getItem(STORAGE_KEYS.currentUser);
-    if (!savedEmployeeId) return;
 
-    const normalizedSavedId = normalizeLoginValue(savedEmployeeId);
+    let savedSession = {};
+    if (savedSessionRaw) {
+      try {
+        savedSession = JSON.parse(savedSessionRaw) || {};
+      } catch (error) {
+        console.warn("解析登入快取失敗，改用舊版登入資訊", error);
+      }
+    }
 
-    const matchedUser = employees.find(function (user) {
-      if (!isLoginEligible(user)) return false;
-      return normalizeLoginValue(user.employeeId) === normalizedSavedId;
-    });
+    if (!savedSession.employeeId && savedEmployeeId) {
+      savedSession.employeeId = savedEmployeeId;
+    }
 
+    const matchedUser = findUserBySession(savedSession);
     if (!matchedUser) return;
+    
+    if (currentUser?.id === matchedUser.id && currentUser?.employeeId === matchedUser.employeeId) {
+      updateUserInfo(matchedUser);
+      currentUser = matchedUser;
+      return;
+    }
+
     setLoggedInUser(matchedUser);
   }
 
@@ -1772,6 +1819,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       editingScheduleId = null;
       selectedScheduleDate = "";
       localStorage.removeItem(STORAGE_KEYS.currentUser);
+      localStorage.removeItem(STORAGE_KEYS.currentUserSession);
       hideAnnouncementEditor();
       closeSchedulePopover();
       if (mainPage) mainPage.classList.add("hidden");
