@@ -116,6 +116,35 @@ const STORAGE_KEYS = {
   currentUserSession: "shift_current_user_session"
 };
 
+function safeStorageGet(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch (error) {
+    console.warn("讀取登入快取失敗", error);
+    return null;
+  }
+}
+
+function safeStorageSet(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    console.warn("寫入登入快取失敗", error);
+    return false;
+  }
+}
+
+function safeStorageRemove(key) {
+  try {
+    window.localStorage.removeItem(key);
+    return true;
+  } catch (error) {
+    console.warn("清除登入快取失敗", error);
+    return false;
+  }
+}
+
 let currentUser = null;
 let editingAnnouncementId = null;
 let calendarDate = new Date();
@@ -326,8 +355,8 @@ function buildUserSession(user) {
 
 function persistCurrentUserSession(user) {
   const session = buildUserSession(user);
-  localStorage.setItem(STORAGE_KEYS.currentUser, session.employeeId);
-  localStorage.setItem(STORAGE_KEYS.currentUserSession, JSON.stringify(session));
+  safeStorageSet(STORAGE_KEYS.currentUser, session.employeeId);
+  safeStorageSet(STORAGE_KEYS.currentUserSession, JSON.stringify(session));
 }
 
 function findUserBySession(session = {}) {
@@ -1937,8 +1966,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   function restoreLogin() {
-    const savedSessionRaw = localStorage.getItem(STORAGE_KEYS.currentUserSession);
-    const savedEmployeeId = localStorage.getItem(STORAGE_KEYS.currentUser);
+    const savedSessionRaw = safeStorageGet(STORAGE_KEYS.currentUserSession);
+    const savedEmployeeId = safeStorageGet(STORAGE_KEYS.currentUser);
 
     let savedSession = {};
     if (savedSessionRaw) {
@@ -2006,8 +2035,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       editingAnnouncementId = null;
       editingScheduleId = null;
       selectedScheduleDate = "";
-      localStorage.removeItem(STORAGE_KEYS.currentUser);
-      localStorage.removeItem(STORAGE_KEYS.currentUserSession);
+      safeStorageRemove(STORAGE_KEYS.currentUser);
+      safeStorageRemove(STORAGE_KEYS.currentUserSession);
       hideAnnouncementEditor();
       closeSchedulePopover();
       if (mainPage) mainPage.classList.add("hidden");
