@@ -1530,7 +1530,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
           title: data.title || "",
           content: data.content || "",
           author: data.author || "",
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleString() : ""
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleString() : "",
           authorId: data.authorId || "",
         };
       });
