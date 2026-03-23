@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-5</title>
+  <title>班表系統-1</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -37,7 +37,7 @@
         <button class="menu-btn hidden" id="menu-coordinate-btn" data-page="coordinates">打卡座標</button>
         <button class="menu-btn" data-page="shift-settings">班別設定</button>
         <button class="menu-btn" data-page="attendance">打卡紀錄</button>
-        <button class="menu-btn" data-page="schedule">排程表</button>
+        <button class="menu-btn" data-page="schedule">休假表</button>
       </nav>
     </aside>
 
@@ -375,69 +375,57 @@
       </section>
 
       <section id="page-schedule" class="page-section hidden">
-        <div class="card">
-          <h3>排程表</h3>
-
-          <div class="calendar-wrap">
-            <div class="calendar-toolbar">
+      <div class="card leave-board-card">
+          <div class="leave-board-header">
+            <div>
+              <h3>休假表</h3>
+              <p class="helper-text">依月份查看排休開放區間、安排圖示與統計。</p>
+            </div>
+            <div class="calendar-toolbar leave-month-toolbar">
               <button type="button" id="prev-month" class="small-btn">上個月</button>
               <h4 id="calendar-title"></h4>
               <button type="button" id="next-month" class="small-btn">下個月</button>
             </div>
+          </div>
 
-            <div class="calendar-weekdays">
-              <div>日</div>
-              <div>一</div>
-              <div>二</div>
-              <div>三</div>
-              <div>四</div>
-              <div>五</div>
-              <div>六</div>
+          <div class="leave-month-summary">
+            <div class="stat-card"><h4>月份</h4><p id="leave-month-label">-</p></div>
+            <div class="stat-card"><h4>排假開放日</h4><p id="leave-open-range">-</p></div>
+            <div class="stat-card"><h4>本月可排休</h4><p id="leave-total-rest-days">-</p></div>
+          </div>
+
+          <div class="leave-filter-toolbar">
+            <label class="field-label"><span>地區</span><select id="leave-region-filter"><option value="">全部地區</option></select></label>
+            <label class="field-label"><span>部門</span><select id="leave-department-filter"><option value="">全部部門</option></select></label>
+            <label class="field-label"><span>班別</span><select id="leave-shift-filter"><option value="">全部班別</option><option value="早班">早班</option><option value="晚班">晚班</option></select></label>
+            <label class="field-label"><span>人員搜尋</span><input id="leave-employee-search" type="search" placeholder="姓名 / 員工編號" /></label>
+          </div>
+
+          <div class="leave-toolbar-panel">
+            <div id="leave-symbol-toolbar" class="leave-symbol-toolbar"></div>
+            <p id="leave-edit-hint" class="helper-text">請先選擇圖示，再點擊可編輯的格子。</p>
+          </div>
+
+       <div class="leave-employee-panel">
+            <div class="section-header-row">
+              <div>
+                <h4>人員篩選</h4>
+                <p class="helper-text">可勾選多位員工後套用顯示。</p>
+              </div>
+              <div class="item-actions">
+                <button type="button" id="leave-employee-apply-btn" class="primary-btn">完成</button>
+                <button type="button" id="leave-employee-cancel-btn" class="small-btn cancel-btn">取消</button>
+              </div>
             </div>
+            <div id="leave-employee-filter-list" class="leave-employee-filter-list"></div>
+          </div>
 
-           <div id="calendar-grid" class="calendar-grid"></div>
+           <div class="leave-grid-wrap">
+            <div id="leave-board-table" class="leave-board-table"></div>
           </div>
         </div>
       </section>
     </section>
-  </div>
-
-  <div id="schedule-popover" class="schedule-popover hidden">
-    <div class="schedule-popover-header">
-      <div>
-        <h3 id="selected-date-text">-</h3>
-        <p>當日排程與操作</p>
-      </div>
-      <button type="button" id="schedule-popover-close" class="small-btn">關閉</button>
-    </div>
-
-           <div id="selected-date-schedule-list" class="list-wrap"></div>
-
-      <div class="popover-actions">
-      <button type="button" id="schedule-add-btn" class="primary-btn">新增排程</button>
-       </div>
-
-              <div id="schedule-editor-box" class="schedule-editor-box hidden">
-      <h4 id="schedule-editor-title">新增排程</h4>
-      <form id="schedule-form" class="form-grid">
-        <label class="field-label">
-          <span>日期</span>
-          <input id="schedule-date" type="date" required />
-        </label>
-        <label class="field-label">
-          <span>標題</span>
-          <input id="schedule-title" type="text" required />
-        </label>
-        <label class="field-label">
-          <span>內容</span>
-          <textarea id="schedule-content" required></textarea>
-        </label>
-        <div class="item-actions">
-          <button type="submit" class="primary-btn">儲存排程</button>
-          <button type="button" id="schedule-cancel-btn" class="small-btn cancel-btn">取消</button>
-        </div>
-     </form>
-    </div>
   </div>
 
   <script>
