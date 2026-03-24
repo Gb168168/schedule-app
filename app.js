@@ -474,9 +474,18 @@ function getComparableTimestampValue(value) {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+function getRegionOrder(regionName) {
+  const index = REGIONS.indexOf(regionName);
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+function compareRegionsNorthToSouth(a, b) {
+  return getRegionOrder(a) - getRegionOrder(b);
+}
+
 function sortEmployeesForDisplay(employeeList = []) {
   return [...employeeList].sort(function (a, b) {
-    return getComparableTimestampValue(b.createdAt) - getComparableTimestampValue(a.createdAt);
+    return getComparableTimestampValue(a.createdAt) - getComparableTimestampValue(b.createdAt);
   });
 }
 
@@ -951,7 +960,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!grouped[item.region][item.department]) grouped[item.region][item.department] = { templates: [], employees: [] };
       grouped[item.region][item.department].employees.push(item);
     });
-    shiftSettingsList.innerHTML = Object.keys(grouped).map((region) => `
+    shiftSettingsList.innerHTML = Object.keys(grouped).sort(compareRegionsNorthToSouth).map((region) => `
       <details class="scope-collapse">
         <summary>${region}</summary>
         ${Object.keys(grouped[region]).map((department) => {
@@ -1370,7 +1379,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       <details>
         <summary>${date}</summary>
         <div class="attendance-tree-node">
-          ${Object.keys(tree[date]).map((region) => `<details><summary>${region}</summary><div class="attendance-tree-node">${Object.keys(tree[date][region]).map((department) => `<details><summary>${department}</summary><div class="attendance-tree-node">${Object.keys(tree[date][region][department]).map((shiftType) => `<details><summary>${getShiftNameFromCode(shiftType)}</summary><div class="attendance-tree-node">${Object.values(tree[date][region][department][shiftType]).sort((a, b) => a.employeeName.localeCompare(b.employeeName, "zh-Hant")).map((group) => {
+          ${Object.keys(tree[date]).sort(compareRegionsNorthToSouth).map((region) => `<details><summary>${region}</summary><div class="attendance-tree-node">${Object.keys(tree[date][region]).map((department) => `<details><summary>${department}</summary><div class="attendance-tree-node">${Object.keys(tree[date][region][department]).map((shiftType) => `<details><summary>${getShiftNameFromCode(shiftType)}</summary><div class="attendance-tree-node">${Object.values(tree[date][region][department][shiftType]).sort((a, b) => a.employeeName.localeCompare(b.employeeName, "zh-Hant")).map((group) => {
             const item = summarizeEmployeeAttendance(group);
             const focusRecord = item.clockInRecord || item.latestRecord || {};
             const mapId = `${date}-${item.employeeId}-${shiftType}`.replace(/[^a-zA-Z0-9-_]/g, "");
@@ -1530,6 +1539,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     });
 
     employeeList.innerHTML = Object.keys(grouped)
+      .sort(compareRegionsNorthToSouth)
       .map(function (region) {
         const departments = grouped[region];
 
