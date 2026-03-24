@@ -81,7 +81,16 @@ const SYMBOL_TYPES = {
 const SYMBOL_BUTTON_ORDER = ["rest", "must_rest", "new_year_rest", "new_year_must_rest", "event"];
 const SYMBOL_LABELS = Object.fromEntries(Object.entries(SYMBOL_TYPES).map(([key, value]) => [key, value.label]));
 const LEAVE_EXCLUDED_SYMBOL_TYPES = new Set(["rest", "must_rest", "new_year_rest", "new_year_must_rest", "event"]);
-const HOLIDAY_DATES = new Set([]);
+const FIXED_HOLIDAY_RULES = [
+  { monthDay: "01-01", name: "元旦" },
+  { monthDay: "02-28", name: "和平紀念日" },
+  { monthDay: "04-04", name: "兒童節" },
+  { monthDay: "04-05", name: "清明節" },
+  { monthDay: "05-01", name: "勞動節" },
+  { monthDay: "10-10", name: "國慶日" }
+];
+const HOLIDAY_NAME_BY_DATE = new Map();
+const HOLIDAY_DATES = new Set();
 
 const STORAGE_KEYS = {
   currentUser: "shift_current_user",
@@ -166,6 +175,24 @@ let editingCoordinateId = null;
 let lastAttendanceAttempt = null;
 let attendanceDetailMaps = {};
 let messagingServiceWorkerRegistration = null;
+
+function initHolidayCalendar(startYear = 2020, endYear = 2035) {
+  HOLIDAY_NAME_BY_DATE.clear();
+  HOLIDAY_DATES.clear();
+  for (let year = startYear; year <= endYear; year += 1) {
+    FIXED_HOLIDAY_RULES.forEach(function (holidayRule) {
+      const dateKey = `${year}-${holidayRule.monthDay}`;
+      HOLIDAY_NAME_BY_DATE.set(dateKey, holidayRule.name);
+      HOLIDAY_DATES.add(dateKey);
+    });
+  }
+}
+
+function getHolidayName(dateString) {
+  return HOLIDAY_NAME_BY_DATE.get(String(dateString || "").trim()) || "";
+}
+
+initHolidayCalendar();
 
 async function registerMessagingServiceWorker() {
   if (messagingServiceWorkerRegistration) return messagingServiceWorkerRegistration;
@@ -2421,8 +2448,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), index + 1);
       const dateString = formatDate(date);
       const isWeekend = [0, 6].includes(date.getDay());
-      const isHoliday = HOLIDAY_DATES.has(dateString);
-      return `<div class="leave-day-header ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}"><span>${index + 1}</span><small>${["日", "一", "二", "三", "四", "五", "六"][date.getDay()]}</small></div>`;
+      const holidayName = getHolidayName(dateString);
+      const isHoliday = Boolean(holidayName);
+      const title = holidayName ? `${dateString}：${holidayName}` : `${dateString}（非國定假日）`;
+      return `<button type="button" class="leave-day-header leave-day-header-btn ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}" data-date="${dateString}" title="${title}"><span>${index + 1}</span><small>${["日", "一", "二", "三", "四", "五", "六"][date.getDay()]}</small></button>`;
     }).join("");
 
     const rows = visibleEmployees.map((employee) => {
@@ -2434,8 +2463,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         const assignment = getAssignmentForCell(currentLeaveMonth, employee.employeeId, dateString);
         const metas = getCellSymbolMetas(assignment);
         const isWeekend = [0, 6].includes(date.getDay());
-        const isHoliday = HOLIDAY_DATES.has(dateString);
-        const title = metas.length ? metas.map((meta) => meta.label).join(" + ") : dateString;
+        const holidayName = getHolidayName(dateString);
+        const isHoliday = Boolean(holidayName);
+        const holidayText = holidayName ? `｜國定假日：${holidayName}` : "";
+        const title = metas.length ? `${metas.map((meta) => meta.label).join(" + ")}${holidayText}` : `${dateString}${holidayText}`;
         const symbols = metas.map((meta) => `<span class="symbol ${meta.color === "red" ? "symbol-red" : ""}">${meta.icon}</span>`).join("");
         return `<button type="button" class="leave-cell ${canEditAny ? "editable" : "readonly"} ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}" data-employee-id="${employee.employeeId}" data-date="${dateString}" title="${title}">${symbols}</button>`;
       }).join("");
@@ -3303,6 +3334,15 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         pendingSelectedShiftType = selectedShiftType;
         isLeaveEmployeeFilterOpen = false;
         renderLeaveBoard();
+        return;
+      }
+      
+      const headerDateButton = event.target.closest(".leave-day-header-btn[data-date]");
+      if (headerDateButton) {
+        const dateString = String(headerDateButton.dataset.date || "").trim();
+        if (!dateString) return;
+        const holidayName = getHolidayName(dateString);
+        alert(holidayName ? `${dateString}：${holidayName}` : `${dateString}：非國定假日`);
         return;
       }
       
