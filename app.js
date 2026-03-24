@@ -980,12 +980,29 @@ document.addEventListener("DOMContentLoaded", function () {
               <div class="attendance-tree-node">
                 <div class="list-item">
                   <h4>預設早班 / 晚班</h4>
-                  ${bucket.templates.sort((a, b) => a.shiftType.localeCompare(b.shiftType)).map((item) => `<p>${getShiftNameFromCode(item.shiftType)}｜上班 ${formatTimeText(item.startTime)}｜下班 ${formatTimeText(item.endTime)}｜提醒 ${formatTimeText(item.reminderTime)}｜寬限 ${item.graceMinutes} 分鐘</p>`).join("") || "<p>尚未設定。</p>"}
+                 ${bucket.templates.sort((a, b) => a.shiftType.localeCompare(b.shiftType)).map((item) => `
+                    <div class="list-item">
+                      <p>${getShiftNameFromCode(item.shiftType)}｜上班 ${formatTimeText(item.startTime)}｜下班 ${formatTimeText(item.endTime)}｜提醒 ${formatTimeText(item.reminderTime)}｜寬限 ${item.graceMinutes} 分鐘</p>
+                      <div class="item-actions">
+                        <button type="button" class="small-btn" data-action="edit-shift-rule" data-scope="template" data-id="${item.id}">編輯</button>
+                        <button type="button" class="small-btn danger-btn" data-action="delete-shift-rule" data-scope="template" data-id="${item.id}" ${item.isDefault ? "disabled title='預設規則不可刪除'" : ""}>刪除</button>
+                      </div>
+                    </div>
+                  `).join("") || "<p>尚未設定。</p>"}
                 </div>
                 <details class="scope-collapse">
                   <summary>個別員工班別設定（${bucket.employees.length} 筆）</summary>
                   <div class="list-wrap">
-                    ${bucket.employees.length ? bucket.employees.map((item) => `<div class="list-item"><h4>${item.employeeName}</h4><p>${getShiftNameFromCode(item.shiftType)}｜上班 ${formatTimeText(item.startTime)}｜下班 ${formatTimeText(item.endTime)}｜提醒 ${formatTimeText(item.reminderTime)}｜寬限 ${item.graceMinutes} 分鐘</p></div>`).join("") : "<div class='list-item'><p>尚未設定員工覆蓋班別。</p></div>"}
+                    ${bucket.employees.length ? bucket.employees.map((item) => `
+                      <div class="list-item">
+                        <h4>${item.employeeName}</h4>
+                        <p>${getShiftNameFromCode(item.shiftType)}｜上班 ${formatTimeText(item.startTime)}｜下班 ${formatTimeText(item.endTime)}｜提醒 ${formatTimeText(item.reminderTime)}｜寬限 ${item.graceMinutes} 分鐘</p>
+                        <div class="item-actions">
+                          <button type="button" class="small-btn" data-action="edit-shift-rule" data-scope="employee" data-id="${item.id}">編輯</button>
+                          <button type="button" class="small-btn danger-btn" data-action="delete-shift-rule" data-scope="employee" data-id="${item.id}">刪除</button>
+                        </div>
+                      </div>
+                    `).join("") : "<div class='list-item'><p>尚未設定員工覆蓋班別。</p></div>"}
                   </div>
                 </details>
               </div>
@@ -994,6 +1011,56 @@ document.addEventListener("DOMContentLoaded", function () {
         }).join("")}
       </details>
     `).join("");
+  }
+
+  function loadShiftRuleToForm(scope, id) {
+    const isEmployeeScope = scope === "employee";
+    const sourceList = isEmployeeScope ? employeeShiftSettings : shiftTemplates;
+    const target = sourceList.find((item) => item.id === id);
+    if (!target) {
+      alert("找不到要編輯的班別規則");
+      return;
+    }
+
+    if (shiftScopeSelect) shiftScopeSelect.value = isEmployeeScope ? "employee" : "template";
+    if (shiftRegionSelect) shiftRegionSelect.value = target.region || "";
+    if (shiftDepartmentSelect) shiftDepartmentSelect.value = target.department || "";
+    refreshShiftEmployeeOptions();
+    if (isEmployeeScope && shiftEmployeeSelect) {
+      shiftEmployeeSelect.value = target.employeeId || "";
+    }
+    if (shiftCodeSelect) shiftCodeSelect.value = target.shiftType || "";
+    if (shiftNameInput) shiftNameInput.value = target.name || getShiftNameFromCode(target.shiftType || "");
+    if (shiftStartTimeInput) shiftStartTimeInput.value = formatTimeText(target.startTime);
+    if (shiftEndTimeInput) shiftEndTimeInput.value = formatTimeText(target.endTime);
+    if (shiftReminderTimeInput) shiftReminderTimeInput.value = formatTimeText(target.reminderTime);
+    if (shiftGraceMinutesInput) shiftGraceMinutesInput.value = Number(target.graceMinutes || 0);
+    if (shiftIsActiveInput) shiftIsActiveInput.checked = target.isActive !== false;
+    shiftSettingsForm?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function deleteShiftRule(scope, id) {
+    const isEmployeeScope = scope === "employee";
+    const targetCollection = isEmployeeScope ? "employeeShiftSettings" : "shiftTemplates";
+    const sourceList = isEmployeeScope ? employeeShiftSettings : shiftTemplates;
+    const target = sourceList.find((item) => item.id === id);
+    if (!target) return alert("找不到要刪除的班別規則");
+    if (!isEmployeeScope && target.isDefault) return alert("預設班別規則不可刪除");
+    if (!confirm("確定要刪除此班別規則嗎？")) return;
+
+    try {
+      if (!db) {
+        if (isEmployeeScope) employeeShiftSettings = employeeShiftSettings.filter((item) => item.id !== id);
+        else shiftTemplates = shiftTemplates.filter((item) => item.id !== id);
+        refreshShiftSettingViews();
+        refreshAttendanceSettings();
+        return;
+      }
+      await deleteDoc(doc(db, targetCollection, id));
+    } catch (error) {
+      console.error("刪除班別規則失敗", error);
+      alert("刪除班別規則失敗");
+    }
   }
 
   function renderAttendanceReminderPanel() {
@@ -2725,6 +2792,22 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       } catch (error) {
         console.error("儲存班別設定失敗", error);
         alert("儲存班別設定失敗");
+      }
+    });
+  }
+  
+  if (shiftSettingsList) {
+    shiftSettingsList.addEventListener("click", function (event) {
+      const actionButton = event.target.closest("button[data-action]");
+      if (!actionButton) return;
+      const action = actionButton.dataset.action || "";
+      const scope = actionButton.dataset.scope || "";
+      const id = actionButton.dataset.id || "";
+      if (!scope || !id) return;
+      if (action === "edit-shift-rule") {
+        loadShiftRuleToForm(scope, id);
+      } else if (action === "delete-shift-rule") {
+        deleteShiftRule(scope, id);
       }
     });
   }
