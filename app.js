@@ -62,35 +62,6 @@ const users = [
       attendance: true,
       leave: true
     }
-  },
-  {
-    employeeId: "GB080202",
-    account: "GB080202",
-    password: "GB080202",
-    name: "邱淑芬",
-    role: "財務副理",
-    title: "財務副理",
-    region: "台中區",
-    department: "管理部",
-    category: "正式員工",
-    annualLeaveDays: 0,
-    shifts: { morning: true, evening: false },
-    weekendsOff: true,
-    permissions: {
-      announcementManage: false,
-      leaveApprove: false,
-      admin: false,
-      coordinateAdmin: false
-    },
-    manageScopes: {
-      regions: [],
-      departments: []
-    },
-    fcmToken: "",
-    notificationSettings: {
-      announcement: true,
-      attendance: true,
-      leave: true
     }
   }
 ];
