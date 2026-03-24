@@ -2450,6 +2450,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         </div>
         <div class="item-actions">
           <button type="button" id="leave-employee-apply-btn" class="primary-btn">完成</button>
+          <button type="button" id="leave-employee-clear-btn" class="small-btn">清除</button>
           <button type="button" id="leave-employee-cancel-btn" class="small-btn cancel-btn">取消</button>
         </div>
       </div>
@@ -3362,6 +3363,16 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         selectedDepartment = pendingSelectedDepartment;
         selectedShiftType = pendingSelectedShiftType;
         isLeaveEmployeeFilterOpen = false;
+        renderLeaveBoard();
+        return;
+      }
+
+      const clearButton = event.target.closest("#leave-employee-clear-btn");
+      if (clearButton) {
+        pendingSelectedEmployeeIds = [];
+        pendingSelectedRegion = "";
+        pendingSelectedDepartment = "";
+        pendingSelectedShiftType = "";
         renderLeaveBoard();
         return;
       }
