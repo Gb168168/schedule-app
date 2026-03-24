@@ -2395,7 +2395,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (!db) {
       if (existing && !targetSymbolTypes.length) leaveAssignments = leaveAssignments.filter((item) => item.id !== existing.id);
       else if (existing) leaveAssignments = leaveAssignments.map((item) => item.id === existing.id ? { ...item, symbolType: targetSymbolType, symbolTypes: targetSymbolTypes, updatedBy: currentUser?.employeeId || "", updatedByName: currentUser?.name || "" } : item);
-      else leaveAssignments = [{ id: `local-${Date.now()}`, employeeId, employeeName: targetEmployee.name, region: targetEmployee.region, department: targetEmployee.department, category: targetEmployee.category, date: dateString, monthKey: currentLeaveMonth, symbolType: targetSymbolType, symbolTypes: targetSymbolTypes, createdBy: currentUser?.employeeId || "", createdByName: currentUser?.name || "", updatedBy: currentUser?.employeeId || "", updatedByName: currentUser?.name || "" 
+      else leaveAssignments = [{ id: `local-${Date.now()}`, employeeId, employeeName: targetEmployee.name, region: targetEmployee.region, department: targetEmployee.department, category: targetEmployee.category, date: dateString, monthKey: currentLeaveMonth, symbolType: targetSymbolType, symbolTypes: targetSymbolTypes, createdBy: currentUser?.employeeId || "", createdByName: currentUser?.name || "", updatedBy: currentUser?.employeeId || "", updatedByName: currentUser?.name || "" }];
       renderLeaveBoard();
       return;
     }
