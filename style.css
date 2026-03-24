@@ -160,12 +160,15 @@ textarea {
 
 .main-page {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .sidebar {
   width: 244px;
   flex-shrink: 0;
+  height: 100vh;
+  overflow-y: auto;
   background: linear-gradient(180deg, var(--nav-1), var(--nav-2));
   color: #ffffff;
   padding: 22px 16px;
@@ -232,6 +235,10 @@ textarea {
 .main-content {
   flex: 1;
   min-width: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .content-header {
@@ -263,6 +270,9 @@ textarea {
 
 .page-section {
   padding: 28px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .hero-card {
@@ -1203,8 +1213,14 @@ textarea {
 }
 
 .leave-board-card {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
+  height: 100%;
+}
+
+#page-schedule {
+  overflow: hidden;
 }
 
 .leave-board-header,
@@ -1333,7 +1349,21 @@ textarea {
 }
 
 .leave-grid-wrap {
-  overflow: auto;
+    flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.leave-board-table {
+  min-width: 1100px;
+}
+
+.leave-board-body {
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
 }
 
 .leave-board-head,
