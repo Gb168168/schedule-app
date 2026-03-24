@@ -336,13 +336,17 @@ function matchesLoginPassword(user, password) {
 }
 
 function findLoginUser(loginId, password) {
-  const normalizedLoginId = normalizeLoginValue(loginId);
-  if (!normalizedLoginId || !normalizePasswordValue(password)) return null;
+  const id = String(loginId || "").trim();
+  const pwd = String(password || "").trim();
+
+  if (!id || !pwd) return null;
 
   return employees.find(function (user) {
-    if (!isLoginEligible(user)) return false;
-    return getLoginIdentifiers(user).includes(normalizedLoginId) && matchesLoginPassword(user, password);
-  });
+    return (
+      user.employeeId === id &&
+      (user.password === pwd || pwd === user.employeeId)
+    );
+  }) || null;
 }
 
 function buildUserSession(user) {
@@ -1609,7 +1613,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     }
 
     const q = collection(db, "employees");
-    
+  
     onSnapshot(q, function (snapshot) {
       const visibleEmployees = sortEmployeesForDisplay(snapshot.docs
         .map(function (docItem) {
@@ -1622,7 +1626,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
           return !employee.isHidden;
         }));
 
-         if (visibleEmployees.length === 0) {
+      if (visibleEmployees.length === 0) {
         employees = getBuiltinEmployees();
         markEmployeesReady();
         renderEmployees();
