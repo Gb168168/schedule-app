@@ -291,84 +291,29 @@ function isLoginEligible(user) {
   return Boolean(user) && !user.isHidden && user.status !== "deleted";
 }
 
-function getEmailAliases(user) {
-  const emailValue = String(user?.email || "").trim();
-  const emailPrefixValue = String(user?.emailPrefix || "").trim();
-  const emailLocalPart = emailValue.includes("@") ? emailValue.split("@")[0] : emailValue;
-  const companyEmailValue = emailPrefixValue ? `${emailPrefixValue}@goldbricks.com.tw` : "";
-  
-  return [emailValue, emailPrefixValue, emailLocalPart, companyEmailValue].filter(Boolean);
-
-}
-function normalizeLegacyPasswordAliasValue(value) {
-  return normalizeLoginValue(value);
-}
-
-function getLoginIdentifiers(user) {
-  return [user?.employeeId, user?.account, user?.id, ...getEmailAliases(user)]
-    .map(normalizeLoginValue)
-    .filter(Boolean);
-}
-
 function getEmployeeMergeKeys(user) {
-  const uniqueKeys = new Set(getLoginIdentifiers(user));
+  const uniqueKeys = new Set(
+    [user?.employeeId, user?.account, user?.id]
+      .map(normalizeLoginValue)
+      .filter(Boolean)
+  );
   return Array.from(uniqueKeys);
 }
 
-function getAcceptedPasswords(user) {
-  return [user?.password, user?.employeeId, user?.account, ...getEmailAliases(user)]
-    .map(normalizePasswordValue)
-    .filter(Boolean);
-}
-
-function matchesLoginPassword(user, password) {
-  const normalizedPassword = normalizePasswordValue(password);
-  if (!normalizedPassword) return false;
-
-  const acceptedPasswords = getAcceptedPasswords(user);
-  if (acceptedPasswords.includes(normalizedPassword)) return true;
-
-  const normalizedPasswordForLegacyFallback = normalizeLegacyPasswordAliasValue(password);
-  const normalizedAcceptedAliases = acceptedPasswords.map(normalizeLegacyPasswordAliasValue);
-  if (normalizedAcceptedAliases.includes(normalizedPasswordForLegacyFallback)) return true;
-
-  return getLoginIdentifiers(user).includes(normalizedPasswordForLegacyFallback);
-}
-
-function findLoginUser(loginId, password) {
-  const normalizedLoginId = normalizeLoginValue(loginId);
+function findLoginUser(employeeId, password) {
+  const normalizedEmployeeId = normalizeLoginValue(employeeId);
   const normalizedPassword = normalizePasswordValue(password);
 
-  if (!normalizedLoginId || !normalizedPassword) return null;
+  if (!normalizedEmployeeId || !normalizedPassword) return null;
 
-  const matchedEmployee = employees.find(function (user) {
+  return employees.find(function (user) {
     if (!isLoginEligible(user)) return false;
-    const identifiers = getLoginIdentifiers(user);
-    if (!identifiers.includes(normalizedLoginId)) return false;
-    return matchesLoginPassword(user, normalizedPassword);
+
+ return (
+      normalizeLoginValue(user.employeeId) === normalizedEmployeeId &&
+      normalizePasswordValue(user.password) === normalizedPassword
+    );
   }) || null;
-  
-  if (matchedEmployee) return matchedEmployee;
-
-  const builtinMatchedUser = users.find(function (user) {
-    const builtinCandidate = {
-      status: "active",
-      isHidden: false,
-      ...user
-    };
-    const identifiers = getLoginIdentifiers(builtinCandidate);
-    if (!identifiers.includes(normalizedLoginId)) return false;
-    return matchesLoginPassword(builtinCandidate, normalizedPassword);
-  });
-
-  return builtinMatchedUser
-    ? {
-        id: `builtin-fallback-${builtinMatchedUser.employeeId || builtinMatchedUser.account || Date.now()}`,
-        status: "active",
-        isHidden: false,
-        ...builtinMatchedUser
-      }
-    : null;
 }
 
 function buildUserSession(user) {
@@ -394,7 +339,10 @@ function findUserBySession(session = {}) {
 
   return employees.find(function (user) {
     if (!isLoginEligible(user)) return false;
-    const userIdentifiers = getLoginIdentifiers(user);
+    const userIdentifiers = [user?.employeeId, user?.account, user?.id]
+      .map(normalizeLoginValue)
+      .filter(Boolean);
+
     return identifiers.some(function (identifier) {
       return userIdentifiers.includes(identifier);
     });
@@ -1641,16 +1589,18 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     const q = collection(db, "employees");
   
     onSnapshot(q, function (snapshot) {
-      const visibleEmployees = sortEmployeesForDisplay(snapshot.docs
-        .map(function (docItem) {
-          return {
-            id: docItem.id,
-            ...docItem.data()
-          };
-        })
-        .filter(function (employee) {
-          return !employee.isHidden;
-        }));
+      const visibleEmployees = sortEmployeesForDisplay(
+        snapshot.docs
+          .map(function (docItem) {
+            return {
+              id: docItem.id,
+              ...docItem.data()
+            };
+          })
+          .filter(function (employee) {
+            return !employee.isHidden;
+          })
+      );
 
       if (visibleEmployees.length === 0) {
         employees = getBuiltinEmployees();
@@ -2025,37 +1975,20 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   if (loginForm) {
-    loginForm.addEventListener("submit", async function (event) {
+    loginForm.addEventListener("submit", function (event) {
       event.preventDefault();
 
-      const loginId = document.getElementById("employeeId")?.value.trim() || "";
+      const employeeId = document.getElementById("employeeId")?.value.trim() || "";
       const password = document.getElementById("password")?.value.trim() || "";
-      console.log("登入時 employees:", employees);
 
-      if (!loginId || !password) {
-        if (loginError) loginError.textContent = "請輸入員工編號與密碼";
-        return;
-      }
-
-      let matchedUser = findLoginUser(loginId, password);
-
-      if (!matchedUser && !hasLoadedEmployees) {
-        setLoginLoadingState(true, "正在同步帳號資料，請稍候...");
-        const employeesReady = await waitForEmployeesReady();
-        matchedUser = findLoginUser(loginId, password);
-        
-        if (!employeesReady && !matchedUser) {
-          setLoginLoadingState(false, "帳號資料仍在同步中，請稍候 5-10 秒後再試一次");
-          return;
-        }
-      }
-
+      const matchedUser = findLoginUser(employeeId, password);
+      
       if (!matchedUser) {
-        setLoginLoadingState(false, "員工編號或密碼錯誤");
+        if (loginError) loginError.textContent = "員工編號或密碼錯誤";
         return;
       }
 
-      setLoginLoadingState(false, "");
+      if (loginError) loginError.textContent = "";
       setLoggedInUser(matchedUser);
     });
   }
