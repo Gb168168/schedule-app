@@ -336,16 +336,16 @@ function matchesLoginPassword(user, password) {
 }
 
 function findLoginUser(loginId, password) {
-  const id = String(loginId || "").trim();
-  const pwd = String(password || "").trim();
+  const normalizedLoginId = normalizeLoginValue(loginId);
+  const normalizedPassword = normalizePasswordValue(password);
 
-  if (!id || !pwd) return null;
+  if (!normalizedLoginId || !normalizedPassword) return null;
 
   return employees.find(function (user) {
-    return (
-      user.employeeId === id &&
-      (user.password === pwd || pwd === user.employeeId)
-    );
+    if (!isLoginEligible(user)) return false;
+    const identifiers = getLoginIdentifiers(user);
+    if (!identifiers.includes(normalizedLoginId)) return false;
+    return matchesLoginPassword(user, normalizedPassword);
   }) || null;
 }
 
