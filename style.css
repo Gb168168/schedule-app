@@ -132,6 +132,25 @@ textarea {
   line-height: 1.6;
 }
 
+.text-btn {
+  margin-top: 6px;
+  border: none;
+  background: transparent;
+  color: var(--blue-2);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.warning-text {
+  margin: 10px 0 0;
+  color: #b45309;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .error-text {
   min-height: 20px;
   margin-top: 10px;
