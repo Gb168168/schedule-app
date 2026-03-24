@@ -156,6 +156,7 @@ let shiftSettings = DEFAULT_SHIFT_SETTINGS.map((item) => ({
 }));
 let shiftTemplates = [];
 let employeeShiftSettings = [];
+let editingShiftRule = null;
 let editingCoordinateId = null;
 let lastAttendanceAttempt = null;
 let attendanceDetailMaps = {};
@@ -1066,6 +1067,7 @@ document.addEventListener("DOMContentLoaded", function () {
       alert("找不到要編輯的班別規則");
       return;
     }
+    editingShiftRule = { scope, id };
 
     if (shiftScopeSelect) shiftScopeSelect.value = isEmployeeScope ? "employee" : "template";
     if (shiftRegionSelect) shiftRegionSelect.value = target.region || "";
@@ -1097,13 +1099,19 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!db) {
         if (isEmployeeScope) employeeShiftSettings = employeeShiftSettings.filter((item) => item.id !== id);
         else shiftTemplates = shiftTemplates.filter((item) => item.id !== id);
+        if (editingShiftRule?.id === id && editingShiftRule?.scope === scope) editingShiftRule = null;
         refreshShiftSettingViews();
         refreshAttendanceSettings();
         return;
       }
       await deleteDoc(doc(db, targetCollection, id));
+      if (editingShiftRule?.id === id && editingShiftRule?.scope === scope) editingShiftRule = null;
     } catch (error) {
       console.error("刪除班別規則失敗", error);
+      if (error?.code === "permission-denied") {
+        alert("刪除失敗：目前帳號沒有刪除班別規則權限，請聯絡管理員。");
+        return;
+      }
       alert("刪除班別規則失敗");
     }
   }
@@ -2829,21 +2837,33 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       try {
         const targetCollection = scope === "employee" ? "employeeShiftSettings" : "shiftTemplates";
         const existing = scope === "employee" ? getEmployeeShiftOverride(employeeId, selectedCode) : getTemplateShift(region, department, selectedCode);
+        const isEditingCurrentScope = editingShiftRule?.scope === scope && editingShiftRule?.id;
+        const editingId = isEditingCurrentScope ? String(editingShiftRule.id) : "";
+        const isEditingDefaultTemplate = scope === "template" && editingId.startsWith("template-");
         if (!db) {
-          const localItem = { id: existing?.id || `${targetCollection}-${Date.now()}`, ...payload };
+          const localId = isEditingCurrentScope ? editingId : (existing?.id || `${targetCollection}-${Date.now()}`);
+          const localItem = { id: localId, ...payload };
           if (scope === "employee") employeeShiftSettings = existing ? employeeShiftSettings.map((item) => item.id === existing.id ? localItem : item) : [localItem, ...employeeShiftSettings];
           else shiftTemplates = existing ? shiftTemplates.map((item) => item.id === existing.id ? localItem : item) : [localItem, ...shiftTemplates];
+          editingShiftRule = null;
           refreshShiftSettingViews();
           refreshAttendanceSettings();
           return;
         }
-        if (existing?.id && !String(existing.id).startsWith("template-")) {
+        if (isEditingCurrentScope && !isEditingDefaultTemplate) {
+          await updateDoc(doc(db, targetCollection, editingId), payload);
+        } else if (existing?.id && !String(existing.id).startsWith("template-")) {
           await updateDoc(doc(db, targetCollection, existing.id), payload);
         } else {
           await addDoc(collection(db, targetCollection), { ...payload, createdAt: serverTimestamp(), isDefault: false });
         }
+        editingShiftRule = null;
       } catch (error) {
         console.error("儲存班別設定失敗", error);
+        if (error?.code === "permission-denied") {
+          alert("儲存失敗：目前帳號沒有修改班別規則權限，請聯絡管理員。");
+          return;
+        }
         alert("儲存班別設定失敗");
       }
     });
