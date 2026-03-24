@@ -1556,6 +1556,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                           if (employee.shifts?.morning) shifts.push("早班");
                           if (employee.shifts?.evening) shifts.push("晚班");
                           if (employee.weekendsOff) shifts.push("週休二日 & 國定假日");
+                          const showOnLeaveBoard = employee.showOnLeaveBoard !== false;
 
                           const scopeRegions = employee.manageScopes?.regions?.length
                             ? employee.manageScopes.regions.join("、")
@@ -1586,6 +1587,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                               <p>部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}</p>
                                   <p>類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}</p>
                                   <p>年度特休：${employee.annualLeaveDays || 0} 天｜班別與休假：${shifts.join("、") || "未設定"}</p>
+                                  <p>休假表顯示：${showOnLeaveBoard ? "顯示" : "隱藏"}</p>
                                   <p>權限：${formatEmployeePermissions(employee)}</p>
                                   ${employee.permissions?.admin ? `<p>管理地區：${scopeRegions}</p><p>管理部門：${scopeDepartments}</p>` : ""}
                                   ${canManageEmployees ? `<div class="item-actions"><button type="button" class="small-btn edit-btn" onclick="editEmployee('${employee.id}')">編輯</button><button type="button" class="small-btn delete-btn" onclick="deleteEmployee('${employee.id}')">刪除</button></div>` : ""}
@@ -1833,6 +1835,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     const keyword = String(leaveEmployeeSearch?.value || "").trim();
     return employees.filter((employee) => {
       if (employee.isHidden || employee.status === "deleted") return false;
+      if (employee.showOnLeaveBoard === false) return false;
       if (selectedRegion && employee.region !== selectedRegion) return false;
       if (selectedDepartment && employee.department !== selectedDepartment) return false;
       if (selectedShiftType && getUserShiftType(employee) !== selectedShiftType) return false;
@@ -1902,7 +1905,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
    function renderLeaveEmployeeFilterPanel() {
-    const candidates = employees.filter((employee) => !employee.isHidden && employee.status !== "deleted");
+    const candidates = employees.filter((employee) => !employee.isHidden && employee.status !== "deleted" && employee.showOnLeaveBoard !== false);
     const options = candidates.map((employee) => {
       const checked = pendingSelectedEmployeeIds.includes(employee.employeeId) ? "checked" : "";
       return `<label class="leave-employee-option"><input type="checkbox" value="${employee.employeeId}" ${checked} /><span><strong>${employee.name || employee.employeeId}</strong><small>${employee.region || "-"}｜${employee.department || "-"}</small><small>${employee.category || getUserShiftType(employee) || "-"}</small></span></label>`;
@@ -2239,6 +2242,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
           evening: document.getElementById("shift-evening")?.checked || false
         },
         weekendsOff: document.getElementById("weekends-off")?.checked || false,
+        showOnLeaveBoard: document.getElementById("show-on-leave-board")?.checked ?? true,
         permissions: {
           admin: adminCheckbox?.checked || false,
           leaveApprove: leaveApproveCheckbox?.checked || false,
@@ -2278,6 +2282,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
           evening: false
         };
         employeeData.weekendsOff = false;
+        employeeData.showOnLeaveBoard = true;
         employeeData.manageScopes = {
           regions: ["新竹區", "台中區", "嘉義區"],
           departments: ["管理部", "TSE", "FAE", "新場", "倉管", "RD", "線上客服"]
@@ -2381,6 +2386,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     document.getElementById("shift-morning").checked = !!employee.shifts?.morning;
     document.getElementById("shift-evening").checked = !!employee.shifts?.evening;
     document.getElementById("weekends-off").checked = !!employee.weekendsOff;
+    document.getElementById("show-on-leave-board").checked = employee.showOnLeaveBoard !== false;
 
     if (adminCheckbox) adminCheckbox.checked = !!employee.permissions?.admin;
     if (leaveApproveCheckbox) leaveApproveCheckbox.checked = !!employee.permissions?.leaveApprove;
