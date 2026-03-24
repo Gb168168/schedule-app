@@ -279,6 +279,22 @@ function normalizePasswordValue(value) {
     .replace(/　/g, " ");
 }
 
+function getUserPasswordCandidates(user) {
+  const explicitPassword = normalizePasswordValue(user?.password);
+  if (explicitPassword) return [explicitPassword];
+
+  const fallbackCandidates = [user?.employeeId, user?.account, user?.id]
+    .map(normalizePasswordValue)
+    .filter(Boolean);
+
+  return Array.from(new Set(fallbackCandidates));
+}
+
+function isPasswordMatched(user, normalizedPassword) {
+  if (!user || !normalizedPassword) return false;
+  return getUserPasswordCandidates(user).includes(normalizedPassword);
+}
+
 function isLoginEligible(user) {
   return Boolean(user) && !user.isHidden && user.status !== "deleted";
 }
@@ -309,7 +325,7 @@ function findLoginUser(employeeId, password) {
 
     return (
       getLoginIdentifiers(user).includes(normalizedEmployeeId) &&
-      normalizePasswordValue(user.password) === normalizedPassword
+      isPasswordMatched(user, normalizedPassword)
     );
   });
 
@@ -318,7 +334,7 @@ function findLoginUser(employeeId, password) {
   const builtinMatchedUser = users.find(function (user) {
     return (
       getLoginIdentifiers(user).includes(normalizedEmployeeId) &&
-      normalizePasswordValue(user.password) === normalizedPassword
+      isPasswordMatched(user, normalizedPassword)
     );
   });
 
