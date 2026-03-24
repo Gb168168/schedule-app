@@ -1170,7 +1170,7 @@ textarea {
 
 .leave-filter-toolbar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(220px, 360px);
 }
 
 .leave-symbol-toolbar {
@@ -1224,6 +1224,12 @@ textarea {
 .leave-employee-option span {
   display: grid;
   gap: 4px;
+}
+
+.leave-employee-filter-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .leave-employee-option small {
@@ -1419,6 +1425,10 @@ textarea {
   .leave-month-summary,
   .leave-filter-toolbar,
   .leave-employee-filter-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .leave-employee-filter-fields {
     grid-template-columns: 1fr;
   }
   
