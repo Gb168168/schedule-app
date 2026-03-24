@@ -19,6 +19,7 @@ const LOCATION_CATEGORIES = {
   office: "區域固定點",
   customer: "工作店家"
 };
+const ATTENDANCE_TIMEZONE = "Asia/Shanghai";
 
 const DEFAULT_ATTENDANCE_LOCATIONS = [
   { region: "新竹區", category: "office", name: "新竹辦公點", lat: 24.8039, lng: 120.9647, radiusMeters: 500, isActive: true, isHidden: false },
@@ -1145,6 +1146,7 @@ document.addEventListener("DOMContentLoaded", function () {
     attendanceSettingsSummary.innerHTML = `
       <p><strong>啟用座標：</strong>${activeLocations.length} 筆</p>
       <p><strong>目前班別：</strong>${shift ? `${shift.name}（${formatTimeText(shift.startTime)} - ${formatTimeText(shift.endTime)}）` : "尚未設定"}</p>
+      <p><strong>打卡時區：</strong>北京時間（UTC+8）</p>
       <p><strong>提醒時間：</strong>${shift ? formatTimeText(shift.reminderTime) : "-"}</p>
       <p><strong>最後正常打卡：</strong>${shift ? `${formatTimeText(shift.startTime)} + ${shift.graceMinutes} 分鐘` : "-"}</p>
       <p><strong>定位打卡：</strong>先比對登入者地區，若該地區沒有符合點位，再回退為所有啟用點位。</p>
@@ -1385,10 +1387,36 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  function parseAttendanceDate(value) {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (typeof value?.toDate === "function") return value.toDate();
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  function getBeijingDateParts(value) {
+    const date = parseAttendanceDate(value);
+    if (!date) return null;
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: ATTENDANCE_TIMEZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    });
+    const parts = formatter.formatToParts(date);
+    const year = parts.find((part) => part.type === "year")?.value;
+    const month = parts.find((part) => part.type === "month")?.value;
+    const day = parts.find((part) => part.type === "day")?.value;
+    if (!year || !month || !day) return null;
+    return { year, month, day };
+  }
+  
   function formatAttendanceDateTime(value) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "-";
+    const date = parseAttendanceDate(value);
+    if (!date || Number.isNaN(date.getTime())) return "-";
     return date.toLocaleString("zh-TW", {
+      timeZone: ATTENDANCE_TIMEZONE,
       hour12: false,
       year: "numeric",
       month: "2-digit",
@@ -1399,29 +1427,27 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function formatDateKey(dateValue) {
-    const date = new Date(dateValue);
-    if (Number.isNaN(date.getTime())) return "";
-    
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
+    const parts = getBeijingDateParts(dateValue);
+    if (!parts) return "";
+    return `${parts.year}-${parts.month}-${parts.day}`;
   }
 
   function formatTimeOnly(dateValue) {
-    const date = new Date(dateValue);
-    if (Number.isNaN(date.getTime())) return "-";
+    const date = parseAttendanceDate(dateValue);
+    if (!date || Number.isNaN(date.getTime())) return "-";
     return date.toLocaleTimeString("zh-TW", {
+      timeZone: ATTENDANCE_TIMEZONE,
+      hour12: false,
       hour: "2-digit",
       minute: "2-digit"
     });
   }
 
   function calculateHours(startValue, endValue) {
-    const start = new Date(startValue);
-    const end = new Date(endValue);
+    const start = parseAttendanceDate(startValue);
+    const end = parseAttendanceDate(endValue);
 
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "-";
+    if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "-";
     if (end < start) return "-";
 
     const diffHours = (end - start) / 1000 / 60 / 60;
