@@ -128,6 +128,7 @@ let currentLeaveMonth = `${calendarDate.getFullYear()}-${String(calendarDate.get
 let activeSymbolType = "";
 let selectedEmployeeIds = [];
 let pendingSelectedEmployeeIds = [];
+let isLeaveEmployeeFilterOpen = false;
 let selectedRegion = "";
 let selectedDepartment = "";
 let selectedShiftType = "";
@@ -737,9 +738,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const leaveEmployeeSearch = document.getElementById("leave-employee-search");
   const leaveSymbolToolbar = document.getElementById("leave-symbol-toolbar");
   const leaveEditHint = document.getElementById("leave-edit-hint");
-  const leaveEmployeeFilterList = document.getElementById("leave-employee-filter-list");
-  const leaveEmployeeApplyBtn = document.getElementById("leave-employee-apply-btn");
-  const leaveEmployeeCancelBtn = document.getElementById("leave-employee-cancel-btn");
   const leaveBoardTable = document.getElementById("leave-board-table");
   const schedulePopover = document.getElementById("schedule-popover");
 
@@ -1904,12 +1902,24 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
    function renderLeaveEmployeeFilterPanel() {
-    if (!leaveEmployeeFilterList) return;
     const candidates = employees.filter((employee) => !employee.isHidden && employee.status !== "deleted");
-    leaveEmployeeFilterList.innerHTML = candidates.map((employee) => {
+    const options = candidates.map((employee) => {
       const checked = pendingSelectedEmployeeIds.includes(employee.employeeId) ? "checked" : "";
       return `<label class="leave-employee-option"><input type="checkbox" value="${employee.employeeId}" ${checked} /><span><strong>${employee.name || employee.employeeId}</strong><small>${employee.region || "-"}｜${employee.department || "-"}</small><small>${employee.category || getUserShiftType(employee) || "-"}</small></span></label>`;
     }).join("");
+     return `<div class="leave-employee-filter-popover">
+      <div class="section-header-row">
+        <div>
+          <h4>人員篩選</h4>
+          <p class="helper-text">可勾選多位員工後套用顯示。</p>
+        </div>
+        <div class="item-actions">
+          <button type="button" id="leave-employee-apply-btn" class="primary-btn">完成</button>
+          <button type="button" id="leave-employee-cancel-btn" class="small-btn cancel-btn">取消</button>
+        </div>
+      </div>
+      <div id="leave-employee-filter-list" class="leave-employee-filter-list">${options}</div>
+    </div>`;
   }
 
   function renderLeaveBoard() {
@@ -1925,7 +1935,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (leaveTotalRestDays) leaveTotalRestDays.textContent = monthSetting?.totalRestDays != null ? String(monthSetting.totalRestDays) : "-";
     syncLeaveFilterOptions();
     renderLeaveToolbar();
-    renderLeaveEmployeeFilterPanel();
+    const filterPopover = isLeaveEmployeeFilterOpen ? renderLeaveEmployeeFilterPanel() : "";
+    const selectedCount = selectedEmployeeIds.length;
+    const pendingCount = pendingSelectedEmployeeIds.length;
 
     if (!visibleEmployees.length) {
       leaveBoardTable.innerHTML = '<div class="list-item"><p>目前沒有符合篩選條件的人員。</p></div>';
@@ -1955,7 +1967,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       return `<div class="leave-board-row"><div class="leave-employee-card"><strong>${employee.name || employee.employeeId}</strong><small>${employee.region || "-"}｜${employee.department || "-"}</small><small>${employee.category || getUserShiftType(employee) || "-"}</small></div><div class="leave-row-cells" style="--days:${daysInMonth}">${cells}</div><div class="leave-summary-card"><div><span>▲</span><strong>${counts.rest}</strong></div><div><span>★</span><strong>${counts.newYear}</strong></div><div><span>🎰</span><strong>${counts.event}</strong></div></div></div>`;
     }).join("");
 
-    leaveBoardTable.innerHTML = `<div class="leave-board-head"><div class="leave-sticky-col">人員</div><div class="leave-header-days" style="--days:${daysInMonth}">${headerDays}</div><div class="leave-summary-head"><div>▲</div><div>★</div><div>🎰</div></div></div>${rows}`;
+    leaveBoardTable.innerHTML = `<div class="leave-board-head"><div class="leave-sticky-col"><div class="leave-sticky-col-head"><strong>人員</strong><div class="employee-filter-toggle-wrap"><small class="employee-filter-toggle-label">${selectedCount > 0 ? `已套用 ${selectedCount} 人` : `待選 ${pendingCount} 人`}</small><button type="button" id="leave-employee-toggle" class="switch ${isLeaveEmployeeFilterOpen ? "is-on" : ""}" aria-label="切換人員篩選"></button></div></div>${filterPopover}</div><div class="leave-header-days" style="--days:${daysInMonth}">${headerDays}</div><div class="leave-summary-head"><div>▲</div><div>★</div><div>🎰</div></div></div>${rows}`;
   }
 
     async function toggleLeaveAssignment(employeeId, dateString) {
@@ -2539,9 +2551,40 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
     if (leaveBoardTable) {
     leaveBoardTable.addEventListener("click", function (event) {
+      const toggleButton = event.target.closest("#leave-employee-toggle");
+      if (toggleButton) {
+        isLeaveEmployeeFilterOpen = !isLeaveEmployeeFilterOpen;
+        renderLeaveBoard();
+        return;
+      }
+
+      const applyButton = event.target.closest("#leave-employee-apply-btn");
+      if (applyButton) {
+        selectedEmployeeIds = [...pendingSelectedEmployeeIds];
+        isLeaveEmployeeFilterOpen = false;
+        renderLeaveBoard();
+        return;
+      }
+
+      const cancelButton = event.target.closest("#leave-employee-cancel-btn");
+      if (cancelButton) {
+        selectedEmployeeIds = [];
+        pendingSelectedEmployeeIds = [];
+        isLeaveEmployeeFilterOpen = false;
+        renderLeaveBoard();
+        return;
+      }
+      
       const cell = event.target.closest(".leave-cell[data-employee-id][data-date]");
       if (!cell) return;
       toggleLeaveAssignment(cell.dataset.employeeId || "", cell.dataset.date || "");
+    });
+    
+    leaveBoardTable.addEventListener("change", function (event) {
+      const checkbox = event.target.closest('#leave-employee-filter-list input[type="checkbox"]');
+      if (!checkbox) return;
+      pendingSelectedEmployeeIds = Array.from(leaveBoardTable.querySelectorAll('#leave-employee-filter-list input[type="checkbox"]:checked')).map((input) => input.value);
+      renderLeaveBoard();
     });
   }
  
@@ -2549,13 +2592,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   if (leaveDepartmentFilter) leaveDepartmentFilter.addEventListener("change", function () { selectedDepartment = leaveDepartmentFilter.value || ""; renderLeaveBoard(); });
   if (leaveShiftFilter) leaveShiftFilter.addEventListener("change", function () { selectedShiftType = leaveShiftFilter.value || ""; renderLeaveBoard(); });
   if (leaveEmployeeSearch) leaveEmployeeSearch.addEventListener("input", renderLeaveBoard);
-  if (leaveEmployeeFilterList) {
-    leaveEmployeeFilterList.addEventListener("change", function () {
-      pendingSelectedEmployeeIds = Array.from(leaveEmployeeFilterList.querySelectorAll('input[type="checkbox"]:checked')).map((input) => input.value);
-    });
-  }
-  if (leaveEmployeeApplyBtn) leaveEmployeeApplyBtn.addEventListener("click", function () { selectedEmployeeIds = [...pendingSelectedEmployeeIds]; renderLeaveBoard(); });
-  if (leaveEmployeeCancelBtn) leaveEmployeeCancelBtn.addEventListener("click", function () { selectedEmployeeIds = []; pendingSelectedEmployeeIds = []; renderLeaveBoard(); });
   if (prevMonthBtn) prevMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() - 1); renderLeaveBoard(); });
   if (nextMonthBtn) nextMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() + 1); renderLeaveBoard(); });
     
