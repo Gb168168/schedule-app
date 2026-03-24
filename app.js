@@ -276,7 +276,8 @@ function normalizeLoginValue(value) {
 function normalizePasswordValue(value) {
   return String(value || "")
     .trim()
-    .replace(/　/g, " ");
+    .replace(/　/g, " ")
+    .toLowerCase();
 }
 
 function getUserPasswordCandidates(user) {
