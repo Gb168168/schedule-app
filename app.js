@@ -573,6 +573,19 @@ function compareRegionsNorthToSouth(a, b) {
   return getRegionOrder(a) - getRegionOrder(b);
 }
 
+function getDepartmentOrder(departmentName) {
+  const index = DEPARTMENTS.indexOf(departmentName);
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+function compareDepartmentsForTodayStaff(a, b, region = "") {
+  if (region !== "台中區") return String(a || "").localeCompare(String(b || ""), "zh-Hant");
+
+  const orderDiff = getDepartmentOrder(a) - getDepartmentOrder(b);
+  if (orderDiff !== 0) return orderDiff;
+  return String(a || "").localeCompare(String(b || ""), "zh-Hant");
+}
+
 function sortEmployeesForDisplay(employeeList = []) {
   return [...employeeList].sort(function (a, b) {
     return getComparableTimestampValue(a.createdAt) - getComparableTimestampValue(b.createdAt);
@@ -1684,7 +1697,7 @@ document.addEventListener("DOMContentLoaded", function () {
       .sort((a, b) => {
         const regionCompare = compareRegionsNorthToSouth(a.region || "", b.region || "");
         if (regionCompare !== 0) return regionCompare;
-        const departmentCompare = (a.department || "").localeCompare(b.department || "", "zh-Hant");
+        const departmentCompare = compareDepartmentsForTodayStaff(a.department || "", b.department || "", a.region || "");
         if (departmentCompare !== 0) return departmentCompare;
         const shiftCompare = (a.shiftType || "").localeCompare(b.shiftType || "", "zh-Hant");
         if (shiftCompare !== 0) return shiftCompare;
@@ -1713,7 +1726,7 @@ document.addEventListener("DOMContentLoaded", function () {
       .map(function (region) {
         const departments = grouped[region];
         const departmentHtml = Object.keys(departments)
-          .sort((a, b) => a.localeCompare(b, "zh-Hant"))
+          .sort((a, b) => compareDepartmentsForTodayStaff(a, b, region))
           .map(function (department) {
             const shiftGroups = departments[department];
             const extraShiftTypes = Object.keys(shiftGroups)
