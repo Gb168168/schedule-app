@@ -617,11 +617,56 @@ function getCurrentPositionAsync() {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 0
-    });
+       let hasCompleted = false;
+    const tryLocate = function (options, onFailure) {
+      navigator.geolocation.getCurrentPosition(
+        function (position) {
+          if (hasCompleted) return;
+          hasCompleted = true;
+          resolve(position);
+        },
+        function (error) {
+          if (hasCompleted) return;
+          onFailure(error);
+        },
+        options
+      );
+    };
+
+    const toGeolocationErrorMessage = function (error) {
+      const code = Number(error?.code);
+      if (code === 1) {
+        return "定位權限被拒絕，請到手機瀏覽器設定允許定位後再試。";
+      }
+      if (code === 2) {
+        return "無法取得定位資訊，請確認 GPS / 網路定位已開啟。";
+      }
+      if (code === 3) {
+        return "定位逾時，請移動到訊號較佳位置後再試。";
+      }
+      return error?.message || "定位失敗，請稍後再試。";
+    };
+
+    tryLocate(
+      {
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 0
+      },
+      function (firstError) {
+        tryLocate(
+          {
+            enableHighAccuracy: false,
+            timeout: 15000,
+            maximumAge: 120000
+          },
+          function (secondError) {
+            const finalError = secondError || firstError;
+            reject(new Error(toGeolocationErrorMessage(finalError)));
+          }
+        );
+      }
+    );
   });
 }
 
@@ -1230,7 +1275,12 @@ document.addEventListener("DOMContentLoaded", function () {
       alert("請先設定班別");
       return;
     }
-
+  
+    if (!window.isSecureContext && !/^localhost$|^127(\.\d+){3}$/.test(window.location.hostname)) {
+      alert("目前不是安全連線（HTTPS），手機瀏覽器可能無法取得定位，請改用 HTTPS 網址開啟。");
+      return;
+    }
+    
     try {
       const position = await getCurrentPositionAsync();
       const lat = position.coords.latitude;
