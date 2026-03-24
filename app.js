@@ -62,7 +62,6 @@ const users = [
       attendance: true,
       leave: true
     }
-    }
   }
 ];
 
