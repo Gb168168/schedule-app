@@ -932,6 +932,13 @@ document.addEventListener("DOMContentLoaded", function () {
   const leaveOpenStartDateInput = document.getElementById("leave-open-start-date");
   const leaveOpenEndDateInput = document.getElementById("leave-open-end-date");
   const leaveTotalRestDaysInput = document.getElementById("leave-total-rest-days-input");
+  const leaveMessageBoardContent = document.getElementById("leave-message-board-content");
+  const leaveMessageBoardCard = document.getElementById("leave-message-board-card");
+  const leaveMessageBoardEditBtn = document.getElementById("leave-message-board-edit-btn");
+  const leaveMessageBoardEditor = document.getElementById("leave-message-board-editor");
+  const leaveMessageBoardInput = document.getElementById("leave-message-board-input");
+  const leaveMessageBoardSaveBtn = document.getElementById("leave-message-board-save-btn");
+  const leaveMessageBoardCloseBtn = document.getElementById("leave-message-board-close-btn");
   const leaveSymbolToolbar = document.getElementById("leave-symbol-toolbar");
   const leaveEditHint = document.getElementById("leave-edit-hint");
   const leaveBoardTable = document.getElementById("leave-board-table");
@@ -2345,24 +2352,30 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   function syncLeaveMonthSettingsPanel() {
-    const isGoldBricks = isGoldBricksUser(currentUser);
-    if (leaveOpenRangeEditBtn) leaveOpenRangeEditBtn.classList.toggle("hidden", !isGoldBricks);
-    if (leaveTotalRestEditBtn) leaveTotalRestEditBtn.classList.toggle("hidden", !isGoldBricks);
-    if (!isGoldBricks) {
+    const canEditMonthSettings = isGoldBricksUser(currentUser);
+    const canEditMessageBoard = isAdmin(currentUser);
+    if (leaveOpenRangeEditBtn) leaveOpenRangeEditBtn.classList.toggle("hidden", !canEditMonthSettings);
+    if (leaveTotalRestEditBtn) leaveTotalRestEditBtn.classList.toggle("hidden", !canEditMonthSettings);
+    if (leaveMessageBoardEditBtn) leaveMessageBoardEditBtn.classList.toggle("hidden", !canEditMessageBoard);
+    if (!canEditMonthSettings && !canEditMessageBoard) {
       closeLeaveSummaryEditors();
       return;
     }
     const monthSetting = getMonthSetting(currentLeaveMonth);
-    if (leaveOpenStartDateInput) leaveOpenStartDateInput.value = monthSetting?.openStartDate || "";
-    if (leaveOpenEndDateInput) leaveOpenEndDateInput.value = monthSetting?.openEndDate || "";
+      if (canEditMonthSettings) {
+      if (leaveOpenStartDateInput) leaveOpenStartDateInput.value = monthSetting?.openStartDate || "";
+      if (leaveOpenEndDateInput) leaveOpenEndDateInput.value = monthSetting?.openEndDate || "";
+    }
     if (leaveTotalRestDaysInput) {
       leaveTotalRestDaysInput.value = monthSetting?.totalRestDays != null ? String(monthSetting.totalRestDays) : "";
     }
+    if (leaveMessageBoardInput && canEditMessageBoard) leaveMessageBoardInput.value = monthSetting?.messageBoardContent || "";
   }
 
   function closeLeaveSummaryEditors() {
     if (leaveOpenRangeEditor) leaveOpenRangeEditor.classList.add("hidden");
     if (leaveTotalRestEditor) leaveTotalRestEditor.classList.add("hidden");
+    if (leaveMessageBoardEditor) leaveMessageBoardEditor.classList.add("hidden");
   }
 
   function toggleLeaveSummaryEditor(kind) {
@@ -2379,6 +2392,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const willOpen = leaveTotalRestEditor.classList.contains("hidden");
       closeLeaveSummaryEditors();
       leaveTotalRestEditor.classList.toggle("hidden", !willOpen);
+       return;
+    }
+    if (kind === "messageBoard") {
+      if (!isAdmin(currentUser) || !leaveMessageBoardEditor) return;
+      const willOpen = leaveMessageBoardEditor.classList.contains("hidden");
+      closeLeaveSummaryEditors();
+      leaveMessageBoardEditor.classList.toggle("hidden", !willOpen);
     }
   }
   
@@ -2509,6 +2529,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (calendarTitle) calendarTitle.textContent = `${monthDate.getFullYear()} 年 ${monthDate.getMonth() + 1} 月`;
     if (leaveOpenRange) leaveOpenRange.textContent = monthSetting?.openStartDate && monthSetting?.openEndDate ? `${monthSetting.openStartDate} ~ ${monthSetting.openEndDate}` : "尚未設定";
     if (leaveTotalRestDays) leaveTotalRestDays.textContent = monthSetting?.totalRestDays != null ? String(monthSetting.totalRestDays) : "-";
+    if (leaveMessageBoardContent) {
+      const messageText = String(monthSetting?.messageBoardContent || "").trim();
+      leaveMessageBoardContent.textContent = messageText || "目前無留言";
+    }
     syncLeaveMonthSettingsPanel();
     syncLeaveFilterOptions();
     renderLeaveToolbar();
@@ -2631,23 +2655,30 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   async function saveLeaveMonthSettings(mode = "all") {
-    if (!isGoldBricksUser(currentUser)) return alert("僅 GoldBricks 可設定每月排假條件。");
+    const isMessageBoardMode = mode === "messageBoard";
+    if (!isMessageBoardMode && !isGoldBricksUser(currentUser)) return alert("僅 GoldBricks 可設定每月排假條件。");
+    if (isMessageBoardMode && !isAdmin(currentUser)) return alert("僅管理員可編輯留言版。");
     const monthKey = String(currentLeaveMonth || "").trim();
     const existing = getMonthSetting(monthKey);
     const openStartDate = String(
-      mode === "totalRest"
+      mode === "totalRest" || mode === "messageBoard"
         ? (existing?.openStartDate || "")
         : (leaveOpenStartDateInput?.value || existing?.openStartDate || "")
     ).trim();
     const openEndDateRaw = String(
-      mode === "totalRest"
+      mode === "totalRest" || mode === "messageBoard"
         ? (existing?.openEndDate || "")
         : (leaveOpenEndDateInput?.value || existing?.openEndDate || "")
     ).trim();
     const totalRestDaysRaw = String(
-      mode === "openRange"
+      mode === "openRange" || mode === "messageBoard"
         ? (existing?.totalRestDays != null ? String(existing.totalRestDays) : "")
         : (leaveTotalRestDaysInput?.value || (existing?.totalRestDays != null ? String(existing.totalRestDays) : ""))
+    ).trim();
+    const messageBoardContent = String(
+      mode === "messageBoard"
+        ? (leaveMessageBoardInput?.value || existing?.messageBoardContent || "")
+        : (existing?.messageBoardContent || "")
     ).trim();
     if (!monthKey) return alert("目前月份無法辨識，請重新整理後再試。");
     const defaultMonthEnd = getLastDateOfMonth(monthKey);
@@ -2671,6 +2702,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       openStartDate,
       openEndDate,
       totalRestDays,
+      messageBoardContent,
       updatedBy: currentUser?.employeeId || "",
       updatedByName: currentUser?.name || "",
       updatedAt: serverTimestamp()
@@ -3456,15 +3488,19 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
  
   if (leaveOpenRangeEditBtn) leaveOpenRangeEditBtn.addEventListener("click", function () { toggleLeaveSummaryEditor("openRange"); });
   if (leaveTotalRestEditBtn) leaveTotalRestEditBtn.addEventListener("click", function () { toggleLeaveSummaryEditor("totalRest"); });
+  if (leaveMessageBoardEditBtn) leaveMessageBoardEditBtn.addEventListener("click", function () { toggleLeaveSummaryEditor("messageBoard"); });
   if (leaveOpenRangeCloseBtn) leaveOpenRangeCloseBtn.addEventListener("click", closeLeaveSummaryEditors);
   if (leaveTotalRestCloseBtn) leaveTotalRestCloseBtn.addEventListener("click", closeLeaveSummaryEditors);
+  if (leaveMessageBoardCloseBtn) leaveMessageBoardCloseBtn.addEventListener("click", closeLeaveSummaryEditors);
   if (leaveOpenRangeSaveBtn) leaveOpenRangeSaveBtn.addEventListener("click", function () { saveLeaveMonthSettings("openRange"); });
   if (leaveTotalRestSaveBtn) leaveTotalRestSaveBtn.addEventListener("click", function () { saveLeaveMonthSettings("totalRest"); });
+  if (leaveMessageBoardSaveBtn) leaveMessageBoardSaveBtn.addEventListener("click", function () { saveLeaveMonthSettings("messageBoard"); });
   document.addEventListener("click", function (event) {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
     if (leaveOpenRangeCard?.contains(target)) return;
     if (leaveTotalRestCard?.contains(target)) return;
+    if (leaveMessageBoardCard?.contains(target)) return;
     closeLeaveSummaryEditors();
   });
   if (prevMonthBtn) prevMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() - 1); renderLeaveBoard(); });
