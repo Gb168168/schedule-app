@@ -299,6 +299,12 @@ function isLoginEligible(user) {
   return Boolean(user) && !user.isHidden && user.status !== "deleted";
 }
 
+function getLoginIdentifiers(user) {
+  return [user?.employeeId, user?.account, user?.id, user?.email]
+    .map(normalizeLoginValue)
+    .filter(Boolean);
+}
+
 function getEmployeeMergeKeys(user) {
   const uniqueKeys = new Set(
     [user?.employeeId, user?.account, user?.id]
@@ -313,12 +319,6 @@ function findLoginUser(employeeId, password) {
   const normalizedPassword = normalizePasswordValue(password);
 
   if (!normalizedEmployeeId || !normalizedPassword) return null;
-
-   const getLoginIdentifiers = function (user) {
-    return [user?.employeeId, user?.account, user?.id, user?.email]
-      .map(normalizeLoginValue)
-      .filter(Boolean);
-  };
 
   const matchedEmployee = employees.find(function (user) {
     if (!isLoginEligible(user)) return false;
@@ -348,6 +348,34 @@ function findLoginUser(employeeId, password) {
     : null;
 }
 
+function getLoginFailureMessage(employeeId, password) {
+  const normalizedEmployeeId = normalizeLoginValue(employeeId);
+  const normalizedPassword = normalizePasswordValue(password);
+
+  if (!normalizedEmployeeId || !normalizedPassword) {
+    return "請輸入帳號與密碼。";
+  }
+
+  const normalizedUsers = Array.from(new Set([...employees, ...users]));
+  const matchedByIdentifier = normalizedUsers.find(function (user) {
+    return getLoginIdentifiers(user).includes(normalizedEmployeeId);
+  });
+
+  if (!matchedByIdentifier) {
+    return "找不到此帳號，請確認 employeeId / account / email 是否輸入正確。";
+  }
+
+  if (!isLoginEligible(matchedByIdentifier)) {
+    return "此帳號已停用（隱藏或刪除），請聯絡管理員。";
+  }
+
+  if (!isPasswordMatched(matchedByIdentifier, normalizedPassword)) {
+    return "密碼錯誤。若員工尚未設定密碼，可改用員工編號或 account 登入。";
+  }
+
+  return "員工編號或密碼錯誤。";
+}
+
 function buildUserSession(user) {
   return {
     employeeId: user?.employeeId || "",
@@ -360,6 +388,11 @@ function persistCurrentUserSession(user) {
   const session = buildUserSession(user);
   safeStorageSet(STORAGE_KEYS.currentUser, session.employeeId);
   safeStorageSet(STORAGE_KEYS.currentUserSession, JSON.stringify(session));
+}
+
+function clearCurrentUserSessionCache() {
+  safeStorageRemove(STORAGE_KEYS.currentUser);
+  safeStorageRemove(STORAGE_KEYS.currentUserSession);
 }
 
 function findUserBySession(session = {}) {
@@ -706,7 +739,14 @@ document.addEventListener("DOMContentLoaded", function () {
   const mainPage = document.getElementById("main-page");
   const loginForm = document.getElementById("login-form");
   const loginError = document.getElementById("login-error");
+  const loginSystemWarning = document.getElementById("login-system-warning");
+  const loginClearCacheBtn = document.getElementById("login-clear-cache-btn");
   const logoutBtn = document.getElementById("logout-btn");
+
+   if (!firebaseApp && loginSystemWarning) {
+    loginSystemWarning.textContent = "目前未設定 Firebase（window.__FIREBASE_CONFIG__），僅能使用內建測試帳號登入。";
+    loginSystemWarning.classList.remove("hidden");
+  }
 
   const currentUserName = document.getElementById("current-user-name");
   const shiftInfo = document.getElementById("today-shift-info");
@@ -2515,6 +2555,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         savedSession = JSON.parse(savedSessionRaw) || {};
       } catch (error) {
         console.warn("解析登入快取失敗，改用舊版登入資訊", error);
+        safeStorageRemove(STORAGE_KEYS.currentUserSession);
       }
     }
 
@@ -2544,7 +2585,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const matchedUser = findLoginUser(employeeId, password);
       
       if (!matchedUser) {
-        if (loginError) loginError.textContent = "員工編號或密碼錯誤";
+        if (loginError) loginError.textContent = getLoginFailureMessage(employeeId, password);
         return;
       }
 
@@ -2559,8 +2600,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       editingAnnouncementId = null;
       editingScheduleId = null;
       selectedScheduleDate = "";
-      safeStorageRemove(STORAGE_KEYS.currentUser);
-      safeStorageRemove(STORAGE_KEYS.currentUserSession);
+      clearCurrentUserSessionCache();
       hideAnnouncementEditor();
       if (typeof closeSchedulePopover === "function") {
         closeSchedulePopover();
@@ -2571,6 +2611,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (loginForm) loginForm.reset();
       if (loginError) loginError.textContent = "";
       updateMenuPermissions(null);
+    });
+  }
+
+  if (loginClearCacheBtn) {
+    loginClearCacheBtn.addEventListener("click", function () {
+      clearCurrentUserSessionCache();
+      if (loginError) loginError.textContent = "已清除登入快取，請重新登入。";
     });
   }
 
