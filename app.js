@@ -341,12 +341,34 @@ function findLoginUser(loginId, password) {
 
   if (!normalizedLoginId || !normalizedPassword) return null;
 
-  return employees.find(function (user) {
+  const matchedEmployee = employees.find(function (user) {
     if (!isLoginEligible(user)) return false;
     const identifiers = getLoginIdentifiers(user);
     if (!identifiers.includes(normalizedLoginId)) return false;
     return matchesLoginPassword(user, normalizedPassword);
   }) || null;
+  
+  if (matchedEmployee) return matchedEmployee;
+
+  const builtinMatchedUser = users.find(function (user) {
+    const builtinCandidate = {
+      status: "active",
+      isHidden: false,
+      ...user
+    };
+    const identifiers = getLoginIdentifiers(builtinCandidate);
+    if (!identifiers.includes(normalizedLoginId)) return false;
+    return matchesLoginPassword(builtinCandidate, normalizedPassword);
+  });
+
+  return builtinMatchedUser
+    ? {
+        id: `builtin-fallback-${builtinMatchedUser.employeeId || builtinMatchedUser.account || Date.now()}`,
+        status: "active",
+        isHidden: false,
+        ...builtinMatchedUser
+      }
+    : null;
 }
 
 function buildUserSession(user) {
