@@ -732,6 +732,12 @@ document.addEventListener("DOMContentLoaded", function () {
   const leaveMonthLabel = document.getElementById("leave-month-label");
   const leaveOpenRange = document.getElementById("leave-open-range");
   const leaveTotalRestDays = document.getElementById("leave-total-rest-days");
+  const leaveMonthSettingsPanel = document.getElementById("leave-month-settings-panel");
+  const leaveSettingMonthInput = document.getElementById("leave-setting-month");
+  const leaveOpenStartDateInput = document.getElementById("leave-open-start-date");
+  const leaveOpenEndDateInput = document.getElementById("leave-open-end-date");
+  const leaveTotalRestDaysInput = document.getElementById("leave-total-rest-days-input");
+  const leaveMonthSettingsSaveBtn = document.getElementById("leave-month-settings-save-btn");
   const leaveRegionFilter = document.getElementById("leave-region-filter");
   const leaveDepartmentFilter = document.getElementById("leave-department-filter");
   const leaveShiftFilter = document.getElementById("leave-shift-filter");
@@ -1831,6 +1837,26 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     return leaveMonthSettings.find((item) => item.monthKey === monthKey) || null;
   }
 
+  function getLastDateOfMonth(monthKey) {
+    const [year, month] = String(monthKey || "").split("-").map(Number);
+    if (!year || !month) return "";
+    return formatDate(new Date(year, month, 0));
+  }
+
+  function syncLeaveMonthSettingsPanel() {
+    if (!leaveMonthSettingsPanel) return;
+    const isGoldBricks = isGoldBricksUser(currentUser);
+    leaveMonthSettingsPanel.classList.toggle("hidden", !isGoldBricks);
+    if (!isGoldBricks) return;
+    if (leaveSettingMonthInput) leaveSettingMonthInput.value = currentLeaveMonth;
+    const monthSetting = getMonthSetting(currentLeaveMonth);
+    if (leaveOpenStartDateInput) leaveOpenStartDateInput.value = monthSetting?.openStartDate || "";
+    if (leaveOpenEndDateInput) leaveOpenEndDateInput.value = monthSetting?.openEndDate || "";
+    if (leaveTotalRestDaysInput) {
+      leaveTotalRestDaysInput.value = monthSetting?.totalRestDays != null ? String(monthSetting.totalRestDays) : "";
+    }
+  }
+
   function getVisibleLeaveEmployees() {
     const keyword = String(leaveEmployeeSearch?.value || "").trim();
     return employees.filter((employee) => {
@@ -1936,6 +1962,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (leaveMonthLabel) leaveMonthLabel.textContent = currentLeaveMonth;
     if (leaveOpenRange) leaveOpenRange.textContent = monthSetting?.openStartDate && monthSetting?.openEndDate ? `${monthSetting.openStartDate} ~ ${monthSetting.openEndDate}` : "尚未設定";
     if (leaveTotalRestDays) leaveTotalRestDays.textContent = monthSetting?.totalRestDays != null ? String(monthSetting.totalRestDays) : "-";
+    syncLeaveMonthSettingsPanel();
     syncLeaveFilterOptions();
     renderLeaveToolbar();
     const filterPopover = isLeaveEmployeeFilterOpen ? renderLeaveEmployeeFilterPanel() : "";
@@ -1984,6 +2011,21 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     }
     const existing = getAssignmentForCell(currentLeaveMonth, employeeId, dateString);
     const sameSymbol = existing?.symbolType === activeSymbolType;
+    const targetSymbolType = existing && sameSymbol ? "" : activeSymbolType;
+    const monthlyRestLimit = Number(monthSetting?.totalRestDays);
+    const isLimited = Number.isFinite(monthlyRestLimit) && monthlyRestLimit >= 0;
+    const isTargetRestSymbol = ["rest", "must_rest"].includes(targetSymbolType);
+
+    if (isLimited && isTargetRestSymbol) {
+      const counts = getEmployeeSummaryCounts(employeeId, currentLeaveMonth);
+      const existingRestCount = ["rest", "must_rest"].includes(existing?.symbolType) ? 1 : 0;
+      const nextRestCount = counts.rest - existingRestCount + 1;
+      if (nextRestCount > monthlyRestLimit) {
+        alert(`本月可排休上限為 ${monthlyRestLimit} 天，無法再新增。`);
+        return;
+      }
+    }
+
     if (!db) {
       if (existing && sameSymbol) leaveAssignments = leaveAssignments.filter((item) => item.id !== existing.id);
       else if (existing) leaveAssignments = leaveAssignments.map((item) => item.id === existing.id ? { ...item, symbolType: activeSymbolType, updatedBy: currentUser?.employeeId || "", updatedByName: currentUser?.name || "" } : item);
@@ -2022,6 +2064,64 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     } catch (error) {
       console.error("儲存休假表失敗", error);
       alert("儲存休假表失敗，請稍後再試。");
+    }
+  }
+
+  async function saveLeaveMonthSettings() {
+    if (!isGoldBricksUser(currentUser)) return alert("僅 GoldBricks 可設定每月排假條件。");
+    const monthKey = String(leaveSettingMonthInput?.value || currentLeaveMonth).trim();
+    const openStartDate = String(leaveOpenStartDateInput?.value || "").trim();
+    const openEndDateRaw = String(leaveOpenEndDateInput?.value || "").trim();
+    const totalRestDaysRaw = String(leaveTotalRestDaysInput?.value || "").trim();
+    const totalRestDays = Number(totalRestDaysRaw);
+    if (!monthKey) return alert("請先選擇設定月份。");
+    if (!openStartDate) return alert("請設定排假開放起始日。");
+    if (totalRestDaysRaw === "" || !Number.isFinite(totalRestDays) || totalRestDays < 0) return alert("請輸入有效的本月可排休天數（0 以上）。");
+    const defaultMonthEnd = getLastDateOfMonth(monthKey);
+    const openEndDate = openEndDateRaw || defaultMonthEnd;
+    if (openEndDate < openStartDate) return alert("排假截止日不可早於開放起始日。");
+    const payload = {
+      monthKey,
+      openStartDate,
+      openEndDate,
+      totalRestDays,
+      updatedBy: currentUser?.employeeId || "",
+      updatedByName: currentUser?.name || "",
+      updatedAt: serverTimestamp()
+    };
+    const existing = getMonthSetting(monthKey);
+    try {
+      if (!db) {
+        if (existing) {
+          leaveMonthSettings = leaveMonthSettings.map((item) => item.id === existing.id ? { ...item, ...payload } : item);
+        } else {
+          leaveMonthSettings = [{ id: `local-${Date.now()}`, ...payload }, ...leaveMonthSettings];
+        }
+        if (leaveSettingMonthInput) leaveSettingMonthInput.value = monthKey;
+        const [year, month] = monthKey.split("-").map(Number);
+        calendarDate = new Date(year, (month || 1) - 1, 1);
+        renderLeaveBoard();
+        return;
+      }
+
+      if (existing?.id) {
+        await updateDoc(doc(db, "leaveMonthSettings", existing.id), payload);
+      } else {
+        await addDoc(collection(db, "leaveMonthSettings"), {
+          ...payload,
+          createdBy: currentUser?.employeeId || "",
+          createdByName: currentUser?.name || "",
+          createdAt: serverTimestamp()
+        });
+      }
+      if (leaveSettingMonthInput) leaveSettingMonthInput.value = monthKey;
+      const [year, month] = monthKey.split("-").map(Number);
+      calendarDate = new Date(year, (month || 1) - 1, 1);
+      renderLeaveBoard();
+      alert("每月排假設定已儲存。");
+    } catch (error) {
+      console.error("儲存每月排假設定失敗", error);
+      alert("儲存每月排假設定失敗，請稍後再試。");
     }
   }
 
@@ -2598,6 +2698,15 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   if (leaveDepartmentFilter) leaveDepartmentFilter.addEventListener("change", function () { selectedDepartment = leaveDepartmentFilter.value || ""; renderLeaveBoard(); });
   if (leaveShiftFilter) leaveShiftFilter.addEventListener("change", function () { selectedShiftType = leaveShiftFilter.value || ""; renderLeaveBoard(); });
   if (leaveEmployeeSearch) leaveEmployeeSearch.addEventListener("input", renderLeaveBoard);
+  if (leaveSettingMonthInput) {
+    leaveSettingMonthInput.addEventListener("change", function () {
+      const monthKey = leaveSettingMonthInput.value || currentLeaveMonth;
+      const [year, month] = monthKey.split("-").map(Number);
+      calendarDate = new Date(year, (month || 1) - 1, 1);
+      renderLeaveBoard();
+    });
+  }
+  if (leaveMonthSettingsSaveBtn) leaveMonthSettingsSaveBtn.addEventListener("click", saveLeaveMonthSettings);
   if (prevMonthBtn) prevMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() - 1); renderLeaveBoard(); });
   if (nextMonthBtn) nextMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() + 1); renderLeaveBoard(); });
     
