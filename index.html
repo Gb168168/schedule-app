@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-1</title>
+  <title>班表系統-2</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -441,21 +441,30 @@
           </div>
 
           <div class="leave-month-summary">
-            <div class="stat-card"><h4>月份</h4><p id="leave-month-label">-</p></div>
-            <div class="stat-card"><h4>排假開放日</h4><p id="leave-open-range">-</p></div>
-            <div class="stat-card"><h4>本月可排休</h4><p id="leave-total-rest-days">-</p></div>
-          </div>
-
-        <div id="leave-month-settings-panel" class="form-section hidden">
-            <h4>GoldBricks 月設定</h4>
-            <div class="two-column-grid">
-              <label class="field-label"><span>設定月份</span><input id="leave-setting-month" type="month" /></label>
-              <label class="field-label"><span>本月可排休天數</span><input id="leave-total-rest-days-input" type="number" min="0" step="1" placeholder="例如 8" /></label>
-              <label class="field-label"><span>排假開放起始日</span><input id="leave-open-start-date" type="date" /></label>
-              <label class="field-label"><span>排假截止日（可空白）</span><input id="leave-open-end-date" type="date" /></label>
+            <div id="leave-open-range-card" class="stat-card leave-editable-summary">
+              <h4>排假開放日</h4>
+              <p id="leave-open-range">-</p>
+              <button type="button" id="leave-open-range-edit-btn" class="small-btn leave-summary-edit-btn hidden">編輯</button>
+              <div id="leave-open-range-editor" class="leave-summary-popover hidden">
+                <label class="field-label"><span>排假開放起始日</span><input id="leave-open-start-date" type="date" /></label>
+                <label class="field-label"><span>排假截止日（可空白）</span><input id="leave-open-end-date" type="date" /></label>
+                <div class="item-actions">
+                  <button type="button" id="leave-open-range-save-btn" class="primary-btn">儲存</button>
+                  <button type="button" id="leave-open-range-close-btn" class="small-btn cancel-btn">關閉</button>
+                </div>
+              </div>
             </div>
-            <div class="item-actions">
-              <button type="button" id="leave-month-settings-save-btn" class="primary-btn">儲存本月設定</button>
+            <div id="leave-total-rest-card" class="stat-card leave-editable-summary">
+              <h4>本月可排休</h4>
+              <p id="leave-total-rest-days">-</p>
+              <button type="button" id="leave-total-rest-edit-btn" class="small-btn leave-summary-edit-btn hidden">編輯</button>
+              <div id="leave-total-rest-editor" class="leave-summary-popover hidden">
+                <label class="field-label"><span>本月可排休天數</span><input id="leave-total-rest-days-input" type="number" min="0" step="1" placeholder="例如 8" /></label>
+                <div class="item-actions">
+                  <button type="button" id="leave-total-rest-save-btn" class="primary-btn">儲存</button>
+                  <button type="button" id="leave-total-rest-close-btn" class="small-btn cancel-btn">關閉</button>
+                </div>
+              </div>
             </div>
           </div>
 
