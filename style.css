@@ -1276,9 +1276,9 @@ textarea {
 
 .leave-inline-summary {
   display: grid;
-  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
   gap: 10px;
-  min-width: 340px;
+  min-width: 560px;
 }
 
 .leave-inline-summary-item {
@@ -1300,6 +1300,19 @@ textarea {
   color: var(--blue-2);
   font-size: 20px;
   font-weight: 800;
+}
+
+leave-message-board-card {
+  min-width: 220px;
+}
+
+.leave-message-board-content {
+  color: var(--text);
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  min-height: 44px;
 }
 
 .leave-inline-summary-item .leave-summary-edit-btn {
