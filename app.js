@@ -1695,6 +1695,87 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     });
   }
 
+  function renderLeaveStats() {
+    if (!leaveStats) return;
+
+    const visibleLeaves = isAdmin(currentUser)
+      ? leaveRequests
+      : leaveRequests.filter(function (item) {
+          return currentUser && item.userName === currentUser.name;
+        });
+
+    const stats = {
+      特休: 0,
+      病假: 0,
+      事假: 0,
+      待審核: 0
+    };
+
+    visibleLeaves.forEach(function (item) {
+      if (stats[item.type] !== undefined) stats[item.type] += 1;
+      if (item.status === "待審核") stats["待審核"] += 1;
+    });
+
+    leaveStats.innerHTML = `
+      <div class="stat-card"><h4>特休</h4><p>${stats.特休}</p></div>
+      <div class="stat-card"><h4>病假</h4><p>${stats.病假}</p></div>
+      <div class="stat-card"><h4>事假</h4><p>${stats.事假}</p></div>
+      <div class="stat-card"><h4>待審核</h4><p>${stats.待審核}</p></div>
+    `;
+  }
+
+  function renderLeaves() {
+    if (!leaveList) return;
+
+    const visibleLeaves = isAdmin(currentUser)
+      ? leaveRequests
+      : leaveRequests.filter(function (item) {
+          return currentUser && item.userName === currentUser.name;
+        });
+
+    renderLeaveStats();
+
+    if (visibleLeaves.length === 0) {
+      leaveList.innerHTML = `<div class="list-item"><p>目前沒有請假申請。</p></div>`;
+      return;
+    }
+
+    leaveList.innerHTML = visibleLeaves
+      .map(function (item) {
+        let actions = "";
+
+        if (item.status === "待審核" && isAdmin(currentUser)) {
+          actions = `
+            <div class="item-actions">
+              <button type="button" class="small-btn approve-btn" onclick="approveLeave('${item.id}')">核准</button>
+              <button type="button" class="small-btn reject-btn" onclick="rejectLeave('${item.id}')">駁回</button>
+            </div>
+          `;
+        } else if (item.status === "待審核" && currentUser && item.userName === currentUser.name) {
+          actions = `
+            <div class="item-actions">
+              <button type="button" class="small-btn cancel-btn" onclick="cancelLeave('${item.id}')">取消</button>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="list-item">
+            <h4>${item.type}</h4>
+            <div class="item-meta">
+              ${item.userName || "-"}｜${item.department || "-"}｜${item.region || "-"}
+            </div>
+            <p>日期：${item.startDate || "-"} ～ ${item.endDate || "-"}</p>
+            <p>原因：${item.reason || "-"}</p>
+            <p>狀態：<span class="status-badge status-${item.status || "待審核"}">${item.status || "待審核"}</span></p>
+            ${item.reviewedBy ? `<p>審核者：${item.reviewedBy}｜時間：${item.reviewedAt || "-"}</p>` : ""}
+            ${actions}
+          </div>
+        `;
+      })
+      .join("");
+  }
+
   function startLeaveMonthSettingsListener() {
     if (!db) return;
     onSnapshot(query(collection(db, "leaveMonthSettings"), orderBy("monthKey", "desc")), function (snapshot) {
@@ -1906,36 +1987,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       console.error("儲存休假表失敗", error);
       alert("儲存休假表失敗，請稍後再試。");
     }
-  }
-
-  function renderLeaveStats() {
-    if (!leaveStats) return;
-
-    const stats = {
-      pending: leaveRequests.filter((item) => item.status === "待審核").length,
-      approved: leaveRequests.filter((item) => item.status === "已核准").length,
-      rejected: leaveRequests.filter((item) => item.status === "已駁回").length,
-      cancelled: leaveRequests.filter((item) => item.status === "已取消").length
-    };
-
-    leaveStats.innerHTML = `
-      <div class="stat-card">
-        <h4>待審核</h4>
-        <p>${stats.pending}</p>
-      </div>
-      <div class="stat-card">
-        <h4>已核准</h4>
-        <p>${stats.approved}</p>
-      </div>
-      <div class="stat-card">
-        <h4>已駁回</h4>
-        <p>${stats.rejected}</p>
-      </div>
-      <div class="stat-card">
-        <h4>已取消</h4>
-        <p>${stats.cancelled}</p>
-      </div>
-    `;
   }
 
   window.startEditAnnouncement = function (id) {
