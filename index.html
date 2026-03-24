@@ -32,12 +32,13 @@
       <nav class="menu">
         <button class="menu-btn active" data-page="home">首頁</button>
         <button class="menu-btn" data-page="announcement">公告欄</button>
-        <button class="menu-btn" data-page="staff">人員資訊</button>
-        <button class="menu-btn" data-page="leave">請假</button>
-        <button class="menu-btn hidden" id="menu-coordinate-btn" data-page="coordinates">打卡座標</button>
-        <button class="menu-btn" data-page="shift-settings">班別設定</button>
-        <button class="menu-btn" data-page="attendance">打卡紀錄</button>
         <button class="menu-btn" data-page="schedule">休假表</button>
+        <button class="menu-btn" data-page="roster">排程表</button>
+        <button class="menu-btn" data-page="staff">人員資訊</button>
+        <button class="menu-btn hidden" id="menu-shift-settings-btn" data-page="shift-settings">班別設定</button>
+        <button class="menu-btn" data-page="leave">請假申請</button>
+        <button class="menu-btn hidden" id="menu-attendance-btn" data-page="attendance">打卡紀錄</button>
+        <button class="menu-btn hidden" id="menu-coordinate-btn" data-page="coordinates">打卡座標</button>
       </nav>
     </aside>
 
@@ -149,6 +150,14 @@
           </div>
 
           <div id="announcement-list" class="list-wrap"></div>
+        </div>
+      </section>
+
+      <section id="page-roster" class="page-section hidden">
+        <div class="card">
+          <h3>排程表</h3>
+          <p class="helper-text">排程表功能已重新加入左側選單，可在此查看每月排程資訊。</p>
+          <p class="helper-text">目前先沿用休假表資料，後續可再擴充更細的排程管理。</p>
         </div>
       </section>
 
