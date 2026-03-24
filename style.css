@@ -747,6 +747,42 @@ textarea {
   padding: 16px;
 }
 
+.schedule-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 998;
+}
+
+.today-attendance-employee-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.today-attendance-employee-btn {
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.today-attendance-employee-btn:hover {
+  background: var(--blue-soft);
+  color: var(--blue-2);
+}
+
+.attendance-record-popover {
+  width: 520px;
+}
+
+.attendance-record-detail-list {
+  display: grid;
+  gap: 10px;
+}
+
 .schedule-popover-header {
   display: flex;
   align-items: center;
