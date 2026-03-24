@@ -1218,8 +1218,32 @@ textarea {
 
 .leave-month-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.leave-editable-summary {
+  position: relative;
+  overflow: visible;
+}
+
+.leave-summary-edit-btn {
+  margin-top: 8px;
+}
+
+.leave-summary-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 10px);
+  left: 0;
+  width: min(320px, 92vw);
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  display: grid;
+  gap: 10px;
 }
 
 .leave-symbol-toolbar {
