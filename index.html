@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-4</title>
+  <title>班表系統-5</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -67,6 +67,16 @@
         </div>
 
         <div class="content-grid home-grid">
+           <div class="card">
+            <div class="section-header-row">
+              <div>
+                <h3>當日上班人員</h3>
+                <p class="helper-text">點擊姓名可展開浮動視窗查看該員工今日打卡記錄。</p>
+              </div>
+            </div>
+            <div id="today-attendance-staff-list" class="list-wrap"></div>
+          </div>
+          
            <div class="card attendance-card">
             <div class="section-header-row">
               <div>
@@ -451,6 +461,16 @@
     </section>
   </div>
 
+  <div id="attendance-record-popover-backdrop" class="schedule-popover-backdrop hidden">
+    <div id="attendance-record-popover" class="schedule-popover attendance-record-popover">
+      <div class="schedule-popover-header">
+        <h4 id="attendance-record-popover-title">打卡記錄</h4>
+        <button id="attendance-record-popover-close" type="button" class="small-btn cancel-btn">關閉</button>
+      </div>
+      <div id="attendance-record-popover-content" class="list-wrap"></div>
+    </div>
+  </div>
+  
   <script>
      window.__FIREBASE_CONFIG__ = window.__FIREBASE_CONFIG__ || {
       apiKey: "AIzaSyAmPIQMfAR1BmvJbjx3L002ibVu2kXA3uM",
