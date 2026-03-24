@@ -1207,15 +1207,15 @@ textarea {
 
 .leave-employee-filter-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
 }
 
 .leave-employee-option {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: flex-start;
-  padding: 12px;
+  padding: 10px;
   border-radius: 14px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1329,15 +1329,15 @@ textarea {
   position: absolute;
   top: calc(100% + 10px);
   left: calc(100% + 10px);
-  width: min(640px, 78vw);
+  width: min(520px, 72vw);
   z-index: 5;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: var(--surface-soft);
   box-shadow: var(--shadow-pop);
-  padding: 16px;
+  padding: 14px;
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .leave-employee-filter-popover .section-header-row {
