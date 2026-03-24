@@ -89,6 +89,17 @@ const FIXED_HOLIDAY_RULES = [
   { monthDay: "05-01", name: "勞動節" },
   { monthDay: "10-10", name: "國慶日" }
 ];
+const SPECIAL_HOLIDAY_RANGES = [
+  { name: "春節連假", startDate: "2026-02-14", endDate: "2026-02-22" },
+  { name: "228 和平紀念日", startDate: "2026-02-27", endDate: "2026-03-01" },
+  { name: "清明連假", startDate: "2026-04-03", endDate: "2026-04-06" },
+  { name: "勞動節", startDate: "2026-05-01", endDate: "2026-05-03" },
+  { name: "端午節", startDate: "2026-06-19", endDate: "2026-06-21" },
+  { name: "中秋節 + 教師節", startDate: "2026-09-25", endDate: "2026-09-28" },
+  { name: "國慶日", startDate: "2026-10-09", endDate: "2026-10-11" },
+  { name: "台灣光復節", startDate: "2026-10-24", endDate: "2026-10-26" },
+  { name: "行憲紀念日", startDate: "2026-12-25", endDate: "2026-12-27" }
+];
 const HOLIDAY_NAME_BY_DATE = new Map();
 const HOLIDAY_DATES = new Set();
 
@@ -186,6 +197,18 @@ function initHolidayCalendar(startYear = 2020, endYear = 2035) {
       HOLIDAY_DATES.add(dateKey);
     });
   }
+  
+  SPECIAL_HOLIDAY_RANGES.forEach(function (holidayRange) {
+    const start = new Date(`${holidayRange.startDate}T00:00:00`);
+    const end = new Date(`${holidayRange.endDate}T00:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return;
+
+    for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+      const dateKey = formatDate(cursor);
+      HOLIDAY_NAME_BY_DATE.set(dateKey, holidayRange.name);
+      HOLIDAY_DATES.add(dateKey);
+    }
+  });
 }
 
 function getHolidayName(dateString) {
