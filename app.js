@@ -1645,7 +1645,22 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     const workingEmployees = getTodayWorkingEmployeesByLeaveBoard()
-      .sort((a, b) => (a.name || "").localeCompare(b.name || "", "zh-Hant"));
+      .map((employee) => {
+        const shiftType = getUserShiftType(employee);
+        return {
+          ...employee,
+          shiftType
+        };
+      })
+      .sort((a, b) => {
+        const regionCompare = compareRegionsNorthToSouth(a.region || "", b.region || "");
+        if (regionCompare !== 0) return regionCompare;
+        const departmentCompare = (a.department || "").localeCompare(b.department || "", "zh-Hant");
+        if (departmentCompare !== 0) return departmentCompare;
+        const shiftCompare = (a.shiftType || "").localeCompare(b.shiftType || "", "zh-Hant");
+        if (shiftCompare !== 0) return shiftCompare;
+        return (a.name || "").localeCompare(b.name || "", "zh-Hant");
+      });
 
     if (!workingEmployees.length) {
       todayWorkingStaffList.innerHTML = `<div class="list-item"><p>今日無可上班人員（休假表已全部排休或活動）。</p></div>`;
@@ -1653,7 +1668,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     todayWorkingStaffList.innerHTML = workingEmployees
-      .map((employee) => `<div class="list-item"><p>${employee.name || employee.employeeId}</p><p class="item-meta">${employee.employeeId || "-"}｜${employee.region || "-"}｜${employee.department || "-"}</p></div>`)
+      .map((employee) => `<div class="list-item"><p>${employee.region || "-"}｜${employee.department || "-"}｜${employee.shiftType || "-"}｜${employee.name || employee.employeeId}</p></div>`)
       .join("");
   }
 
