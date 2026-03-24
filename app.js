@@ -80,6 +80,7 @@ const SYMBOL_TYPES = {
 };
 const SYMBOL_BUTTON_ORDER = ["rest", "must_rest", "new_year_rest", "new_year_must_rest", "event"];
 const SYMBOL_LABELS = Object.fromEntries(Object.entries(SYMBOL_TYPES).map(([key, value]) => [key, value.label]));
+const LEAVE_EXCLUDED_SYMBOL_TYPES = new Set(["rest", "must_rest", "new_year_rest", "new_year_must_rest", "event"]);
 const HOLIDAY_DATES = new Set([]);
 
 const STORAGE_KEYS = {
@@ -767,6 +768,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const attendanceFilterResetBtn = document.getElementById("attendance-filter-reset-btn");
   const attendanceSummaryList = document.getElementById("attendance-summary-list");
   const todayAttendanceStaffList = document.getElementById("today-attendance-staff-list");
+  const todayWorkingStaffList = document.getElementById("today-working-staff-list");
   const attendanceRecordPopoverBackdrop = document.getElementById("attendance-record-popover-backdrop");
   const attendanceRecordPopoverTitle = document.getElementById("attendance-record-popover-title");
   const attendanceRecordPopoverContent = document.getElementById("attendance-record-popover-content");
@@ -1612,6 +1614,43 @@ document.addEventListener("DOMContentLoaded", function () {
     todayAttendanceStaffList.innerHTML = `<div class="today-attendance-employee-list">${buttons}</div>`;
   }
 
+  function getTodayWorkingEmployeesByLeaveBoard() {
+    const todayString = formatDate(new Date());
+    const todayMonthKey = todayString.slice(0, 7);
+    const todayLeaveMap = new Map(
+      leaveAssignments
+        .filter((item) => item.monthKey === todayMonthKey && item.date === todayString)
+        .map((item) => [item.employeeId, getAssignmentSymbolTypes(item)])
+    );
+
+    return employees.filter((employee) => {
+      if (employee.isHidden || employee.status === "deleted") return false;
+      if (employee.showOnLeaveBoard === false) return false;
+      const symbolTypes = todayLeaveMap.get(employee.employeeId) || [];
+      return !symbolTypes.some((symbolType) => LEAVE_EXCLUDED_SYMBOL_TYPES.has(symbolType));
+    });
+  }
+
+  function renderTodayWorkingStaff() {
+    if (!todayWorkingStaffList) return;
+    if (!currentUser) {
+      todayWorkingStaffList.innerHTML = `<div class="list-item"><p>請先登入以查看當日上班人員。</p></div>`;
+      return;
+    }
+
+    const workingEmployees = getTodayWorkingEmployeesByLeaveBoard()
+      .sort((a, b) => (a.name || "").localeCompare(b.name || "", "zh-Hant"));
+
+    if (!workingEmployees.length) {
+      todayWorkingStaffList.innerHTML = `<div class="list-item"><p>今日無可上班人員（休假表已全部排休或活動）。</p></div>`;
+      return;
+    }
+
+    todayWorkingStaffList.innerHTML = workingEmployees
+      .map((employee) => `<div class="list-item"><p>${employee.name || employee.employeeId}</p><p class="item-meta">${employee.employeeId || "-"}｜${employee.region || "-"}｜${employee.department || "-"}</p></div>`)
+      .join("");
+  }
+
   function renderAttendanceDetailMap(container) {
     if (!container || typeof L === "undefined" || container.dataset.mapReady === "true") return;
     const lat = Number(container.dataset.lat);
@@ -1777,6 +1816,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       shiftInfo.textContent = `今日班別：${shift}`;
     }
     renderTodayAttendanceStaff();
+    renderTodayWorkingStaff();
   }
 
     function isSuperAdminEmployee(employeeId) {
@@ -1904,6 +1944,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       .join("");
     refreshShiftEmployeeOptions();
     renderLeaveBoard();
+    renderTodayWorkingStaff();
   }
 
   function startEmployeesListener() {
@@ -2142,6 +2183,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     onSnapshot(query(collection(db, "leaveMonthSettings"), orderBy("monthKey", "desc")), function (snapshot) {
       leaveMonthSettings = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
       renderLeaveBoard();
+      renderTodayWorkingStaff();
     });
   }
 
@@ -2150,6 +2192,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     onSnapshot(query(collection(db, "leaveAssignments"), orderBy("date", "asc")), function (snapshot) {
       leaveAssignments = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
       renderLeaveBoard();
+      renderTodayWorkingStaff();
     });
   }
 
@@ -3314,6 +3357,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   renderLeaves();
   renderLeaveBoard();
+  renderTodayWorkingStaff();
   renderSchedules();
 
   startAnnouncementsListener();
