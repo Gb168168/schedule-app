@@ -163,16 +163,26 @@ let selectedDepartment = "";
 let selectedShiftType = "";
 let leaveMonthSettings = [];
 let leaveAssignments = [];
-let employees = users.map((user, index) => ({ id: `builtin-${index}`, status: "active", isHidden: false, ...user }));
+let employees = users.map((user, index) => ({
+  id: `builtin-${index}`,
+  status: "active",
+  isHidden: false,
+  ...user
+}));
 let isBootstrappingEmployees = false;
 let hasLoadedEmployees = false;
 let resolveEmployeesReady = null;
 const employeesReadyPromise = new Promise(function (resolve) {
   resolveEmployeesReady = resolve;
 });
-let attendanceLocations = DEFAULT_ATTENDANCE_LOCATIONS.map((item, index) => ({ id: `default-${index}`, ...item }));
+let attendanceLocations = DEFAULT_ATTENDANCE_LOCATIONS.map((item, index) => ({
+  id: `default-${index}`,
+  ...item
+}));
 let attendanceRecords = [];
-let shiftSettings = DEFAULT_SHIFT_SETTINGS.map((item) => ({ ...item }));
+let shiftSettings = DEFAULT_SHIFT_SETTINGS.map((item) => ({
+  ...item
+}));
 let shiftTemplates = [];
 let employeeShiftSettings = [];
 let editingCoordinateId = null;
