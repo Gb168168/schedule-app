@@ -1207,16 +1207,16 @@ textarea {
 
 .leave-employee-filter-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
 }
 
 .leave-employee-option {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: flex-start;
-  padding: 10px;
-  border-radius: 14px;
+  padding: 8px;
+  border-radius: 12px;
   background: var(--surface);
   border: 1px solid var(--border);
 }
@@ -1228,6 +1228,7 @@ textarea {
 
 .leave-employee-option small {
   color: var(--text-soft);
+  font-size: 11px;
 }
 
 .leave-grid-wrap {
@@ -1329,7 +1330,7 @@ textarea {
   position: absolute;
   top: calc(100% + 10px);
   left: calc(100% + 10px);
-  width: min(520px, 72vw);
+  width: min(460px, 68vw);
   z-index: 5;
   border: 1px solid var(--border);
   border-radius: 16px;
