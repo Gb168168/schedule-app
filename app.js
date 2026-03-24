@@ -298,11 +298,17 @@ function findLoginUser(employeeId, password) {
 
   if (!normalizedEmployeeId || !normalizedPassword) return null;
 
+   const getLoginIdentifiers = function (user) {
+    return [user?.employeeId, user?.account, user?.id, user?.email]
+      .map(normalizeLoginValue)
+      .filter(Boolean);
+  };
+
   const matchedEmployee = employees.find(function (user) {
     if (!isLoginEligible(user)) return false;
 
     return (
-      normalizeLoginValue(user.employeeId) === normalizedEmployeeId &&
+      getLoginIdentifiers(user).includes(normalizedEmployeeId) &&
       normalizePasswordValue(user.password) === normalizedPassword
     );
   });
@@ -311,7 +317,7 @@ function findLoginUser(employeeId, password) {
 
   const builtinMatchedUser = users.find(function (user) {
     return (
-      normalizeLoginValue(user.employeeId) === normalizedEmployeeId &&
+      getLoginIdentifiers(user).includes(normalizedEmployeeId) &&
       normalizePasswordValue(user.password) === normalizedPassword
     );
   });
