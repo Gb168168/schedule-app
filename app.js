@@ -1590,57 +1590,57 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   function startEmployeesListener() {
-     if (!db) {
-      employees = getBuiltinEmployees();
-      markEmployeesReady();
-      renderEmployees();
-      restoreLogin();
-      return;
-    }
+  if (!db) {
+    employees = getBuiltinEmployees();
+    markEmployeesReady();
+    renderEmployees();
+    restoreLogin();
+    return;
+  }
 
-    const q = collection(db, "employees");
+  const q = collection(db, "employees");
 
-       onSnapshot(
-      q,
-      function (snapshot) {
-        const visibleEmployees = sortEmployeesForDisplay(
-          snapshot.docs
-            .map(function (docItem) {
-              return {
-                id: docItem.id,
-                ...docItem.data()
-              };
-            })
-            .filter(function (employee) {
-              return !employee.isHidden;
-            })
-        );
+  onSnapshot(
+    q,
+    function (snapshot) {
+      const visibleEmployees = sortEmployeesForDisplay(
+        snapshot.docs
+          .map(function (docItem) {
+            return {
+              id: docItem.id,
+              ...docItem.data()
+            };
+          })
+          .filter(function (employee) {
+            return !employee.isHidden;
+          })
+      );
 
         if (visibleEmployees.length === 0) {
-          employees = getBuiltinEmployees();
-          markEmployeesReady();
-          renderEmployees();
-          restoreLogin();
-          seedDefaultEmployees();
-          return;
-        }
-
-        employees = mergeEmployeesWithBuiltin(visibleEmployees);
-        markEmployeesReady();
-        ensureBaseShiftTemplates();
-        renderEmployees();
-        restoreLogin();
-      },
-      function (error) {
-        console.error("載入員工資料失敗，改用內建帳號", error);
         employees = getBuiltinEmployees();
-        ensureBaseShiftTemplates();
         markEmployeesReady();
         renderEmployees();
         restoreLogin();
+        seedDefaultEmployees();
+        return;
       }
-    );
-  }
+ 
+      employees = mergeEmployeesWithBuiltin(visibleEmployees);
+      markEmployeesReady();
+      ensureBaseShiftTemplates();
+      renderEmployees();
+      restoreLogin();
+    },
+    function (error) {
+      console.error("載入員工資料失敗，改用內建帳號", error);
+      employees = getBuiltinEmployees();
+      markEmployeesReady();
+      ensureBaseShiftTemplates();
+      renderEmployees();
+      restoreLogin();
+    }
+  );
+}
 
   function hideAnnouncementEditor() {
     editingAnnouncementId = null;
