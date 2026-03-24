@@ -789,9 +789,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const leaveOpenEndDateInput = document.getElementById("leave-open-end-date");
   const leaveTotalRestDaysInput = document.getElementById("leave-total-rest-days-input");
   const leaveMonthSettingsSaveBtn = document.getElementById("leave-month-settings-save-btn");
-  const leaveRegionFilter = document.getElementById("leave-region-filter");
-  const leaveDepartmentFilter = document.getElementById("leave-department-filter");
-  const leaveShiftFilter = document.getElementById("leave-shift-filter");
   const leaveEmployeeSearch = document.getElementById("leave-employee-search");
   const leaveSymbolToolbar = document.getElementById("leave-symbol-toolbar");
   const leaveEditHint = document.getElementById("leave-edit-hint");
@@ -2083,14 +2080,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   
   function syncLeaveFilterOptions() {
-    if (leaveRegionFilter) {
-      leaveRegionFilter.innerHTML = `<option value="">全部地區</option>${REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("")}`;
-      leaveRegionFilter.value = selectedRegion;
-    }
-    if (leaveDepartmentFilter) {
-      leaveDepartmentFilter.innerHTML = `<option value="">全部部門</option>${DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("")}`;
-      leaveDepartmentFilter.value = selectedDepartment;
-    }
     if (!pendingSelectedEmployeeIds.length && !selectedEmployeeIds.length) pendingSelectedEmployeeIds = [];
   }
 
@@ -2106,9 +2095,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
    function renderLeaveEmployeeFilterPanel() {
     const candidates = employees.filter((employee) => !employee.isHidden && employee.status !== "deleted" && employee.showOnLeaveBoard !== false);
+    const shiftOptions = [{ value: "", label: "全部班別" }, { value: "早班", label: "早班" }, { value: "晚班", label: "晚班" }];
     const options = candidates.map((employee) => {
       const checked = pendingSelectedEmployeeIds.includes(employee.employeeId) ? "checked" : "";
-      return `<label class="leave-employee-option"><input type="checkbox" value="${employee.employeeId}" ${checked} /><span><strong>${employee.name || employee.employeeId}</strong><small>${employee.region || "-"}｜${employee.department || "-"}</small><small>${employee.category || getUserShiftType(employee) || "-"}</small></span></label>`;
+      return `<label class="leave-employee-option"><input type="checkbox" value="${employee.employeeId}" ${checked} /><span><strong>${employee.name || employee.employeeId}</strong></span></label>`;
     }).join("");
      return `<div class="leave-employee-filter-popover">
       <div class="section-header-row">
@@ -2120,6 +2110,11 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
           <button type="button" id="leave-employee-apply-btn" class="primary-btn">完成</button>
           <button type="button" id="leave-employee-cancel-btn" class="small-btn cancel-btn">取消</button>
         </div>
+      </div>
+      <div class="leave-employee-filter-fields">
+        <label class="field-label"><span>地區</span><select id="leave-region-filter-popover"><option value="">全部地區</option>${REGIONS.map((region) => `<option value="${region}" ${selectedRegion === region ? "selected" : ""}>${region}</option>`).join("")}</select></label>
+        <label class="field-label"><span>部門</span><select id="leave-department-filter-popover"><option value="">全部部門</option>${DEPARTMENTS.map((department) => `<option value="${department}" ${selectedDepartment === department ? "selected" : ""}>${department}</option>`).join("")}</select></label>
+        <label class="field-label"><span>班別</span><select id="leave-shift-filter-popover">${shiftOptions.map((option) => `<option value="${option.value}" ${selectedShiftType === option.value ? "selected" : ""}>${option.label}</option>`).join("")}</select></label>
       </div>
       <div id="leave-employee-filter-list" class="leave-employee-filter-list">${options}</div>
     </div>`;
@@ -2964,15 +2959,20 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     
     leaveBoardTable.addEventListener("change", function (event) {
       const checkbox = event.target.closest('#leave-employee-filter-list input[type="checkbox"]');
-      if (!checkbox) return;
-      pendingSelectedEmployeeIds = Array.from(leaveBoardTable.querySelectorAll('#leave-employee-filter-list input[type="checkbox"]:checked')).map((input) => input.value);
+      if (checkbox) {
+        pendingSelectedEmployeeIds = Array.from(leaveBoardTable.querySelectorAll('#leave-employee-filter-list input[type="checkbox"]:checked')).map((input) => input.value);
+        renderLeaveBoard();
+        return;
+      }
+      const target = event.target;
+      if (!(target instanceof HTMLSelectElement)) return;
+      if (target.id === "leave-region-filter-popover") selectedRegion = target.value || "";
+      if (target.id === "leave-department-filter-popover") selectedDepartment = target.value || "";
+      if (target.id === "leave-shift-filter-popover") selectedShiftType = target.value || "";
       renderLeaveBoard();
     });
   }
  
- if (leaveRegionFilter) leaveRegionFilter.addEventListener("change", function () { selectedRegion = leaveRegionFilter.value || ""; renderLeaveBoard(); });
-  if (leaveDepartmentFilter) leaveDepartmentFilter.addEventListener("change", function () { selectedDepartment = leaveDepartmentFilter.value || ""; renderLeaveBoard(); });
-  if (leaveShiftFilter) leaveShiftFilter.addEventListener("change", function () { selectedShiftType = leaveShiftFilter.value || ""; renderLeaveBoard(); });
   if (leaveEmployeeSearch) leaveEmployeeSearch.addEventListener("input", renderLeaveBoard);
   if (leaveSettingMonthInput) {
     leaveSettingMonthInput.addEventListener("change", function () {
