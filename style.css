@@ -1216,12 +1216,6 @@ textarea {
   flex-wrap: wrap;
 }
 
-.leave-month-summary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
 .leave-editable-summary {
   position: relative;
   overflow: visible;
@@ -1250,6 +1244,7 @@ textarea {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  flex: 1;
 }
 
 .leave-symbol-btn {
@@ -1261,6 +1256,39 @@ textarea {
   display: grid;
   justify-items: center;
   gap: 6px;
+}
+
+.leave-inline-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: 10px;
+  min-width: 340px;
+}
+
+.leave-inline-summary-item {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-soft);
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.leave-inline-summary-item h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.leave-inline-summary-item p {
+  margin: 0;
+  color: var(--blue-2);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.leave-inline-summary-item .leave-summary-edit-btn {
+  justify-self: start;
+  margin-top: 2px;
 }
 
 .leave-symbol-btn.active {
@@ -1482,13 +1510,13 @@ textarea {
 }
 
 @media (max-width: 1100px) {
-  .leave-month-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .leave-inline-summary {
+    min-width: 100%;
   }
 }
 
 @media (max-width: 720px) {
-  .leave-month-summary,
+  .leave-inline-summary,
   .leave-employee-filter-list {
     grid-template-columns: 1fr;
   }
