@@ -1909,6 +1909,35 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   function renderLeaveStats() {
+    if (!leaveStats) return;
+
+    const stats = {
+      pending: leaveRequests.filter((item) => item.status === "待審核").length,
+      approved: leaveRequests.filter((item) => item.status === "已核准").length,
+      rejected: leaveRequests.filter((item) => item.status === "已駁回").length,
+      cancelled: leaveRequests.filter((item) => item.status === "已取消").length
+    };
+
+    leaveStats.innerHTML = `
+      <div class="stat-card">
+        <h4>待審核</h4>
+        <p>${stats.pending}</p>
+      </div>
+      <div class="stat-card">
+        <h4>已核准</h4>
+        <p>${stats.approved}</p>
+      </div>
+      <div class="stat-card">
+        <h4>已駁回</h4>
+        <p>${stats.rejected}</p>
+      </div>
+      <div class="stat-card">
+        <h4>已取消</h4>
+        <p>${stats.cancelled}</p>
+      </div>
+    `;
+  }
+
   window.startEditAnnouncement = function (id) {
     if (!canManageAnnouncements(currentUser)) return;
     const item = announcements.find((announcement) => announcement.id === id);
