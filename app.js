@@ -664,6 +664,10 @@ function getCurrentPositionAsync() {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+   // 優先載入內建帳號，避免遠端資料未就緒時卡住登入流程
+  employees = getBuiltinEmployees();
+  markEmployeesReady();
+
   const loginPage = document.getElementById("login-page");
   const mainPage = document.getElementById("main-page");
   const loginForm = document.getElementById("login-form");
@@ -2026,6 +2030,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
       const loginId = document.getElementById("employeeId")?.value.trim() || "";
       const password = document.getElementById("password")?.value.trim() || "";
+      console.log("登入時 employees:", employees);
 
       if (!loginId || !password) {
         if (loginError) loginError.textContent = "請輸入員工編號與密碼";
