@@ -703,6 +703,11 @@ document.addEventListener("DOMContentLoaded", function () {
   const attendanceFilterBtn = document.getElementById("attendance-filter-btn");
   const attendanceFilterResetBtn = document.getElementById("attendance-filter-reset-btn");
   const attendanceSummaryList = document.getElementById("attendance-summary-list");
+  const todayAttendanceStaffList = document.getElementById("today-attendance-staff-list");
+  const attendanceRecordPopoverBackdrop = document.getElementById("attendance-record-popover-backdrop");
+  const attendanceRecordPopoverTitle = document.getElementById("attendance-record-popover-title");
+  const attendanceRecordPopoverContent = document.getElementById("attendance-record-popover-content");
+  const attendanceRecordPopoverClose = document.getElementById("attendance-record-popover-close");
   
   const employeeForm = document.getElementById("employee-form");
   const employeeFormCard = document.getElementById("employee-form-card");
@@ -1454,15 +1459,19 @@ document.addEventListener("DOMContentLoaded", function () {
     return diffHours.toFixed(2);
   }
 
-  function getFilteredAttendanceRecords() {
-    const nameKeyword = attendanceFilterName ? attendanceFilterName.value.trim() : "";
-    const selectedDate = attendanceFilterDate ? attendanceFilterDate.value : "";
-
-    let visibleRecords = isAdmin(currentUser)
+  function getVisibleAttendanceRecordsByPermission() {
+    return isAdmin(currentUser)
       ? attendanceRecords.slice()
       : attendanceRecords.filter(function (item) {
           return currentUser && item.employeeId === currentUser.employeeId;
         });
+     }
+
+  function getFilteredAttendanceRecords() {
+    const nameKeyword = attendanceFilterName ? attendanceFilterName.value.trim() : "";
+    const selectedDate = attendanceFilterDate ? attendanceFilterDate.value : "";
+
+    let visibleRecords = getVisibleAttendanceRecordsByPermission();
 
     if (nameKeyword) {
       visibleRecords = visibleRecords.filter(function (item) {
@@ -1477,6 +1486,67 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     return visibleRecords;
+  }
+
+  function closeAttendanceRecordPopover() {
+    if (attendanceRecordPopoverBackdrop) attendanceRecordPopoverBackdrop.classList.add("hidden");
+  }
+
+  function openAttendanceRecordPopover(group) {
+    if (!attendanceRecordPopoverBackdrop || !attendanceRecordPopoverTitle || !attendanceRecordPopoverContent) return;
+    if (!group) return;
+    const item = summarizeEmployeeAttendance(group);
+    attendanceRecordPopoverTitle.textContent = `${item.employeeName}（${item.employeeId || "未填編號"}）`;
+    attendanceRecordPopoverContent.innerHTML = `
+      <div class="attendance-record-detail-list">
+        <div class="list-item">
+          <p>上班時間：${item.clockInRecord ? formatTimeOnly(item.clockInRecord.createdAtClient) : "-"}</p>
+          <p>下班時間：${item.clockOutRecord ? formatTimeOnly(item.clockOutRecord.createdAtClient) : "-"}</p>
+          <p>工時：${item.workHours} 小時</p>
+          <p>最終狀態：<span class="status-badge status-${item.latestRecord?.status || "success"}">${item.latestRecord?.status || "success"}</span></p>
+        </div>
+        <div class="list-item">
+          <h4>今日打卡明細</h4>
+          ${item.records.map((record) => `<div class="item-meta">${record.type === "clockIn" ? "上班時間" : "下班時間"}｜${formatTimeOnly(record.createdAtClient)}｜${record.officeName || "範圍外"}｜座標 ${Number(record.lat || 0).toFixed(6)}, ${Number(record.lng || 0).toFixed(6)}${record.outsideReason ? `｜原因：${record.outsideReason}` : ""}</div>`).join("")}
+        </div>
+      </div>
+    `;
+    attendanceRecordPopoverBackdrop.classList.remove("hidden");
+  }
+
+  function renderTodayAttendanceStaff() {
+    if (!todayAttendanceStaffList) return;
+    if (!currentUser) {
+      todayAttendanceStaffList.innerHTML = `<div class="list-item"><p>請先登入以查看當日上班人員。</p></div>`;
+      return;
+    }
+
+    const todayKey = formatDateKey(new Date());
+    const todayRecords = getVisibleAttendanceRecordsByPermission().filter((item) => formatDateKey(item.createdAtClient) === todayKey);
+    if (!todayRecords.length) {
+      todayAttendanceStaffList.innerHTML = `<div class="list-item"><p>今日尚無打卡記錄。</p></div>`;
+      return;
+    }
+
+    const groupedByEmployee = {};
+    todayRecords.forEach(function (record) {
+      const employeeKey = record.employeeId || record.employeeName || "unknown";
+      if (!groupedByEmployee[employeeKey]) {
+        groupedByEmployee[employeeKey] = {
+          employeeName: record.employeeName || "未知員工",
+          employeeId: record.employeeId || "",
+          records: []
+        };
+      }
+      groupedByEmployee[employeeKey].records.push(record);
+    });
+
+    const buttons = Object.values(groupedByEmployee)
+      .sort((a, b) => a.employeeName.localeCompare(b.employeeName, "zh-Hant"))
+      .map((group) => `<button type="button" class="today-attendance-employee-btn" data-attendance-employee-id="${group.employeeId}" data-attendance-employee-name="${group.employeeName}">${group.employeeName}</button>`)
+      .join("");
+
+    todayAttendanceStaffList.innerHTML = `<div class="today-attendance-employee-list">${buttons}</div>`;
   }
 
   function renderAttendanceDetailMap(container) {
@@ -1528,6 +1598,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function renderAttendanceRecords() {
     if (!attendanceSummaryList) return;
+    renderTodayAttendanceStaff();
     const filteredRecords = getFilteredAttendanceRecords();
     const tree = buildAttendanceTree(filteredRecords);
     if (!filteredRecords.length) {
@@ -1642,6 +1713,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const shift = getUserShiftType(user);
       shiftInfo.textContent = `今日班別：${shift}`;
     }
+    renderTodayAttendanceStaff();
   }
 
     function isSuperAdminEmployee(employeeId) {
@@ -2471,6 +2543,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (typeof closeSchedulePopover === "function") {
         closeSchedulePopover();
       }
+      closeAttendanceRecordPopover();
       if (mainPage) mainPage.classList.add("hidden");
       if (loginPage) loginPage.classList.remove("hidden");
       if (loginForm) loginForm.reset();
@@ -2488,6 +2561,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const targetSection = document.getElementById(`page-${targetPage}`);
       if (targetSection) targetSection.classList.remove("hidden");
       if (pageTitle) pageTitle.textContent = button.textContent;
+      closeAttendanceRecordPopover();
       
     });
   });
@@ -2978,6 +3052,36 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const mapContainer = detail.querySelector(".attendance-map[data-map-id]");
       if (mapContainer) renderAttendanceDetailMap(mapContainer);
     }, true);
+  }
+
+  if (todayAttendanceStaffList) {
+    todayAttendanceStaffList.addEventListener("click", function (event) {
+      const button = event.target.closest(".today-attendance-employee-btn[data-attendance-employee-name]");
+      if (!button) return;
+      const employeeName = button.dataset.attendanceEmployeeName || "";
+      const employeeId = button.dataset.attendanceEmployeeId || "";
+      const todayKey = formatDateKey(new Date());
+      const records = getVisibleAttendanceRecordsByPermission().filter(function (item) {
+        const samePerson = employeeId ? item.employeeId === employeeId : (item.employeeName || "") === employeeName;
+        return samePerson && formatDateKey(item.createdAtClient) === todayKey;
+      });
+      if (!records.length) return;
+      openAttendanceRecordPopover({
+        employeeName: employeeName || records[0]?.employeeName || "未知員工",
+        employeeId: employeeId || records[0]?.employeeId || "",
+        records
+      });
+    });
+  }
+
+  if (attendanceRecordPopoverClose) {
+    attendanceRecordPopoverClose.addEventListener("click", closeAttendanceRecordPopover);
+  }
+
+  if (attendanceRecordPopoverBackdrop) {
+    attendanceRecordPopoverBackdrop.addEventListener("click", function (event) {
+      if (event.target === attendanceRecordPopoverBackdrop) closeAttendanceRecordPopover();
+    });
   }
 
    if (leaveSymbolToolbar) {
