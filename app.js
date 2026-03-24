@@ -2006,7 +2006,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (!targetEmployee) return;
     if (!activeSymbolType) return;
     if (!canEditLeaveCell(targetEmployee, monthSetting)) {
-      alert("你只能在開放期間編輯自己的休假表，GoldBricks 可編輯所有人。");
+      alert("你只能在開放期間編輯自己的休假表。");
       return;
     }
     const existing = getAssignmentForCell(currentLeaveMonth, employeeId, dateString);
