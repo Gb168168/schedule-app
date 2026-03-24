@@ -1671,6 +1671,8 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
+    const SHIFT_DISPLAY_ORDER = ["早班", "晚班"];
+
     const workingEmployees = getTodayWorkingEmployeesByLeaveBoard()
       .map((employee) => {
         const shiftType = getUserShiftType(employee);
@@ -1694,9 +1696,47 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    todayWorkingStaffList.innerHTML = workingEmployees
-      .map((employee) => `<div class="list-item"><p>${employee.region || "-"}｜${employee.department || "-"}｜${employee.shiftType || "-"}｜${employee.name || employee.employeeId}</p></div>`)
+    const grouped = {};
+    workingEmployees.forEach(function (employee) {
+      const region = employee.region || "未分類地區";
+      const department = employee.department || "未分類部門";
+      const shiftType = employee.shiftType || "未設定";
+
+      if (!grouped[region]) grouped[region] = {};
+      if (!grouped[region][department]) grouped[region][department] = {};
+      if (!grouped[region][department][shiftType]) grouped[region][department][shiftType] = [];
+      grouped[region][department][shiftType].push(employee.name || employee.employeeId || "未命名員工");
+    });
+
+    const html = Object.keys(grouped)
+      .sort(compareRegionsNorthToSouth)
+      .map(function (region) {
+        const departments = grouped[region];
+        const departmentHtml = Object.keys(departments)
+          .sort((a, b) => a.localeCompare(b, "zh-Hant"))
+          .map(function (department) {
+            const shiftGroups = departments[department];
+            const extraShiftTypes = Object.keys(shiftGroups)
+              .filter((shiftType) => !SHIFT_DISPLAY_ORDER.includes(shiftType))
+              .sort((a, b) => a.localeCompare(b, "zh-Hant"));
+            const allShiftTypes = [...SHIFT_DISPLAY_ORDER, ...extraShiftTypes];
+
+            const shiftHtml = allShiftTypes
+              .map(function (shiftType) {
+                const names = (shiftGroups[shiftType] || []).sort((a, b) => a.localeCompare(b, "zh-Hant"));
+                return `<p>${shiftType}　${names.join("｜")}</p>`;
+              })
+              .join("");
+
+            return `<div class="list-item"><h4>${department}</h4>${shiftHtml}</div>`;
+          })
+          .join("");
+
+        return `<div class="list-item"><h4>${region}</h4>${departmentHtml}</div>`;
+      })
       .join("");
+    
+    todayWorkingStaffList.innerHTML = html;
   }
 
   function renderAttendanceDetailMap(container) {
