@@ -246,6 +246,12 @@ function isAdmin(user) {
  return Boolean(user?.permissions?.admin || user?.role === "管理員");
 }
 
+function canViewShiftAndAttendance(user) {
+  if (!user) return false;
+  const employeeId = String(user.employeeId || user.account || "").trim();
+  return employeeId === "GoldBricks" || isAdmin(user);
+}
+
 function canManageAnnouncements(user) {
   return Boolean(user?.permissions?.admin || user?.permissions?.announcementManage);
 }
@@ -658,6 +664,8 @@ document.addEventListener("DOMContentLoaded", function () {
   const photoPreview = document.getElementById("photo-preview");
   
   const coordinateMenuBtn = document.getElementById("menu-coordinate-btn");
+  const shiftSettingsMenuBtn = document.getElementById("menu-shift-settings-btn");
+  const attendanceMenuBtn = document.getElementById("menu-attendance-btn");
   const coordinateAdminDisabled = document.getElementById("coordinate-admin-disabled");
   const coordinateEditorCard = document.getElementById("coordinate-editor-card");
   const coordinateEditorTitle = document.getElementById("coordinate-editor-title");
@@ -740,8 +748,17 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function updateMenuPermissions(user) {
-    if (!coordinateMenuBtn) return;
-    coordinateMenuBtn.classList.toggle("hidden", !canManageCoordinates(user));
+   if (coordinateMenuBtn) {
+      coordinateMenuBtn.classList.toggle("hidden", !canManageCoordinates(user));
+    }
+
+    const allowShiftAttendance = canViewShiftAndAttendance(user);
+    if (shiftSettingsMenuBtn) {
+      shiftSettingsMenuBtn.classList.toggle("hidden", !allowShiftAttendance);
+    }
+    if (attendanceMenuBtn) {
+      attendanceMenuBtn.classList.toggle("hidden", !allowShiftAttendance);
+    }
   }
 
   function populateCoordinateRegionOptions() {
