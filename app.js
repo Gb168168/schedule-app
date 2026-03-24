@@ -316,14 +316,32 @@ function findLoginUser(employeeId, password) {
 
   if (!normalizedEmployeeId || !normalizedPassword) return null;
 
-  return employees.find(function (user) {
+  const matchedEmployee = employees.find(function (user) {
     if (!isLoginEligible(user)) return false;
 
     return (
       normalizeLoginValue(user.employeeId) === normalizedEmployeeId &&
       normalizePasswordValue(user.password) === normalizedPassword
     );
-  }) || null;
+  });
+
+  if (matchedEmployee) return matchedEmployee;
+
+  const builtinMatchedUser = users.find(function (user) {
+    return (
+      normalizeLoginValue(user.employeeId) === normalizedEmployeeId &&
+      normalizePasswordValue(user.password) === normalizedPassword
+    );
+  });
+
+  return builtinMatchedUser
+    ? {
+        id: `builtin-fallback-${builtinMatchedUser.employeeId}`,
+        status: "active",
+        isHidden: false,
+        ...builtinMatchedUser
+      }
+    : null;
 }
 
 function buildUserSession(user) {
@@ -736,6 +754,14 @@ document.addEventListener("DOMContentLoaded", function () {
   const leaveEmployeeApplyBtn = document.getElementById("leave-employee-apply-btn");
   const leaveEmployeeCancelBtn = document.getElementById("leave-employee-cancel-btn");
   const leaveBoardTable = document.getElementById("leave-board-table");
+  const schedulePopover = document.getElementById("schedule-popover");
+
+  function closeSchedulePopover() {
+    if (schedulePopover) schedulePopover.classList.add("hidden");
+    if (typeof hideScheduleEditor === "function") {
+      hideScheduleEditor();
+    }
+  }
 
   function setAttendanceBadge(kind, text) {
     if (!attendanceStatusBadge) return;
@@ -2096,7 +2122,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       safeStorageRemove(STORAGE_KEYS.currentUser);
       safeStorageRemove(STORAGE_KEYS.currentUserSession);
       hideAnnouncementEditor();
-      closeSchedulePopover();
+      if (typeof closeSchedulePopover === "function") {
+        closeSchedulePopover();
+      }
       if (mainPage) mainPage.classList.add("hidden");
       if (loginPage) loginPage.classList.remove("hidden");
       if (loginForm) loginForm.reset();
