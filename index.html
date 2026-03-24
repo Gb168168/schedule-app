@@ -36,6 +36,7 @@
         <button class="menu-btn" data-page="announcement">公告欄</button>
         <button class="menu-btn" data-page="schedule">休假表</button>
         <button class="menu-btn" data-page="roster">排程表</button>
+        <button class="menu-btn" data-page="today-staff">當日上班人員</button>
         <button class="menu-btn" data-page="staff">人員資訊</button>
         <button class="menu-btn hidden" id="menu-shift-settings-btn" data-page="shift-settings">班別設定</button>
         <button class="menu-btn" data-page="leave">請假申請</button>
@@ -193,6 +194,14 @@
         </div>
       </section>
 
+      <section id="page-today-staff" class="page-section hidden">
+        <div class="card">
+          <h3>當日上班人員</h3>
+          <p class="helper-text">依「休假表」當日資料，排除 ▲排休、▲必休、★過年休假、★過年必休、🎰公司活動。</p>
+          <div id="today-working-staff-list" class="list-wrap"></div>
+        </div>
+      </section>
+      
       <section id="page-staff" class="page-section hidden">
         <div class="content-grid staff-grid">
           <div class="card">
