@@ -717,6 +717,11 @@ document.addEventListener("DOMContentLoaded", function () {
   const announcementEditTitle = document.getElementById("announcement-edit-title");
   const announcementEditContent = document.getElementById("announcement-edit-content");
   const announcementCancelEdit = document.getElementById("announcement-cancel-edit");
+  const rosterForm = document.getElementById("roster-form");
+  const rosterDate = document.getElementById("roster-date");
+  const rosterShift = document.getElementById("roster-shift");
+  const rosterNote = document.getElementById("roster-note");
+  const rosterList = document.getElementById("roster-list");
 
   const leaveForm = document.getElementById("leave-form");
   const leaveType = document.getElementById("leave-type");
@@ -1722,6 +1727,50 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     });
   }
 
+  function startSchedulesListener() {
+    if (!db) return;
+    const q = query(collection(db, "schedules"), orderBy("date", "desc"));
+    onSnapshot(q, function (snapshot) {
+      schedules = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
+      renderSchedules();
+    });
+  }
+
+  function canManageScheduleItem(item) {
+    if (!currentUser) return false;
+    if (isAdmin(currentUser)) return true;
+    return item?.employeeId === currentUser.employeeId;
+  }
+
+  function renderSchedules() {
+    if (!rosterList) return;
+    if (!currentUser) {
+      rosterList.innerHTML = `<div class="list-item"><p>請先登入以查看排程。</p></div>`;
+      return;
+    }
+
+    const visibleSchedules = isAdmin(currentUser)
+      ? schedules
+      : schedules.filter((item) => item.employeeId === currentUser.employeeId);
+
+    if (!visibleSchedules.length) {
+      rosterList.innerHTML = `<div class="list-item"><p>目前沒有排程資料。</p></div>`;
+      return;
+    }
+
+    rosterList.innerHTML = visibleSchedules.map((item) => {
+      const itemDate = item.date || "-";
+      const itemShift = item.shift || "-";
+      const itemNote = item.note || "無";
+      const itemAuthor = item.employeeName || item.employeeId || "-";
+      const actions = canManageScheduleItem(item)
+        ? `<div class="item-actions"><button type="button" class="small-btn delete-btn" onclick="deleteSchedule('${item.id}')">刪除</button></div>`
+        : "";
+
+      return `<div class="list-item"><h4>${itemDate}｜${itemShift}</h4><div class="item-meta">${itemAuthor}｜${item.region || "-"}｜${item.department || "-"}</div><p>備註：${itemNote}</p>${actions}</div>`;
+    }).join("");
+  }
+
   function renderLeaveStats() {
     if (!leaveStats) return;
 
@@ -2173,6 +2222,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     refreshAttendanceSettings();
     renderLeaves();
     renderLeaveBoard();
+    renderSchedules();
     renderCoordinates();
     initMessaging();
   }
@@ -2566,6 +2616,64 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     });
   }
 
+  if (rosterForm) {
+    rosterForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      const date = rosterDate?.value || "";
+      const shift = rosterShift?.value || "";
+      const note = rosterNote?.value.trim() || "";
+      if (!currentUser) return alert("請先登入");
+      if (!date || !shift) return alert("請填寫完整排程資料");
+
+      const payload = {
+        date,
+        shift,
+        note,
+        employeeId: currentUser.employeeId || "",
+        employeeName: currentUser.name || "",
+        region: currentUser.region || "",
+        department: currentUser.department || "",
+        updatedAt: serverTimestamp()
+      };
+
+      try {
+        if (!db) {
+          schedules = [{ id: `local-${Date.now()}`, ...payload }, ...schedules];
+          renderSchedules();
+          rosterForm.reset();
+          return;
+        }
+        await addDoc(collection(db, "schedules"), {
+          ...payload,
+          createdAt: serverTimestamp(),
+          createdAtClient: new Date()
+        });
+        rosterForm.reset();
+      } catch (error) {
+        console.error("儲存排程失敗", error);
+        alert("儲存排程失敗，請稍後再試。");
+      }
+    });
+  }
+
+  window.deleteSchedule = async function (id) {
+    const target = schedules.find((item) => item.id === id);
+    if (!target) return;
+    if (!canManageScheduleItem(target)) return alert("你沒有刪除此排程的權限");
+    if (!confirm("確定要刪除此排程嗎？")) return;
+    try {
+      if (!db) {
+        schedules = schedules.filter((item) => item.id !== id);
+        renderSchedules();
+        return;
+      }
+      await deleteDoc(doc(db, "schedules", id));
+    } catch (error) {
+      console.error("刪除排程失敗", error);
+      alert("刪除排程失敗，請稍後再試。");
+    }
+  };
+
   if (shiftCodeSelect) {
     shiftCodeSelect.addEventListener("change", syncShiftForm);
   }
@@ -2790,9 +2898,11 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   renderLeaves();
   renderLeaveBoard();
+  renderSchedules();
 
   startAnnouncementsListener();
   startLeaveListener();
+  startSchedulesListener();
   startLeaveMonthSettingsListener();
   startLeaveAssignmentsListener();
   startAttendanceLocationsListener();
