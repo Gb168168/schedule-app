@@ -2062,15 +2062,28 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     return canEmployeeEdit || canGoldBricksEdit;
   }
 
-  function getCellSymbolMeta(symbolType) {
-    return SYMBOL_TYPES[symbolType] || null;
+  function getAssignmentSymbolTypes(assignment) {
+    if (!assignment) return [];
+    if (Array.isArray(assignment.symbolTypes)) {
+      return SYMBOL_BUTTON_ORDER.filter((type) => assignment.symbolTypes.includes(type));
+    }
+    if (assignment.symbolType && SYMBOL_TYPES[assignment.symbolType]) return [assignment.symbolType];
+    return [];
+  }
+
+  function getCellSymbolMetas(assignment) {
+    return getAssignmentSymbolTypes(assignment).map((symbolType) => ({
+      symbolType,
+      ...SYMBOL_TYPES[symbolType]
+    }));
   }
 
   function getEmployeeSummaryCounts(employeeId, monthKey) {
     return getMonthAssignments(monthKey).filter((item) => item.employeeId === employeeId).reduce((acc, item) => {
-      if (["rest", "must_rest"].includes(item.symbolType)) acc.rest += 1;
-      if (["new_year_rest", "new_year_must_rest"].includes(item.symbolType)) acc.newYear += 1;
-      if (item.symbolType === "event") acc.event += 1;
+      const symbolTypes = getAssignmentSymbolTypes(item);
+      if (symbolTypes.some((symbolType) => ["rest", "must_rest"].includes(symbolType))) acc.rest += 1;
+      if (symbolTypes.some((symbolType) => ["new_year_rest", "new_year_must_rest"].includes(symbolType))) acc.newYear += 1;
+      if (symbolTypes.includes("event")) acc.event += 1;
       return acc;
     }, { rest: 0, newYear: 0, event: 0 });
   }
@@ -2171,10 +2184,12 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), index + 1);
         const dateString = formatDate(date);
         const assignment = getAssignmentForCell(currentLeaveMonth, employee.employeeId, dateString);
-        const meta = getCellSymbolMeta(assignment?.symbolType);
+        const metas = getCellSymbolMetas(assignment);
         const isWeekend = [0, 6].includes(date.getDay());
         const isHoliday = HOLIDAY_DATES.has(dateString);
-        return `<button type="button" class="leave-cell ${canEditAny ? "editable" : "readonly"} ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}" data-employee-id="${employee.employeeId}" data-date="${dateString}" title="${meta ? meta.label : dateString}">${meta ? `<span class="symbol ${meta.color === "red" ? "symbol-red" : ""}">${meta.icon}</span>` : ""}</button>`;
+        const title = metas.length ? metas.map((meta) => meta.label).join(" + ") : dateString;
+        const symbols = metas.map((meta) => `<span class="symbol ${meta.color === "red" ? "symbol-red" : ""}">${meta.icon}</span>`).join("");
+        return `<button type="button" class="leave-cell ${canEditAny ? "editable" : "readonly"} ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}" data-employee-id="${employee.employeeId}" data-date="${dateString}" title="${title}">${symbols}</button>`;
       }).join("");
       return `<div class="leave-board-row"><div class="leave-employee-card"><strong>${employee.name || employee.employeeId}</strong><small>${employee.region || "-"}｜${employee.department || "-"}</small><small>${employee.category || getUserShiftType(employee) || "-"}</small></div><div class="leave-row-cells" style="--days:${daysInMonth}">${cells}</div><div class="leave-summary-card"><div><span>▲</span><strong>${counts.rest}</strong></div><div><span>★</span><strong>${counts.newYear}</strong></div><div><span>🎰</span><strong>${counts.event}</strong></div></div></div>`;
     }).join("");
@@ -2192,15 +2207,23 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       return;
     }
     const existing = getAssignmentForCell(currentLeaveMonth, employeeId, dateString);
-    const sameSymbol = existing?.symbolType === activeSymbolType;
-    const targetSymbolType = existing && sameSymbol ? "" : activeSymbolType;
+    const currentSymbolTypes = getAssignmentSymbolTypes(existing);
+    const nextSymbolTypeSet = new Set(currentSymbolTypes);
+    if (nextSymbolTypeSet.has(activeSymbolType)) nextSymbolTypeSet.delete(activeSymbolType);
+    else nextSymbolTypeSet.add(activeSymbolType);
+    const targetSymbolTypes = SYMBOL_BUTTON_ORDER.filter((type) => nextSymbolTypeSet.has(type));
+    if (targetSymbolTypes.length > 1 && !targetSymbolTypes.includes("event")) {
+      alert("只有含有 🎰（公司活動）的欄位才可多選。");
+      return;
+    }
+    const targetSymbolType = targetSymbolTypes[0] || "";
     const monthlyRestLimit = Number(monthSetting?.totalRestDays);
     const isLimited = Number.isFinite(monthlyRestLimit) && monthlyRestLimit >= 0;
-    const isTargetRestSymbol = ["rest", "must_rest"].includes(targetSymbolType);
+    const isTargetRestSymbol = targetSymbolTypes.some((symbolType) => ["rest", "must_rest"].includes(symbolType));
 
     if (isLimited && isTargetRestSymbol) {
       const counts = getEmployeeSummaryCounts(employeeId, currentLeaveMonth);
-      const existingRestCount = ["rest", "must_rest"].includes(existing?.symbolType) ? 1 : 0;
+      const existingRestCount = currentSymbolTypes.some((symbolType) => ["rest", "must_rest"].includes(symbolType)) ? 1 : 0;
       const nextRestCount = counts.rest - existingRestCount + 1;
       if (nextRestCount > monthlyRestLimit) {
         alert(`本月可排休上限為 ${monthlyRestLimit} 天，無法再新增。`);
@@ -2209,18 +2232,19 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     }
 
     if (!db) {
-      if (existing && sameSymbol) leaveAssignments = leaveAssignments.filter((item) => item.id !== existing.id);
-      else if (existing) leaveAssignments = leaveAssignments.map((item) => item.id === existing.id ? { ...item, symbolType: activeSymbolType, updatedBy: currentUser?.employeeId || "", updatedByName: currentUser?.name || "" } : item);
-      else leaveAssignments = [{ id: `local-${Date.now()}`, employeeId, employeeName: targetEmployee.name, region: targetEmployee.region, department: targetEmployee.department, category: targetEmployee.category, date: dateString, monthKey: currentLeaveMonth, symbolType: activeSymbolType, createdBy: currentUser?.employeeId || "", createdByName: currentUser?.name || "", updatedBy: currentUser?.employeeId || "", updatedByName: currentUser?.name || "" }, ...leaveAssignments];
+      if (existing && !targetSymbolTypes.length) leaveAssignments = leaveAssignments.filter((item) => item.id !== existing.id);
+      else if (existing) leaveAssignments = leaveAssignments.map((item) => item.id === existing.id ? { ...item, symbolType: targetSymbolType, symbolTypes: targetSymbolTypes, updatedBy: currentUser?.employeeId || "", updatedByName: currentUser?.name || "" } : item);
+      else leaveAssignments = [{ id: `local-${Date.now()}`, employeeId, employeeName: targetEmployee.name, region: targetEmployee.region, department: targetEmployee.department, category: targetEmployee.category, date: dateString, monthKey: currentLeaveMonth, symbolType: targetSymbolType, symbolTypes: targetSymbolTypes, createdBy: currentUser?.employeeId || "", createdByName: currentUser?.name || "", updatedBy: currentUser?.employeeId || "", updatedByName: currentUser?.name || "" 
       renderLeaveBoard();
       return;
     }
     try {
-      if (existing && sameSymbol) {
+      if (existing && !targetSymbolTypes.length) {
         await deleteDoc(doc(db, "leaveAssignments", existing.id));
       } else if (existing) {
         await updateDoc(doc(db, "leaveAssignments", existing.id), {
-          symbolType: activeSymbolType,
+          symbolType: targetSymbolType,
+          symbolTypes: targetSymbolTypes,
           updatedBy: currentUser?.employeeId || "",
           updatedByName: currentUser?.name || "",
           updatedAt: serverTimestamp()
@@ -2234,7 +2258,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
           category: targetEmployee.category || "",
           date: dateString,
           monthKey: currentLeaveMonth,
-          symbolType: activeSymbolType,
+          symbolType: targetSymbolType,
+          symbolTypes: targetSymbolTypes,
           createdBy: currentUser?.employeeId || "",
           createdByName: currentUser?.name || "",
           updatedBy: currentUser?.employeeId || "",
