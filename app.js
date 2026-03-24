@@ -2819,6 +2819,18 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     });
   }
 
+   if (clockInBtn) {
+    clockInBtn.addEventListener("click", function () {
+      handleClock("clockIn");
+    });
+  }
+
+  if (clockOutBtn) {
+    clockOutBtn.addEventListener("click", function () {
+      handleClock("clockOut");
+    });
+  }
+
   if (attendanceFilterResetBtn) {
     attendanceFilterResetBtn.addEventListener("click", function () {
       if (attendanceFilterName) attendanceFilterName.value = "";
