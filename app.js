@@ -985,7 +985,7 @@ document.addEventListener("DOMContentLoaded", function () {
                       <p>${getShiftNameFromCode(item.shiftType)}｜上班 ${formatTimeText(item.startTime)}｜下班 ${formatTimeText(item.endTime)}｜提醒 ${formatTimeText(item.reminderTime)}｜寬限 ${item.graceMinutes} 分鐘</p>
                       <div class="item-actions">
                         <button type="button" class="small-btn" data-action="edit-shift-rule" data-scope="template" data-id="${item.id}">編輯</button>
-                        <button type="button" class="small-btn danger-btn" data-action="delete-shift-rule" data-scope="template" data-id="${item.id}" ${item.isDefault ? "disabled title='預設規則不可刪除'" : ""}>刪除</button>
+                        <button type="button" class="small-btn danger-btn" data-action="delete-shift-rule" data-scope="template" data-id="${item.id}" ${String(item.id || "").startsWith("template-") ? "disabled title='預設規則不可刪除'" : ""}>刪除</button>
                       </div>
                     </div>
                   `).join("") || "<p>尚未設定。</p>"}
@@ -1045,7 +1045,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const sourceList = isEmployeeScope ? employeeShiftSettings : shiftTemplates;
     const target = sourceList.find((item) => item.id === id);
     if (!target) return alert("找不到要刪除的班別規則");
-    if (!isEmployeeScope && target.isDefault) return alert("預設班別規則不可刪除");
+    if (!isEmployeeScope && String(target.id || "").startsWith("template-")) return alert("預設班別規則不可刪除");
     if (!confirm("確定要刪除此班別規則嗎？")) return;
 
     try {
@@ -2787,8 +2787,11 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
           refreshAttendanceSettings();
           return;
         }
-        if (existing?.id) await updateDoc(doc(db, targetCollection, existing.id), payload);
-        else await addDoc(collection(db, targetCollection), { ...payload, createdAt: serverTimestamp(), isDefault: scope === "template" });
+        if (existing?.id && !String(existing.id).startsWith("template-")) {
+          await updateDoc(doc(db, targetCollection, existing.id), payload);
+        } else {
+          await addDoc(collection(db, targetCollection), { ...payload, createdAt: serverTimestamp(), isDefault: false });
+        }
       } catch (error) {
         console.error("儲存班別設定失敗", error);
         alert("儲存班別設定失敗");
