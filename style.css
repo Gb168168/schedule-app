@@ -1331,9 +1331,9 @@ textarea {
 
 .leave-inline-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
   gap: 10px;
-  min-width: 560px;
+  min-width: 420px;
 }
 
 .leave-inline-summary-item {
@@ -1355,6 +1355,26 @@ textarea {
   color: var(--blue-2);
   font-size: 20px;
   font-weight: 800;
+}
+
+.leave-total-rest-header-card {
+  width: 180px;
+  flex-shrink: 0;
+}
+
+.leave-total-rest-header-card .leave-summary-edit-btn {
+  margin-top: 4px;
+}
+
+.compact-number-input {
+  max-width: 130px;
+  padding: 10px 12px;
+}
+
+.leave-board-header .leave-month-toolbar {
+  margin-inline: auto;
+  margin-bottom: 0;
+  justify-content: center;
 }
 
 leave-message-board-card {
