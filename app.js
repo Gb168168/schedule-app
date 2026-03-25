@@ -909,6 +909,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const pageTitle = document.getElementById("page-title");
   const menuButtons = document.querySelectorAll(".menu-btn");
   const pageSections = document.querySelectorAll(".page-section");
+  const sidebarToggleBtn = document.getElementById("sidebar-toggle-btn");
 
   const announcementForm = document.getElementById("announcement-form");
   const announcementTitle = document.getElementById("announcement-title");
@@ -990,6 +991,28 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  function getMenuButtonShortLabel(text) {
+    const normalizedText = String(text || "").trim();
+    if (!normalizedText) return "選單";
+    if (normalizedText.length <= 2) return normalizedText;
+    return normalizedText.slice(0, 2);
+  }
+
+  function setSidebarCollapsed(collapsed) {
+    if (!mainPage) return;
+    mainPage.classList.toggle("sidebar-collapsed", collapsed);
+    if (sidebarToggleBtn) {
+      sidebarToggleBtn.textContent = collapsed ? "展開選單" : "收合選單";
+      sidebarToggleBtn.setAttribute("aria-expanded", String(!collapsed));
+    }
+  }
+
+  menuButtons.forEach(function (button) {
+    const buttonLabel = button.textContent;
+    button.setAttribute("title", buttonLabel);
+    button.setAttribute("data-short", getMenuButtonShortLabel(buttonLabel));
+  });
+  
   function populateCoordinateRegionOptions() {
     if (!coordinateRegionSelect) return;
     coordinateRegionSelect.innerHTML = REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("");
@@ -2907,6 +2930,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       
     });
   });
+
+  if (sidebarToggleBtn) {
+    sidebarToggleBtn.addEventListener("click", function () {
+      const isCollapsed = mainPage?.classList.contains("sidebar-collapsed");
+      setSidebarCollapsed(!isCollapsed);
+    });
+  }
 
   if (announcementForm) {
     announcementForm.addEventListener("submit", async function (event) {
