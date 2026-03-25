@@ -233,30 +233,9 @@ textarea {
 }
 
 .main-page.sidebar-collapsed .sidebar {
-  width: 92px;
-  padding: 22px 10px;
-}
-
-.main-page.sidebar-collapsed .brand {
-  justify-content: center;
-  padding-inline: 0;
-}
-
-.main-page.sidebar-collapsed .brand-info {
-  display: none;
-}
-
-.main-page.sidebar-collapsed .menu-btn {
-  padding: 12px 10px;
-  text-align: center;
-  font-size: 0;
-  line-height: 1;
-}
-
-.main-page.sidebar-collapsed .menu-btn::before {
-  content: attr(data-short);
-  font-size: 13px;
-  font-weight: 700;
+  width: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 .main-content {
@@ -286,6 +265,31 @@ textarea {
 .content-header p {
   margin: 0;
   color: var(--text-soft);
+}
+
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--text);
+  font-size: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-icon-btn:hover {
+  background: var(--blue-bg);
+  border-color: var(--blue-1);
 }
 
 .header-right {
@@ -926,25 +930,8 @@ textarea {
 
   .main-page.sidebar-collapsed .sidebar {
     width: 100%;
-    padding: 14px 16px;
-  }
-
-  .main-page.sidebar-collapsed .brand-info {
-    display: block;
-  }
-
-  .main-page.sidebar-collapsed .menu {
-    display: none;
-  }
-
-  .main-page.sidebar-collapsed .menu-btn {
-    font-size: 16px;
-    text-align: left;
-    padding: 14px 18px;
-  }
-
-  .main-page.sidebar-collapsed .menu-btn::before {
-    content: "";
+    padding: 0;
+    max-height: 0;
   }
   
   .calendar-grid,
@@ -974,6 +961,10 @@ textarea {
     padding: 20px;
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .header-left {
+    width: 100%;
   }
 
   .page-section {
