@@ -2939,6 +2939,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (targetSection) targetSection.classList.remove("hidden");
       if (pageTitle) pageTitle.textContent = button.textContent;
       closeAttendanceRecordPopover();
+      setSidebarCollapsed(true);
       
     });
   });
