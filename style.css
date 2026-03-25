@@ -886,10 +886,15 @@ textarea {
 @media (max-width: 900px) {
   .main-page {
     flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
   }
 
   .sidebar {
     width: 100%;
+    height: auto;
+    max-height: none;
   }
 
   .calendar-grid,
