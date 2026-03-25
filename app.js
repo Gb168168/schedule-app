@@ -81,6 +81,7 @@ const SYMBOL_TYPES = {
 const SYMBOL_BUTTON_ORDER = ["rest", "must_rest", "new_year_rest", "new_year_must_rest", "event"];
 const SYMBOL_LABELS = Object.fromEntries(Object.entries(SYMBOL_TYPES).map(([key, value]) => [key, value.label]));
 const LEAVE_EXCLUDED_SYMBOL_TYPES = new Set(["rest", "must_rest", "new_year_rest", "new_year_must_rest", "event"]);
+const NEW_YEAR_SYMBOL_TYPES = new Set(["new_year_rest", "new_year_must_rest"]);
 const FIXED_HOLIDAY_RULES = [
   { monthDay: "01-01", name: "元旦" },
   { monthDay: "02-28", name: "和平紀念日" },
@@ -102,6 +103,7 @@ const SPECIAL_HOLIDAY_RANGES = [
 ];
 const HOLIDAY_NAME_BY_DATE = new Map();
 const HOLIDAY_DATES = new Set();
+const LUNAR_NEW_YEAR_DATES = new Set();
 
 const STORAGE_KEYS = {
   currentUser: "shift_current_user",
@@ -190,6 +192,7 @@ let messagingServiceWorkerRegistration = null;
 function initHolidayCalendar(startYear = 2020, endYear = 2035) {
   HOLIDAY_NAME_BY_DATE.clear();
   HOLIDAY_DATES.clear();
+  LUNAR_NEW_YEAR_DATES.clear();
   for (let year = startYear; year <= endYear; year += 1) {
     FIXED_HOLIDAY_RULES.forEach(function (holidayRule) {
       const dateKey = `${year}-${holidayRule.monthDay}`;
@@ -202,17 +205,33 @@ function initHolidayCalendar(startYear = 2020, endYear = 2035) {
     const start = new Date(`${holidayRange.startDate}T00:00:00`);
     const end = new Date(`${holidayRange.endDate}T00:00:00`);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return;
+    const isLunarNewYearRange = String(holidayRange.name || "").includes("春節");
 
     for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
       const dateKey = formatDate(cursor);
       HOLIDAY_NAME_BY_DATE.set(dateKey, holidayRange.name);
       HOLIDAY_DATES.add(dateKey);
+      if (isLunarNewYearRange) LUNAR_NEW_YEAR_DATES.add(dateKey);
     }
   });
 }
 
 function getHolidayName(dateString) {
   return HOLIDAY_NAME_BY_DATE.get(String(dateString || "").trim()) || "";
+}
+
+function isLunarNewYearDate(dateString) {
+  return LUNAR_NEW_YEAR_DATES.has(String(dateString || "").trim());
+}
+
+function getAllowedSymbolTypesForDate(dateString) {
+  return SYMBOL_BUTTON_ORDER.filter((type) => !NEW_YEAR_SYMBOL_TYPES.has(type) || isLunarNewYearDate(dateString));
+}
+
+function getAllowedSymbolTypesForMonth(monthKey) {
+  const hasLunarNewYearDate = Array.from(LUNAR_NEW_YEAR_DATES).some((dateString) => dateString.startsWith(`${monthKey}-`));
+  if (hasLunarNewYearDate) return [...SYMBOL_BUTTON_ORDER];
+  return SYMBOL_BUTTON_ORDER.filter((type) => !NEW_YEAR_SYMBOL_TYPES.has(type));
 }
 
 initHolidayCalendar();
@@ -2434,17 +2453,18 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     return canEmployeeEdit || canGoldBricksEdit;
   }
 
-  function getAssignmentSymbolTypes(assignment) {
+  function getAssignmentSymbolTypes(assignment, dateString = "") {
     if (!assignment) return [];
+    const allowedSymbolTypes = getAllowedSymbolTypesForDate(dateString || assignment.date || "");
     if (Array.isArray(assignment.symbolTypes)) {
-      return SYMBOL_BUTTON_ORDER.filter((type) => assignment.symbolTypes.includes(type));
+      return SYMBOL_BUTTON_ORDER.filter((type) => assignment.symbolTypes.includes(type) && allowedSymbolTypes.includes(type));
     }
-    if (assignment.symbolType && SYMBOL_TYPES[assignment.symbolType]) return [assignment.symbolType];
+    if (assignment.symbolType && SYMBOL_TYPES[assignment.symbolType] && allowedSymbolTypes.includes(assignment.symbolType)) return [assignment.symbolType];
     return [];
   }
 
-  function getCellSymbolMetas(assignment) {
-    return getAssignmentSymbolTypes(assignment).map((symbolType) => ({
+  function getCellSymbolMetas(assignment, dateString) {
+    return getAssignmentSymbolTypes(assignment, dateString).map((symbolType) => ({
       symbolType,
       ...SYMBOL_TYPES[symbolType]
     }));
@@ -2452,7 +2472,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   function getEmployeeSummaryCounts(employeeId, monthKey) {
     return getMonthAssignments(monthKey).filter((item) => item.employeeId === employeeId).reduce((acc, item) => {
-      const symbolTypes = getAssignmentSymbolTypes(item);
+      const symbolTypes = getAssignmentSymbolTypes(item, item.date);
       if (symbolTypes.some((symbolType) => ["rest", "must_rest"].includes(symbolType))) acc.rest += 1;
       if (symbolTypes.some((symbolType) => ["new_year_rest", "new_year_must_rest"].includes(symbolType))) acc.newYear += 1;
       if (symbolTypes.includes("event")) acc.event += 1;
@@ -2483,7 +2503,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   function renderLeaveToolbar() {
     if (!leaveSymbolToolbar) return;
-    leaveSymbolToolbar.innerHTML = SYMBOL_BUTTON_ORDER.map((type) => {
+    const visibleSymbolTypes = getAllowedSymbolTypesForMonth(currentLeaveMonth);
+    if (activeSymbolType && !visibleSymbolTypes.includes(activeSymbolType)) activeSymbolType = "";
+    leaveSymbolToolbar.innerHTML = visibleSymbolTypes.map((type) => {
       const meta = SYMBOL_TYPES[type];
       const activeClass = activeSymbolType === type ? "active" : "";
       return `<button type="button" class="leave-symbol-btn ${activeClass} ${meta.color === "red" ? "symbol-red" : ""}" data-symbol-type="${type}" title="${meta.label}"><span>${meta.icon}</span><small>${meta.label}</small></button>`;
@@ -2562,7 +2584,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), index + 1);
         const dateString = formatDate(date);
         const assignment = getAssignmentForCell(currentLeaveMonth, employee.employeeId, dateString);
-        const metas = getCellSymbolMetas(assignment);
+        const metas = getCellSymbolMetas(assignment, dateString);
         const isWeekend = [0, 6].includes(date.getDay());
         const holidayName = getHolidayName(dateString);
         const isHoliday = Boolean(holidayName);
@@ -2587,11 +2609,16 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       return;
     }
     const existing = getAssignmentForCell(currentLeaveMonth, employeeId, dateString);
-    const currentSymbolTypes = getAssignmentSymbolTypes(existing);
+    const currentSymbolTypes = getAssignmentSymbolTypes(existing, dateString);
     const nextSymbolTypeSet = new Set(currentSymbolTypes);
     if (nextSymbolTypeSet.has(activeSymbolType)) nextSymbolTypeSet.delete(activeSymbolType);
     else nextSymbolTypeSet.add(activeSymbolType);
-    const targetSymbolTypes = SYMBOL_BUTTON_ORDER.filter((type) => nextSymbolTypeSet.has(type));
+    const allowedSymbolTypes = getAllowedSymbolTypesForDate(dateString);
+    if (!allowedSymbolTypes.includes(activeSymbolType)) {
+      alert("過年圖示僅能在當年春節期間使用。");
+      return;
+    }
+    const targetSymbolTypes = allowedSymbolTypes.filter((type) => nextSymbolTypeSet.has(type));
     if (targetSymbolTypes.length > 1 && !targetSymbolTypes.includes("event")) {
       alert("只有含有 🎰（公司活動）的欄位才可多選。");
       return;
