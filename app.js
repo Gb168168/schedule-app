@@ -946,6 +946,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const leaveOpenRangeEditor = document.getElementById("leave-open-range-editor");
   const leaveTotalRestEditor = document.getElementById("leave-total-rest-editor");
   const leaveOpenRangeSaveBtn = document.getElementById("leave-open-range-save-btn");
+  const leaveOpenRangeClearBtn = document.getElementById("leave-open-range-clear-btn");
   const leaveTotalRestSaveBtn = document.getElementById("leave-total-rest-save-btn");
   const leaveOpenRangeCloseBtn = document.getElementById("leave-open-range-close-btn");
   const leaveTotalRestCloseBtn = document.getElementById("leave-total-rest-close-btn");
@@ -2420,6 +2421,16 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (leaveMessageBoardEditor) leaveMessageBoardEditor.classList.add("hidden");
   }
 
+  function clearLeaveOpenRangeDraft() {
+    if (leaveOpenStartDateInput) leaveOpenStartDateInput.value = "";
+    if (leaveOpenEndDateInput) leaveOpenEndDateInput.value = "";
+  }
+
+  function closeLeaveOpenRangeEditor() {
+    clearLeaveOpenRangeDraft();
+    closeLeaveSummaryEditors();
+  }
+
   function toggleLeaveSummaryEditor(kind) {
     if (!isGoldBricksUser(currentUser)) return;
     if (kind === "openRange") {
@@ -3546,7 +3557,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   if (leaveOpenRangeEditBtn) leaveOpenRangeEditBtn.addEventListener("click", function () { toggleLeaveSummaryEditor("openRange"); });
   if (leaveTotalRestEditBtn) leaveTotalRestEditBtn.addEventListener("click", function () { toggleLeaveSummaryEditor("totalRest"); });
   if (leaveMessageBoardEditBtn) leaveMessageBoardEditBtn.addEventListener("click", function () { toggleLeaveSummaryEditor("messageBoard"); });
-  if (leaveOpenRangeCloseBtn) leaveOpenRangeCloseBtn.addEventListener("click", closeLeaveSummaryEditors);
+  if (leaveOpenRangeClearBtn) leaveOpenRangeClearBtn.addEventListener("click", clearLeaveOpenRangeDraft);
+  if (leaveOpenRangeCloseBtn) leaveOpenRangeCloseBtn.addEventListener("click", closeLeaveOpenRangeEditor);
   if (leaveTotalRestCloseBtn) leaveTotalRestCloseBtn.addEventListener("click", closeLeaveSummaryEditors);
   if (leaveMessageBoardCloseBtn) leaveMessageBoardCloseBtn.addEventListener("click", closeLeaveSummaryEditors);
   if (leaveOpenRangeSaveBtn) leaveOpenRangeSaveBtn.addEventListener("click", function () { saveLeaveMonthSettings("openRange"); });
