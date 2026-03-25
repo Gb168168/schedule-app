@@ -232,6 +232,33 @@ textarea {
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
 }
 
+.main-page.sidebar-collapsed .sidebar {
+  width: 92px;
+  padding: 22px 10px;
+}
+
+.main-page.sidebar-collapsed .brand {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.main-page.sidebar-collapsed .brand-info {
+  display: none;
+}
+
+.main-page.sidebar-collapsed .menu-btn {
+  padding: 12px 10px;
+  text-align: center;
+  font-size: 0;
+  line-height: 1;
+}
+
+.main-page.sidebar-collapsed .menu-btn::before {
+  content: attr(data-short);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .main-content {
   flex: 1;
   min-width: 0;
@@ -897,6 +924,29 @@ textarea {
     max-height: none;
   }
 
+  .main-page.sidebar-collapsed .sidebar {
+    width: 100%;
+    padding: 14px 16px;
+  }
+
+  .main-page.sidebar-collapsed .brand-info {
+    display: block;
+  }
+
+  .main-page.sidebar-collapsed .menu {
+    display: none;
+  }
+
+  .main-page.sidebar-collapsed .menu-btn {
+    font-size: 16px;
+    text-align: left;
+    padding: 14px 18px;
+  }
+
+  .main-page.sidebar-collapsed .menu-btn::before {
+    content: "";
+  }
+  
   .calendar-grid,
   .calendar-weekdays {
     gap: 8px;
