@@ -438,6 +438,18 @@
               <h4 id="calendar-title"></h4>
               <button type="button" id="next-month" class="small-btn">下個月</button>
             </div>
+            <div id="leave-total-rest-card" class="leave-inline-summary-item leave-editable-summary leave-total-rest-header-card">
+              <h4>本月可排休天數</h4>
+              <p id="leave-total-rest-days">-</p>
+              <button type="button" id="leave-total-rest-edit-btn" class="small-btn leave-summary-edit-btn hidden">編輯</button>
+              <div id="leave-total-rest-editor" class="leave-summary-popover hidden">
+                <label class="field-label"><span>本月可排休天數</span><input id="leave-total-rest-days-input" class="compact-number-input" type="number" min="0" step="1" placeholder="例如 8" /></label>
+                <div class="item-actions">
+                  <button type="button" id="leave-total-rest-save-btn" class="primary-btn">儲存</button>
+                  <button type="button" id="leave-total-rest-close-btn" class="small-btn cancel-btn">關閉</button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="leave-toolbar-panel">
@@ -454,18 +466,6 @@
                     <button type="button" id="leave-open-range-save-btn" class="primary-btn">儲存</button>
                     <button type="button" id="leave-open-range-clear-btn" class="small-btn">清除</button>
                     <button type="button" id="leave-open-range-close-btn" class="small-btn cancel-btn">關閉</button>
-                  </div>
-                </div>
-              </div>
-               <div id="leave-total-rest-card" class="leave-inline-summary-item leave-editable-summary">
-                <h4>本月可排休</h4>
-                <p id="leave-total-rest-days">-</p>
-                <button type="button" id="leave-total-rest-edit-btn" class="small-btn leave-summary-edit-btn hidden">編輯</button>
-                <div id="leave-total-rest-editor" class="leave-summary-popover hidden">
-                  <label class="field-label"><span>本月可排休天數</span><input id="leave-total-rest-days-input" type="number" min="0" step="1" placeholder="例如 8" /></label>
-                  <div class="item-actions">
-                    <button type="button" id="leave-total-rest-save-btn" class="primary-btn">儲存</button>
-                    <button type="button" id="leave-total-rest-close-btn" class="small-btn cancel-btn">關閉</button>
                   </div>
                 </div>
               </div>
