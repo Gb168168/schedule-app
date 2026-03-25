@@ -1003,8 +1003,9 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!mainPage) return;
     mainPage.classList.toggle("sidebar-collapsed", collapsed);
     if (sidebarToggleBtn) {
-      sidebarToggleBtn.textContent = collapsed ? "展開選單" : "收合選單";
+      sidebarToggleBtn.textContent = collapsed ? "☰" : "✕";
       sidebarToggleBtn.setAttribute("aria-expanded", String(!collapsed));
+      sidebarToggleBtn.setAttribute("aria-label", collapsed ? "展開選單" : "收合選單");
     }
   }
 
