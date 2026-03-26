@@ -1439,7 +1439,7 @@ leave-message-board-card {
 }
 
 .leave-board-body {
-  max-height: 100%;
+  max-height: clamp(280px, 52vh, 620px);
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 4px;
