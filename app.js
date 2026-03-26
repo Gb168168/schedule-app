@@ -2626,7 +2626,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         const holidayText = holidayName ? `｜國定假日：${holidayName}` : "";
         const title = metas.length ? `${metas.map((meta) => meta.label).join(" + ")}${holidayText}` : `${dateString}${holidayText}`;
         const symbols = metas.map((meta) => `<span class="symbol ${meta.color === "red" ? "symbol-red" : ""}">${meta.icon}</span>`).join("");
-        return `<button type="button" class="leave-cell ${canEditAny ? "editable" : "readonly"} ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}" data-employee-id="${employee.employeeId}" data-date="${dateString}" title="${title}">${symbols}</button>`;
+        return `<button type="button" class="leave-cell ${canEditAny ? "editable" : "readonly"} ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}" data-employee-id="${employee.employeeId}" data-date="${dateString}" title="${title}"><div class="leave-cell-symbols">${symbols}</div></button>`;
       }).join("");
       return `<div class="leave-board-row"><div class="leave-employee-card"><strong>${employee.name || employee.employeeId}</strong><small>${employee.region || "-"}｜${employee.department || "-"}</small><small>${employee.category || getUserShiftType(employee) || "-"}</small></div><div class="leave-row-cells" style="--days:${daysInMonth}">${cells}</div><div class="leave-summary-card"><div><span>▲</span><strong>${counts.rest}</strong></div><div><span>★</span><strong>${counts.newYear}</strong></div><div><span>🎰</span><strong>${counts.event}</strong></div></div></div>`;
     }).join("");
