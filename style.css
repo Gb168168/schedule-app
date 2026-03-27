@@ -1386,8 +1386,14 @@ textarea {
   margin-inline: 0;
   margin-bottom: 0;
   justify-content: center;
+  align-items: center;
+  flex-wrap: nowrap;
   min-height: 100%;
   flex: 1.1 1 0;
+}
+
+.leave-board-header .leave-month-toolbar h4 {
+  white-space: nowrap;
 }
 
 .leave-message-board-card {
