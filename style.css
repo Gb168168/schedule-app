@@ -1314,7 +1314,7 @@ textarea {
   flex: 1 1 0;
   border: 1px solid var(--border);
   border-radius: 16px;
-  background: #f1f5f9;
+  background: #eef2f6;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
   padding: 14px 16px;
   display: flex;
@@ -1322,6 +1322,7 @@ textarea {
   justify-content: flex-start;
   gap: 12px;
   min-width: 0;
+  min-height: 190px;
 }
 
 .leave-symbol-toolbar {
@@ -1332,8 +1333,8 @@ textarea {
 }
 
 .leave-symbol-btn {
-  min-width: 92px;
-  padding: 12px 14px;
+  min-width: 82px;
+  padding: 10px 12px;
   border-radius: 16px;
   background: var(--surface-soft);
   border: 1px solid var(--border);
@@ -1395,11 +1396,12 @@ textarea {
   margin-inline: 0;
   margin-bottom: 0;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   flex-wrap: nowrap;
   min-height: 100%;
-  flex: 1.1 1 0;
+  flex: 1.15 1 0;
   gap: 12px;
 }
 
@@ -1411,10 +1413,10 @@ textarea {
   background: #ffffff;
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
   white-space: nowrap;
-  line-height: 1;
-  color: #111827;
-  font-size: 40px;
-  font-weight: 800;
+  line-height: 1.1;
+  color: #0f254a;
+  font-size: 50px;
+  font-weight: 900;
   text-align: center;
 }
 
@@ -1423,7 +1425,7 @@ textarea {
   border: 1px solid var(--border-strong);
   background: #dbe3ee;
   box-shadow: 0 5px 12px rgba(15, 23, 42, 0.14);
-  min-width: 90px;
+  min-width: 82px;
   text-align: center;
 }
 
@@ -1757,5 +1759,26 @@ textarea {
   .leave-employee-filter-popover {
     left: 0;
     width: min(92vw, 640px);
+  }
+}
+
+
+.leave-symbol-btn .symbol {
+  line-height: 1;
+}
+
+.leave-symbol-btn small {
+  font-size: 21px;
+  font-weight: 700;
+}
+
+@media (max-width: 1200px) {
+  .leave-top-cards {
+    flex-wrap: wrap;
+  }
+
+  .leave-top-card {
+    min-height: 170px;
+    min-width: min(100%, 320px);
   }
 }
