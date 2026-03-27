@@ -1481,8 +1481,15 @@ leave-message-board-card {
   gap: 6px;
 }
 
+.leave-sticky-col,
+.leave-employee-card {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+}
+
 .leave-sticky-col {
-  position: relative;
+  z-index: 6;
 }
 
 .leave-sticky-col-head {
@@ -1615,6 +1622,10 @@ leave-message-board-card {
   font-size: 18px;
   line-height: 1;
   flex: 0 0 auto;
+}
+
+.leave-cell .symbol-auto-rest {
+  opacity: 0.6;
 }
 
 .leave-cell.editable:hover {
