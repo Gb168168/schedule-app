@@ -45,6 +45,9 @@ const users = [
     department: "最高權限",
     category: "系統管理員",
     annualLeaveDays: 0,
+    annualLeaveExpiry: "",
+    travelLeaveDays: 0,
+    travelLeaveExpiry: "",
     shifts: { morning: true, evening: true },
     weekendsOff: false,
     permissions: {
@@ -2098,7 +2101,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                                   </div>
                               <p>部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}</p>
                                   <p>類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}</p>
-                                  <p>年度特休：${employee.annualLeaveDays || 0} 天｜班別與休假：${shifts.join("、") || "未設定"}</p>
+                                  <p>年度特休：${employee.annualLeaveDays || 0} 天（期限：${employee.annualLeaveExpiry || "未設定"}）｜旅遊假：${employee.travelLeaveDays || 0} 天（期限：${employee.travelLeaveExpiry || "未設定"}）｜班別與休假：${shifts.join("、") || "未設定"}</p>
                                   <p>休假表顯示：${showOnLeaveBoard ? "顯示" : "隱藏"}</p>
                                   <p>權限：${formatEmployeePermissions(employee)}</p>
                                   ${employee.permissions?.admin ? `<p>管理地區：${scopeRegions}</p><p>管理部門：${scopeDepartments}</p>` : ""}
@@ -3041,6 +3044,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const phone = document.getElementById("employee-form-phone")?.value.trim() || "";
       const birthday = document.getElementById("employee-form-birthday")?.value.trim() || "";
       const annualLeaveDays = Number(document.getElementById("employee-form-annual-leave-days")?.value || 0);
+      const annualLeaveExpiry = document.getElementById("employee-form-annual-leave-expiry")?.value || "";
+      const travelLeaveDays = Number(document.getElementById("employee-form-travel-leave-days")?.value || 0);
+      const travelLeaveExpiry = document.getElementById("employee-form-travel-leave-expiry")?.value || "";
       const employeeData = {
         employeeId,
         account,
@@ -3055,6 +3061,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         phone,
         birthday,
         annualLeaveDays,
+        annualLeaveExpiry,
+        travelLeaveDays,
+        travelLeaveExpiry,
         photoURL: photoData,
         shifts: {
           morning: document.getElementById("shift-morning")?.checked || false,
@@ -3200,6 +3209,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     document.getElementById("employee-form-phone").value = employee.phone || "";
     document.getElementById("employee-form-birthday").value = employee.birthday || "";
     document.getElementById("employee-form-annual-leave-days").value = employee.annualLeaveDays || 0;
+    document.getElementById("employee-form-annual-leave-expiry").value = employee.annualLeaveExpiry || "";
+    document.getElementById("employee-form-travel-leave-days").value = employee.travelLeaveDays || 0;
+    document.getElementById("employee-form-travel-leave-expiry").value = employee.travelLeaveExpiry || "";
     setPhoto(employee.photoURL || "");   
     
     document.getElementById("shift-morning").checked = !!employee.shifts?.morning;
