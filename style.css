@@ -1302,6 +1302,21 @@ textarea {
   gap: 10px;
 }
 
+.leave-top-cards {
+  display: grid;
+  grid-template-columns: minmax(300px, 1.15fr) repeat(3, minmax(220px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.leave-top-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+}
+
 .leave-symbol-toolbar {
   display: flex;
   gap: 10px;
@@ -1349,8 +1364,7 @@ textarea {
 }
 
 .leave-total-rest-header-card {
-  width: 180px;
-  flex-shrink: 0;
+  min-width: 220px;
 }
 
 .leave-total-rest-header-card .leave-summary-edit-btn {
@@ -1363,9 +1377,10 @@ textarea {
 }
 
 .leave-board-header .leave-month-toolbar {
-  margin-inline: auto;
+  margin-inline: 0;
   margin-bottom: 0;
   justify-content: center;
+  min-height: 100%;
 }
 
 leave-message-board-card {
@@ -1384,6 +1399,10 @@ leave-message-board-card {
 .leave-inline-summary-item .leave-summary-edit-btn {
   justify-self: start;
   margin-top: 2px;
+}
+
+.leave-toolbar-panel {
+  justify-content: flex-start;
 }
 
 .leave-symbol-btn.active {
@@ -1436,6 +1455,18 @@ leave-message-board-card {
 
 .leave-board-table {
   min-width: 1100px;
+}
+
+@media (max-width: 1400px) {
+  .leave-top-cards {
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .leave-top-cards {
+    grid-template-columns: 1fr;
+  }
 }
 
 .leave-board-body {
