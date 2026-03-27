@@ -1791,3 +1791,64 @@ textarea {
     min-width: min(100%, 320px);
   }
 }
+
+.leave-top-cards{
+  display:flex;
+  gap:14px;
+  width:100%;
+  align-items:stretch;
+  flex-wrap:nowrap;
+}
+
+/* 每個卡片 */
+.leave-top-card{
+  flex:1;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:#eef2f6;
+  padding:16px;
+  min-width:200px;
+  min-height:unset;
+}
+
+/* 月份卡片 */
+.leave-month-card{
+  flex:1.4;
+}
+
+/* 月份排列 */
+.leave-top-card-main{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+}
+
+/* 月份文字 */
+#calendar-title{
+  font-size:28px;
+  font-weight:700;
+  background:white;
+  padding:8px 20px;
+  border-radius:10px;
+  box-shadow:0 3px 10px rgba(0,0,0,0.15);
+  white-space:nowrap;
+}
+
+.leave-month-card .leave-month-toolbar {
+  flex-wrap: nowrap;
+  min-height: auto;
+  flex: 1;
+}
+
+@media (max-width: 1400px), (max-width: 1200px), (max-width: 900px) {
+  .leave-top-cards {
+    flex-wrap: nowrap;
+  }
+
+  .leave-top-card {
+    min-width: 200px;
+    min-height: unset;
+    flex-basis: auto;
+  }
+}
