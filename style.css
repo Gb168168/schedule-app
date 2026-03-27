@@ -1679,6 +1679,8 @@ textarea {
   display: grid;
   place-items: center;
   padding: 4px;
+  align-content: center;
+  gap: 2px;
 }
 
 .leave-day-header {
@@ -1723,9 +1725,33 @@ textarea {
   opacity: 0.6;
 }
 
+.leave-cell-type {
+  font-size: 10px;
+  line-height: 1.1;
+  color: var(--blue-2);
+  font-weight: 700;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .leave-cell.editable:hover {
   border-color: var(--blue-1);
   box-shadow: inset 0 0 0 1px var(--blue-1);
+}
+
+.leave-type-picker-popover {
+  position: absolute;
+  z-index: 60;
+  width: min(240px, 92vw);
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  display: grid;
+  gap: 10px;
 }
 
 .isWeekend {
