@@ -1746,6 +1746,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return employees.filter((employee) => {
       if (employee.isHidden || employee.status === "deleted") return false;
       if (employee.showOnLeaveBoard === false) return false;
+      if (isAutoRestDay(employee, todayString)) return false;
       const symbolTypes = todayLeaveMap.get(employee.employeeId) || [];
       return !symbolTypes.some((symbolType) => LEAVE_EXCLUDED_SYMBOL_TYPES.has(symbolType));
     });
@@ -2476,6 +2477,16 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     return leaveAssignments.find((item) => item.monthKey === monthKey && item.employeeId === employeeId && item.date === dateString) || null;
   }
 
+   function isWeekendOrHoliday(dateString) {
+    const date = new Date(`${dateString}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return false;
+    return [0, 6].includes(date.getDay()) || HOLIDAY_DATES.has(dateString);
+  }
+
+  function isAutoRestDay(employee, dateString) {
+    return Boolean(employee?.weekendsOff) && isWeekendOrHoliday(dateString);
+  }
+
     function isGoldBricksUser(user) {
     return user?.employeeId === "GoldBricks";
   }
@@ -2498,21 +2509,28 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     return [];
   }
 
-  function getCellSymbolMetas(assignment, dateString) {
-    return getAssignmentSymbolTypes(assignment, dateString).map((symbolType) => ({
-      symbolType,
-      ...SYMBOL_TYPES[symbolType]
-    }));
+  function getEffectiveCellSymbolTypes(employee, assignment, dateString) {
+    const symbolTypes = getAssignmentSymbolTypes(assignment, dateString);
+    if (symbolTypes.length) return symbolTypes;
+    if (isAutoRestDay(employee, dateString)) return ["rest"];
+    return [];
   }
 
   function getEmployeeSummaryCounts(employeeId, monthKey) {
-    return getMonthAssignments(monthKey).filter((item) => item.employeeId === employeeId).reduce((acc, item) => {
-      const symbolTypes = getAssignmentSymbolTypes(item, item.date);
-      if (symbolTypes.some((symbolType) => ["rest", "must_rest"].includes(symbolType))) acc.rest += 1;
-      if (symbolTypes.some((symbolType) => ["new_year_rest", "new_year_must_rest"].includes(symbolType))) acc.newYear += 1;
-      if (symbolTypes.includes("event")) acc.event += 1;
-      return acc;
-    }, { rest: 0, newYear: 0, event: 0 });
+     const employee = employees.find((item) => item.employeeId === employeeId);
+    const monthDate = new Date(`${monthKey}-01T00:00:00`);
+    if (!employee || Number.isNaN(monthDate.getTime())) return { rest: 0, newYear: 0, event: 0 };
+    const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
+    const summary = { rest: 0, newYear: 0, event: 0 };
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const dateString = formatDate(new Date(monthDate.getFullYear(), monthDate.getMonth(), day));
+      const assignment = getAssignmentForCell(monthKey, employeeId, dateString);
+      const symbolTypes = getEffectiveCellSymbolTypes(employee, assignment, dateString);
+      if (symbolTypes.some((symbolType) => ["rest", "must_rest"].includes(symbolType))) summary.rest += 1;
+      if (symbolTypes.some((symbolType) => ["new_year_rest", "new_year_must_rest"].includes(symbolType))) summary.newYear += 1;
+      if (symbolTypes.includes("event")) summary.event += 1;
+    }
+    return summary;
   }
 
   
@@ -2619,14 +2637,22 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), index + 1);
         const dateString = formatDate(date);
         const assignment = getAssignmentForCell(currentLeaveMonth, employee.employeeId, dateString);
-        const metas = getCellSymbolMetas(assignment, dateString);
+        const assignedSymbolTypes = getAssignmentSymbolTypes(assignment, dateString);
+        const symbolTypes = getEffectiveCellSymbolTypes(employee, assignment, dateString);
+        const metas = symbolTypes.map((symbolType) => ({
+          symbolType,
+          ...SYMBOL_TYPES[symbolType]
+        }));
         const isWeekend = [0, 6].includes(date.getDay());
         const holidayName = getHolidayName(dateString);
         const isHoliday = Boolean(holidayName);
         const holidayText = holidayName ? `｜國定假日：${holidayName}` : "";
-        const title = metas.length ? `${metas.map((meta) => meta.label).join(" + ")}${holidayText}` : `${dateString}${holidayText}`;
-        const symbols = metas.map((meta) => `<span class="symbol ${meta.color === "red" ? "symbol-red" : ""}">${meta.icon}</span>`).join("");
-        return `<button type="button" class="leave-cell ${canEditAny ? "editable" : "readonly"} ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}" data-employee-id="${employee.employeeId}" data-date="${dateString}" title="${title}"><div class="leave-cell-symbols">${symbols}</div></button>`;
+        const autoRest = isAutoRestDay(employee, dateString) && !assignedSymbolTypes.length;
+        const autoRestText = autoRest ? "｜系統帶入：週休二日 & 國定假日" : "";
+        const title = metas.length ? `${metas.map((meta) => meta.label).join(" + ")}${holidayText}${autoRestText}` : `${dateString}${holidayText}${autoRestText}`;
+        const symbols = metas.map((meta) => `<span class="symbol ${meta.color === "red" ? "symbol-red" : ""} ${autoRest ? "symbol-auto-rest" : ""}">${meta.icon}</span>`).join("");
+        const editableClass = canEditAny && !autoRest ? "editable" : "readonly";
+        return `<button type="button" class="leave-cell ${editableClass} ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}" data-employee-id="${employee.employeeId}" data-date="${dateString}" title="${title}"><div class="leave-cell-symbols">${symbols}</div></button>`;
       }).join("");
       return `<div class="leave-board-row"><div class="leave-employee-card"><strong>${employee.name || employee.employeeId}</strong><small>${employee.region || "-"}｜${employee.department || "-"}</small><small>${employee.category || getUserShiftType(employee) || "-"}</small></div><div class="leave-row-cells" style="--days:${daysInMonth}">${cells}</div><div class="leave-summary-card"><div><span>▲</span><strong>${counts.rest}</strong></div><div><span>★</span><strong>${counts.newYear}</strong></div><div><span>🎰</span><strong>${counts.event}</strong></div></div></div>`;
     }).join("");
@@ -3537,6 +3563,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       
       const cell = event.target.closest(".leave-cell[data-employee-id][data-date]");
       if (!cell) return;
+      if (!cell.classList.contains("editable")) return;
       toggleLeaveAssignment(cell.dataset.employeeId || "", cell.dataset.date || "");
     });
     
