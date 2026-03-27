@@ -1303,18 +1303,24 @@ textarea {
 }
 
 .leave-top-cards {
-  display: grid;
-  grid-template-columns: minmax(300px, 1.15fr) repeat(3, minmax(220px, 1fr));
+  display: flex;
   gap: 12px;
   width: 100%;
+  flex-wrap: nowrap;
+  align-items: stretch;
 }
 
 .leave-top-card {
+  flex: 1 1 0;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: var(--surface);
   box-shadow: var(--shadow);
   padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
 }
 
 .leave-symbol-toolbar {
@@ -1381,9 +1387,10 @@ textarea {
   margin-bottom: 0;
   justify-content: center;
   min-height: 100%;
+  flex: 1.1 1 0;
 }
 
-leave-message-board-card {
+.leave-message-board-card {
   min-width: 220px;
 }
 
@@ -1459,13 +1466,18 @@ leave-message-board-card {
 
 @media (max-width: 1400px) {
   .leave-top-cards {
-    grid-template-columns: repeat(2, minmax(280px, 1fr));
+    flex-wrap: wrap;
+  }
+
+  .leave-top-card {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 260px;
   }
 }
 
 @media (max-width: 900px) {
-  .leave-top-cards {
-    grid-template-columns: 1fr;
+  .leave-top-card {
+    flex-basis: 100%;
   }
 }
 
