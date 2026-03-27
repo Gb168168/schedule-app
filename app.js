@@ -15,6 +15,12 @@ import {
 
 const REGIONS = ["新竹區", "台中區", "嘉義區"];
 const DEPARTMENTS = ["管理部", "TSE", "FAE", "新場", "倉管", "RD", "線上客服"];
+const LEAVE_TYPE_GROUPS = [
+  { label: "一般假", options: ["事假", "病假", "公假", "年假", "特休"] },
+  { label: "特殊假", options: ["婚假", "產假", "生理", "喪假", "公傷"] },
+  { label: "補/調假", options: ["補(天)", "補(時)", "調班"] },
+  { label: "旅遊假", options: ["旅遊", "旅(例)"] }
+];
 const LOCATION_CATEGORIES = {
   office: "區域固定點",
   customer: "工作店家"
@@ -191,6 +197,9 @@ let editingCoordinateId = null;
 let lastAttendanceAttempt = null;
 let attendanceDetailMaps = {};
 let messagingServiceWorkerRegistration = null;
+let leaveTypePickerState = null;
+
+const ALL_LEAVE_TYPES = LEAVE_TYPE_GROUPS.flatMap((group) => group.options);
 
 function initHolidayCalendar(startYear = 2020, endYear = 2035) {
   HOLIDAY_NAME_BY_DATE.clear();
@@ -2480,6 +2489,31 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     return leaveAssignments.find((item) => item.monthKey === monthKey && item.employeeId === employeeId && item.date === dateString) || null;
   }
 
+  function getNormalizedLeaveType(typeValue = "") {
+    const normalized = String(typeValue || "").trim();
+    if (!normalized) return "";
+    return ALL_LEAVE_TYPES.includes(normalized) ? normalized : "";
+  }
+
+  function hasAssignmentContent(symbolTypes = [], leaveType = "") {
+    return Array.isArray(symbolTypes) && symbolTypes.length > 0 || Boolean(getNormalizedLeaveType(leaveType));
+  }
+
+  function renderLeaveTypeSelectOptions(selectedValue = "") {
+    const normalized = getNormalizedLeaveType(selectedValue);
+    const groupsHtml = LEAVE_TYPE_GROUPS.map((group) => {
+      const optionsHtml = group.options.map((option) => `<option value="${option}" ${normalized === option ? "selected" : ""}>${option}</option>`).join("");
+      return `<optgroup label="${group.label}">${optionsHtml}</optgroup>`;
+    }).join("");
+    return `<option value="">未設定</option>${groupsHtml}`;
+  }
+
+  function hydrateLeaveTypeSelect() {
+    if (!leaveType) return;
+    leaveType.innerHTML = renderLeaveTypeSelectOptions(leaveType.value || "事假");
+    if (!leaveType.value) leaveType.value = "事假";
+  }
+
    function isWeekendOrHoliday(dateString) {
     const date = new Date(`${dateString}T00:00:00`);
     if (Number.isNaN(date.getTime())) return false;
@@ -2599,6 +2633,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   function renderLeaveBoard() {
     if (!leaveBoardTable) return;
+    closeLeaveTypePicker();
     currentLeaveMonth = getMonthKey(calendarDate);
     const monthSetting = getMonthSetting(currentLeaveMonth);
     const monthDate = getCurrentLeaveMonthDate();
@@ -2641,6 +2676,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         const dateString = formatDate(date);
         const assignment = getAssignmentForCell(currentLeaveMonth, employee.employeeId, dateString);
         const assignedSymbolTypes = getAssignmentSymbolTypes(assignment, dateString);
+        const leaveTypeValue = getNormalizedLeaveType(assignment?.leaveType || "");
         const symbolTypes = getEffectiveCellSymbolTypes(employee, assignment, dateString);
         const metas = symbolTypes.map((symbolType) => ({
           symbolType,
@@ -2652,15 +2688,128 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         const holidayText = holidayName ? `｜國定假日：${holidayName}` : "";
         const autoRest = isAutoRestDay(employee, dateString) && !assignedSymbolTypes.length;
         const autoRestText = autoRest ? "｜系統帶入：週休二日 & 國定假日" : "";
-        const title = metas.length ? `${metas.map((meta) => meta.label).join(" + ")}${holidayText}${autoRestText}` : `${dateString}${holidayText}${autoRestText}`;
+        const leaveTypeText = leaveTypeValue ? `｜假別：${leaveTypeValue}` : "";
+        const title = metas.length ? `${metas.map((meta) => meta.label).join(" + ")}${leaveTypeText}${holidayText}${autoRestText}` : `${dateString}${leaveTypeText}${holidayText}${autoRestText}`;
         const symbols = metas.map((meta) => `<span class="symbol ${meta.color === "red" ? "symbol-red" : ""} ${autoRest ? "symbol-auto-rest" : ""}">${meta.icon}</span>`).join("");
         const editableClass = canEditAny && !autoRest ? "editable" : "readonly";
-        return `<button type="button" class="leave-cell ${editableClass} ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}" data-employee-id="${employee.employeeId}" data-date="${dateString}" title="${title}"><div class="leave-cell-symbols">${symbols}</div></button>`;
+        const leaveTypeHtml = leaveTypeValue ? `<small class="leave-cell-type">${leaveTypeValue}</small>` : "";
+        return `<button type="button" class="leave-cell ${editableClass} ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}" data-employee-id="${employee.employeeId}" data-date="${dateString}" title="${title}"><div class="leave-cell-symbols">${symbols}</div>${leaveTypeHtml}</button>`;
       }).join("");
       return `<div class="leave-board-row"><div class="leave-employee-card"><strong>${employee.name || employee.employeeId}</strong><small>${employee.region || "-"}｜${employee.department || "-"}</small><small>${employee.category || getUserShiftType(employee) || "-"}</small></div><div class="leave-row-cells" style="--days:${daysInMonth}">${cells}</div><div class="leave-summary-card"><div><span>▲</span><strong>${counts.rest}</strong></div><div><span>★</span><strong>${counts.newYear}</strong></div><div><span>🎰</span><strong>${counts.event}</strong></div></div></div>`;
     }).join("");
 
      leaveBoardTable.innerHTML = `<div class="leave-board-head"><div class="leave-sticky-col"><div class="leave-sticky-col-head"><strong>人員</strong><div class="employee-filter-toggle-wrap"><small class="employee-filter-toggle-label">${selectedCount > 0 ? `已套用 ${selectedCount} 人` : `待選 ${pendingCount} 人`}</small><button type="button" id="leave-employee-toggle" class="switch ${isLeaveEmployeeFilterOpen ? "is-on" : ""}" aria-label="切換人員篩選"></button></div></div>${filterPopover}</div><div class="leave-header-days" style="--days:${daysInMonth}">${headerDays}</div><div class="leave-summary-head"><div>▲</div><div>★</div><div>🎰</div></div></div><div class="leave-board-body">${rows}</div>`;
+  }
+  
+    function closeLeaveTypePicker() {
+    const picker = document.getElementById("leave-type-picker-popover");
+    if (picker) picker.remove();
+    leaveTypePickerState = null;
+  }
+
+  async function saveLeaveTypeAssignment(employeeId, dateString, leaveTypeValue) {
+    const targetEmployee = employees.find((employee) => employee.employeeId === employeeId);
+    const monthSetting = getMonthSetting(currentLeaveMonth);
+    if (!targetEmployee) return;
+    if (!canEditLeaveCell(targetEmployee, monthSetting)) {
+      alert("你只能在開放期間編輯自己的休假表。");
+      return;
+    }
+    const normalizedLeaveType = getNormalizedLeaveType(leaveTypeValue);
+    const existing = getAssignmentForCell(currentLeaveMonth, employeeId, dateString);
+    const currentSymbolTypes = getAssignmentSymbolTypes(existing, dateString);
+    if (!hasAssignmentContent(currentSymbolTypes, normalizedLeaveType)) {
+      if (existing?.id) {
+        if (!db) leaveAssignments = leaveAssignments.filter((item) => item.id !== existing.id);
+        else await deleteDoc(doc(db, "leaveAssignments", existing.id));
+      }
+      renderLeaveBoard();
+      return;
+    }
+    if (!db) {
+      if (existing?.id) {
+        leaveAssignments = leaveAssignments.map((item) => item.id === existing.id ? {
+          ...item,
+          leaveType: normalizedLeaveType,
+          updatedBy: currentUser?.employeeId || "",
+          updatedByName: currentUser?.name || ""
+        } : item);
+      } else {
+        leaveAssignments = [{
+          id: `local-${Date.now()}`,
+          employeeId,
+          employeeName: targetEmployee.name || "",
+          region: targetEmployee.region || "",
+          department: targetEmployee.department || "",
+          category: targetEmployee.category || "",
+          date: dateString,
+          monthKey: currentLeaveMonth,
+          symbolType: "",
+          symbolTypes: [],
+          leaveType: normalizedLeaveType,
+          createdBy: currentUser?.employeeId || "",
+          createdByName: currentUser?.name || "",
+          updatedBy: currentUser?.employeeId || "",
+          updatedByName: currentUser?.name || ""
+        }, ...leaveAssignments];
+      }
+      renderLeaveBoard();
+      return;
+    }
+    if (existing?.id) {
+      await updateDoc(doc(db, "leaveAssignments", existing.id), {
+        leaveType: normalizedLeaveType,
+        updatedBy: currentUser?.employeeId || "",
+        updatedByName: currentUser?.name || "",
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      await addDoc(collection(db, "leaveAssignments"), {
+        employeeId,
+        employeeName: targetEmployee.name || "",
+        region: targetEmployee.region || "",
+        department: targetEmployee.department || "",
+        category: targetEmployee.category || "",
+        date: dateString,
+        monthKey: currentLeaveMonth,
+        symbolType: "",
+        symbolTypes: [],
+        leaveType: normalizedLeaveType,
+        createdBy: currentUser?.employeeId || "",
+        createdByName: currentUser?.name || "",
+        updatedBy: currentUser?.employeeId || "",
+        updatedByName: currentUser?.name || "",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    }
+  }
+
+  function openLeaveTypePicker(cellElement, employeeId, dateString) {
+    if (!cellElement || !employeeId || !dateString) return;
+    closeLeaveTypePicker();
+    const existing = getAssignmentForCell(currentLeaveMonth, employeeId, dateString);
+    const selectedType = getNormalizedLeaveType(existing?.leaveType || "");
+    const picker = document.createElement("div");
+    picker.id = "leave-type-picker-popover";
+    picker.className = "leave-type-picker-popover";
+    picker.innerHTML = `
+      <label class="field-label">
+        <span>假別</span>
+        <select id="leave-type-picker-select">${renderLeaveTypeSelectOptions(selectedType)}</select>
+      </label>
+      <div class="item-actions">
+        <button type="button" id="leave-type-picker-save" class="primary-btn">儲存</button>
+        <button type="button" id="leave-type-picker-cancel" class="small-btn cancel-btn">取消</button>
+      </div>
+    `;
+    document.body.appendChild(picker);
+    const rect = cellElement.getBoundingClientRect();
+    picker.style.top = `${Math.min(window.innerHeight - picker.offsetHeight - 12, rect.bottom + window.scrollY + 6)}px`;
+    picker.style.left = `${Math.min(window.innerWidth - picker.offsetWidth - 12, rect.left + window.scrollX)}px`;
+    leaveTypePickerState = { employeeId, dateString };
+    const selectEl = picker.querySelector("#leave-type-picker-select");
+    if (selectEl) selectEl.focus();
   }
 
     async function toggleLeaveAssignment(employeeId, dateString) {
@@ -2702,15 +2851,16 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       }
     }
 
+      const normalizedLeaveType = getNormalizedLeaveType(existing?.leaveType || "");
     if (!db) {
-      if (existing && !targetSymbolTypes.length) leaveAssignments = leaveAssignments.filter((item) => item.id !== existing.id);
+      if (existing && !hasAssignmentContent(targetSymbolTypes, normalizedLeaveType)) leaveAssignments = leaveAssignments.filter((item) => item.id !== existing.id);
       else if (existing) leaveAssignments = leaveAssignments.map((item) => item.id === existing.id ? { ...item, symbolType: targetSymbolType, symbolTypes: targetSymbolTypes, updatedBy: currentUser?.employeeId || "", updatedByName: currentUser?.name || "" } : item);
-      else leaveAssignments = [{ id: `local-${Date.now()}`, employeeId, employeeName: targetEmployee.name, region: targetEmployee.region, department: targetEmployee.department, category: targetEmployee.category, date: dateString, monthKey: currentLeaveMonth, symbolType: targetSymbolType, symbolTypes: targetSymbolTypes, createdBy: currentUser?.employeeId || "", createdByName: currentUser?.name || "", updatedBy: currentUser?.employeeId || "", updatedByName: currentUser?.name || "" }];
+      else leaveAssignments = [{ id: `local-${Date.now()}`, employeeId, employeeName: targetEmployee.name, region: targetEmployee.region, department: targetEmployee.department, category: targetEmployee.category, date: dateString, monthKey: currentLeaveMonth, symbolType: targetSymbolType, symbolTypes: targetSymbolTypes, leaveType: "", createdBy: currentUser?.employeeId || "", createdByName: currentUser?.name || "", updatedBy: currentUser?.employeeId || "", updatedByName: currentUser?.name || "" }];
       renderLeaveBoard();
       return;
     }
     try {
-      if (existing && !targetSymbolTypes.length) {
+      if (existing && !hasAssignmentContent(targetSymbolTypes, normalizedLeaveType)) {
         await deleteDoc(doc(db, "leaveAssignments", existing.id));
       } else if (existing) {
         await updateDoc(doc(db, "leaveAssignments", existing.id), {
@@ -3245,6 +3395,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   updateSuperAdminFormState();
   setPhoto("");
+  hydrateLeaveTypeSelect();
 
   window.deleteEmployee = async function (id) {
     if (!isAdmin(currentUser)) return;
@@ -3271,7 +3422,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const startDate = leaveStart?.value || "";
       const endDate = leaveEnd?.value || "";
       const reason = leaveReason?.value.trim() || "";
+      const selectedLeaveType = getNormalizedLeaveType(leaveType?.value || "");
       if (!startDate || !endDate || !reason) return alert("請填寫完整請假資料");
+      if (!selectedLeaveType) return alert("請先選擇假別");
       if (startDate > endDate) return alert("開始日期不能晚於結束日期");
       if (!db) return alert("Firebase 未設定");
       try {
@@ -3279,7 +3432,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
           userName: currentUser.name,
           department: currentUser.department,
           region: currentUser.region,
-          type: leaveType.value,
+          type: selectedLeaveType,
           startDate,
           endDate,
           reason,
@@ -3290,6 +3443,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
           createdAtClient: new Date()
         });
         leaveForm.reset();
+        if (leaveType) leaveType.value = "事假";
       } catch (error) {
         console.error("請假新增失敗", error);
         alert("請假送出失敗");
@@ -3576,7 +3730,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const cell = event.target.closest(".leave-cell[data-employee-id][data-date]");
       if (!cell) return;
       if (!cell.classList.contains("editable")) return;
-      toggleLeaveAssignment(cell.dataset.employeeId || "", cell.dataset.date || "");
+      const employeeId = cell.dataset.employeeId || "";
+      const dateString = cell.dataset.date || "";
+      if (activeSymbolType) {
+        toggleLeaveAssignment(employeeId, dateString);
+        return;
+      }
+      openLeaveTypePicker(cell, employeeId, dateString);
     });
     
     leaveBoardTable.addEventListener("change", function (event) {
@@ -3608,10 +3768,36 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   document.addEventListener("click", function (event) {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
+    if (target.closest("#leave-type-picker-popover")) return;
     if (leaveOpenRangeCard?.contains(target)) return;
     if (leaveTotalRestCard?.contains(target)) return;
     if (leaveMessageBoardCard?.contains(target)) return;
     closeLeaveSummaryEditors();
+    closeLeaveTypePicker();
+  });
+  document.addEventListener("click", async function (event) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.id === "leave-type-picker-cancel") {
+      closeLeaveTypePicker();
+      return;
+    }
+    if (target.id === "leave-type-picker-save") {
+      const picker = document.getElementById("leave-type-picker-popover");
+      const selectElement = picker?.querySelector("#leave-type-picker-select");
+      if (!leaveTypePickerState || !(selectElement instanceof HTMLSelectElement)) {
+        closeLeaveTypePicker();
+        return;
+      }
+      try {
+        await saveLeaveTypeAssignment(leaveTypePickerState.employeeId, leaveTypePickerState.dateString, selectElement.value || "");
+      } catch (error) {
+        console.error("儲存假別失敗", error);
+        alert("儲存假別失敗，請稍後再試。");
+      } finally {
+        closeLeaveTypePicker();
+      }
+    }
   });
   if (prevMonthBtn) prevMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() - 1); renderLeaveBoard(); });
   if (nextMonthBtn) nextMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() + 1); renderLeaveBoard(); });
