@@ -863,12 +863,30 @@ textarea {
 }
 
 .schedule-item {
+  display: grid;
+  grid-template-columns: 80px 120px 120px 120px;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   line-height: 1.5;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface-soft);
+  padding: 6px 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.shift {
+  font-weight: 700;
+}
+
+.shift.shift-morning {
+  color: #2563eb;
+}
+
+.shift.shift-evening {
+  color: #7c3aed;
+}
+
+.shift.shift-support {
+  color: #ca8a04;
 }
 
 .schedule-popover {
