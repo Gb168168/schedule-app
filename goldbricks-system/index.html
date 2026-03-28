@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GoldBricks Shift Management System</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <section id="login-view" class="login-view">
+        <form id="login-form" class="card login-card">
+          <h1>GoldBricks Shift Management System</h1>
+          <p class="muted">Login with your employee ID and password.</p>
+          <label>Employee ID <input id="employee-id" required /></label>
+          <label>Password <input id="password" type="password" required /></label>
+          <button type="submit" class="btn btn-primary">Login</button>
+          <p id="login-error" class="error"></p>
+          <p class="muted small">Demo: GoldBricks / GoldBricks</p>
+        </form>
+      </section>
+
+      <section id="dashboard-view" class="dashboard hidden">
+        <aside class="sidebar">
+          <div class="brand">
+            <h2>GoldBricks</h2>
+            <small>Shift Management</small>
+          </div>
+          <nav id="menu"></nav>
+        </aside>
+
+        <main class="main">
+          <header class="top-header card">
+            <h2 id="page-title">Home</h2>
+            <div>
+              <span id="current-user"></span>
+              <button id="logout-btn" class="btn">Logout</button>
+            </div>
+          </header>
+
+          <section id="page-home" class="page card"></section>
+          <section id="page-announcement" class="page card hidden"></section>
+          <section id="page-leave-board" class="page card hidden"></section>
+          <section id="page-schedule" class="page card hidden"></section>
+          <section id="page-today-staff" class="page card hidden"></section>
+          <section id="page-employees" class="page card hidden"></section>
+          <section id="page-leave-request" class="page card hidden"></section>
+          <section id="page-attendance" class="page card hidden"></section>
+          <section id="page-shift-settings" class="page card hidden"></section>
+          <section id="page-attendance-coordinates" class="page card hidden"></section>
+        </main>
+      </section>
+    </div>
+
+    <div id="leave-type-modal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-content card">
+        <div class="modal-head">
+          <h3 id="leave-modal-title">Select Leave Type</h3>
+          <button id="close-leave-modal" class="btn">✕</button>
+        </div>
+        <div id="leave-type-groups"></div>
+        <div class="legend-row">
+          <button class="symbol-btn" data-symbol="▲">▲ Rest</button>
+          <button class="symbol-btn" data-symbol="★">★ New Year Rest</button>
+          <button class="symbol-btn" data-symbol="🎰">🎰 Event</button>
+        </div>
+        <button id="clear-cell" class="btn btn-danger">Clear Cell</button>
+      </div>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
