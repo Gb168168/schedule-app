@@ -2803,14 +2803,14 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     }
   }
 
-  function openLeaveTypePicker(cellElement, employeeId, dateString) {
+  function openLeaveTypePicker(employeeId, dateString, cellElement) {
     if (!cellElement || !employeeId || !dateString) return;
     closeLeaveTypePicker();
     const existing = getAssignmentForCell(currentLeaveMonth, employeeId, dateString);
     const selectedType = getNormalizedLeaveType(existing?.leaveType || "");
     const picker = document.createElement("div");
     picker.id = "leave-type-picker-popover";
-    picker.className = "leave-type-picker-popover";
+    picker.className = "leave-type-picker leave-type-picker-popover";
     picker.innerHTML = LEAVE_TYPE_GROUPS.map((group) => {
       const optionsHtml = group.options.map((type) => {
         const selectedClass = selectedType === type ? "is-selected" : "";
@@ -3750,11 +3750,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (!cell.classList.contains("editable")) return;
       const employeeId = cell.dataset.employeeId || "";
       const dateString = cell.dataset.date || "";
-      if (activeSymbolType) {
-        toggleLeaveAssignment(employeeId, dateString);
-        return;
-      }
-      openLeaveTypePicker(cell, employeeId, dateString);
+      openLeaveTypePicker(employeeId, dateString, cell);
     });
     
     leaveBoardTable.addEventListener("change", function (event) {
