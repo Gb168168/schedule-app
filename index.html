@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-5</title>
+  <title>班表系統-1</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -193,6 +193,17 @@
             </label>
             <button type="submit" class="primary-btn">儲存排程</button>
           </form>
+          <div class="calendar-wrap">
+            <div class="calendar-toolbar">
+              <button type="button" id="roster-prev-month" class="small-btn">上個月</button>
+              <h4 id="roster-calendar-title"></h4>
+              <button type="button" id="roster-next-month" class="small-btn">下個月</button>
+            </div>
+            <div class="calendar-weekdays">
+              <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+            </div>
+            <div id="calendar-grid" class="calendar-grid"></div>
+          </div>
           <div id="roster-list" class="list-wrap"></div>
         </div>
       </section>
@@ -512,6 +523,48 @@
         <button id="attendance-record-popover-close" type="button" class="small-btn cancel-btn">關閉</button>
       </div>
       <div id="attendance-record-popover-content" class="list-wrap"></div>
+    </div>
+  </div>
+
+  <div id="schedule-modal-backdrop" class="schedule-popover-backdrop hidden">
+    <div id="schedule-modal" class="schedule-popover">
+      <div class="schedule-popover-header">
+        <h4 id="schedule-modal-title">新增排程</h4>
+        <button id="schedule-modal-close" type="button" class="small-btn cancel-btn">關閉</button>
+      </div>
+      <div class="selected-date-box">
+        <p>日期：<strong id="schedule-date-label">-</strong></p>
+      </div>
+      <div class="form-grid">
+        <label class="field-label">
+          <span>標題</span>
+          <input id="schedule-title" type="text" placeholder="標題" required />
+        </label>
+        <label class="field-label">
+          <span>內容</span>
+          <textarea id="schedule-content" placeholder="請輸入內容"></textarea>
+        </label>
+        <label class="field-label">
+          <span>地區</span>
+          <select id="schedule-region"></select>
+        </label>
+        <label class="field-label">
+          <span>部門</span>
+          <select id="schedule-department"></select>
+        </label>
+        <label class="field-label">
+          <span>員工</span>
+          <select id="schedule-employee"></select>
+        </label>
+        <label class="field-label">
+          <span>班別</span>
+          <select id="schedule-shift">
+            <option value="早班">早班</option>
+            <option value="晚班">晚班</option>
+          </select>
+        </label>
+        <button id="save-schedule" type="button" class="primary-btn">儲存</button>
+      </div>
     </div>
   </div>
   
