@@ -958,6 +958,11 @@ document.addEventListener("DOMContentLoaded", function () {
   const rosterCalendarTitle = document.getElementById("roster-calendar-title");
   const rosterPrevMonthBtn = document.getElementById("roster-prev-month");
   const rosterNextMonthBtn = document.getElementById("roster-next-month");
+  const openScheduleCreateBtn = document.getElementById("open-schedule-create-btn");
+  const filterRegion = document.getElementById("filter-region");
+  const filterDepartment = document.getElementById("filter-department");
+  const filterEmployee = document.getElementById("filter-employee");
+  const filterShift = document.getElementById("filter-shift");
   const calendarGrid = document.getElementById("calendar-grid");
   const scheduleModalBackdrop = document.getElementById("schedule-modal-backdrop");
   const scheduleModalClose = document.getElementById("schedule-modal-close");
@@ -969,6 +974,11 @@ document.addEventListener("DOMContentLoaded", function () {
   const scheduleEmployeeSelect = document.getElementById("schedule-employee");
   const scheduleShiftSelect = document.getElementById("schedule-shift");
   const saveScheduleBtn = document.getElementById("save-schedule");
+  const scheduleDetailBackdrop = document.getElementById("schedule-detail-backdrop");
+  const scheduleDetailTitle = document.getElementById("schedule-detail-title");
+  const scheduleDetailBody = document.getElementById("schedule-detail-body");
+  const scheduleDetailClose = document.getElementById("schedule-detail-close");
+  const scheduleDetailAddBtn = document.getElementById("schedule-detail-add-btn");
 
   const leaveForm = document.getElementById("leave-form");
   const leaveType = document.getElementById("leave-type");
@@ -1010,7 +1020,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const schedulePopover = document.getElementById("schedule-popover");
 
   function closeSchedulePopover() {
-    if (schedulePopover) schedulePopover.classList.add("hidden");
+    if (scheduleDetailBackdrop) scheduleDetailBackdrop.classList.add("hidden");
     if (typeof hideScheduleEditor === "function") {
       hideScheduleEditor();
     }
@@ -2168,9 +2178,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   function startEmployeesListener() {
-  if (!db) {
+    if (!db) {
       employees = getBuiltinEmployees();
       markEmployeesReady();
+      populateScheduleFilters();
       renderEmployees();
       restoreLogin();
       return;
@@ -2196,6 +2207,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
         if (visibleEmployees.length === 0) {
         employees = getBuiltinEmployees();
+          populateScheduleFilters();
           markEmployeesReady();
           renderEmployees();
           restoreLogin();
@@ -2206,6 +2218,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         employees = mergeEmployeesWithBuiltin(visibleEmployees);
         markEmployeesReady();
         ensureBaseShiftTemplates();
+        populateScheduleFilters();
         renderEmployees();
         restoreLogin();
       },
@@ -2213,6 +2226,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         console.error("載入員工資料失敗，改用內建帳號", error);
         employees = getBuiltinEmployees();
         ensureBaseShiftTemplates();
+        populateScheduleFilters();
         markEmployeesReady();
         renderEmployees();
         restoreLogin();
@@ -2278,6 +2292,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     const q = query(collection(db, "schedules"), orderBy("date", "desc"));
     onSnapshot(q, function (snapshot) {
       schedules = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
+      populateScheduleFilters();
       renderSchedules();
       renderRosterCalendar();
     });
@@ -2294,7 +2309,57 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   function getSchedulesByDate(dateString) {
-    return schedules.filter((item) => item.date === dateString);
+    return filterSchedules().filter((item) => item.date === dateString);
+  }
+
+  function populateScheduleFilters() {
+    if (!filterRegion || !filterDepartment || !filterEmployee) return;
+    const previousRegion = filterRegion.value || "";
+    const previousDepartment = filterDepartment.value || "";
+    const previousEmployee = filterEmployee.value || "";
+
+    const employeeOptions = employees
+      .filter((employee) => !employee.isHidden && employee.status !== "deleted")
+      .map((employee) => ({ value: employee.name || employee.employeeId, label: employee.name || employee.employeeId }));
+
+    filterRegion.innerHTML = `<option value="">全部地區</option>${REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("")}`;
+    filterDepartment.innerHTML = `<option value="">全部部門</option>${DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("")}`;
+    filterEmployee.innerHTML = `<option value="">全部人員</option>${employeeOptions.map((option) => `<option value="${option.value}">${option.label}</option>`).join("")}`;
+
+    filterRegion.value = REGIONS.includes(previousRegion) ? previousRegion : "";
+    filterDepartment.value = DEPARTMENTS.includes(previousDepartment) ? previousDepartment : "";
+    filterEmployee.value = employeeOptions.some((option) => option.value === previousEmployee) ? previousEmployee : "";
+  }
+
+  function applyDefaultScheduleFiltersByUser(user) {
+    if (!user || !filterRegion || !filterDepartment || !filterEmployee) return;
+    filterRegion.value = user.region && REGIONS.includes(user.region) ? user.region : "";
+    filterDepartment.value = user.department && DEPARTMENTS.includes(user.department) ? user.department : "";
+    filterEmployee.value = user.name || "";
+    if (filterShift) filterShift.value = "";
+  }
+
+  function filterSchedules() {
+    const region = filterRegion?.value || "";
+    const department = filterDepartment?.value || "";
+    const employee = filterEmployee?.value || "";
+    const shift = filterShift?.value || "";
+
+    return schedules.filter(function (item) {
+      if (region && item.region !== region) return false;
+      if (department && item.department !== department) return false;
+      const itemEmployee = item.employeeName || item.employee || "";
+      if (employee && itemEmployee !== employee) return false;
+      if (shift && item.shift !== shift) return false;
+      return true;
+    });
+  }
+
+  function getShiftClassName(shift) {
+    if (shift === "早班") return "shift-morning";
+    if (shift === "晚班") return "shift-evening";
+    if (shift === "支援") return "shift-support";
+    return "";
   }
 
   function getCalendarDayTitle(dateString) {
@@ -2321,19 +2386,67 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
     for (let d = 1; d <= days; d += 1) {
       const dateStr = formatScheduleDate(year, month, d);
-      const title = getCalendarDayTitle(dateStr);
+      const daySchedules = getSchedulesByDate(dateStr);
       const cell = document.createElement("div");
       cell.className = "calendar-day";
       cell.setAttribute("data-date", dateStr);
-      cell.innerHTML = `
-        <div class="day-number">${d}</div>
-        <div class="day-title">${title}</div>
-      `;
+      const tagsHtml = daySchedules.map((item) => {
+        const title = item.title || item.note || "未命名";
+        const shift = item.shift || "";
+        const shiftClass = getShiftClassName(shift);
+        return `<div class="schedule-tag ${shiftClass}">${title}${shift ? `｜${shift}` : ""}</div>`;
+      }).join("");
+      cell.innerHTML = `<div class="day-number">${d}</div><div class="day-title"></div><div class="calendar-events">${tagsHtml}</div>`;
       cell.addEventListener("click", function () {
-        openScheduleModal(dateStr);
+        openScheduleDetail(dateStr);
       });
       calendarGrid.appendChild(cell);
     }
+  }
+
+  function groupSchedulesForDetail(dateString) {
+    const daySchedules = getSchedulesByDate(dateString);
+    const regionMap = new Map();
+    daySchedules.forEach(function (item) {
+      const region = item.region || "未設定地區";
+      const department = item.department || "未設定部門";
+      const employee = item.employeeName || item.employee || item.employeeId || "未指定人員";
+      if (!regionMap.has(region)) regionMap.set(region, new Map());
+      const departmentMap = regionMap.get(region);
+      if (!departmentMap.has(department)) departmentMap.set(department, new Map());
+      const employeeMap = departmentMap.get(department);
+      if (!employeeMap.has(employee)) employeeMap.set(employee, []);
+      employeeMap.get(employee).push(item);
+    });
+    return regionMap;
+  }
+
+  function openScheduleDetail(dateString) {
+    if (!scheduleDetailBackdrop || !scheduleDetailBody) return;
+    selectedScheduleDate = dateString;
+    const dateObj = new Date(`${dateString}T00:00:00`);
+    const title = Number.isNaN(dateObj.getTime())
+      ? `${dateString} 行程`
+      : `${dateObj.getMonth() + 1}/${dateObj.getDate()} 行程`;
+    if (scheduleDetailTitle) scheduleDetailTitle.textContent = title;
+
+    const grouped = groupSchedulesForDetail(dateString);
+    if (!grouped.size) {
+      scheduleDetailBody.innerHTML = `<div class="list-item"><p>此日期目前沒有符合篩選條件的行程。</p></div>`;
+    } else {
+      const html = Array.from(grouped.entries()).map(([region, departmentMap]) => {
+        const departmentHtml = Array.from(departmentMap.entries()).map(([department, employeeMap]) => {
+          const employeeHtml = Array.from(employeeMap.entries()).map(([employee, items]) => {
+            const itemHtml = items.map((item) => `<div class="schedule-item">${item.shift || "-"}｜${item.title || item.note || "未命名"}${item.content ? `<br>${item.content}` : ""}</div>`).join("");
+            return `<details><summary>${employee}</summary><div class="schedule-item-group">${itemHtml}</div></details>`;
+          }).join("");
+          return `<details><summary>${department}</summary>${employeeHtml}</details>`;
+        }).join("");
+        return `<div class="schedule-group"><details><summary>${region}</summary>${departmentHtml}</details></div>`;
+      }).join("");
+      scheduleDetailBody.innerHTML = html;
+    }
+    scheduleDetailBackdrop.classList.remove("hidden");
   }
 
   function refreshScheduleEmployeeOptions(defaultEmployeeId = "") {
@@ -2390,9 +2503,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       return;
     }
 
+    const filteredSchedules = filterSchedules();
     const visibleSchedules = isAdmin(currentUser)
-      ? schedules
-      : schedules.filter((item) => item.employeeId === currentUser.employeeId);
+      ? filteredSchedules
+      : filteredSchedules.filter((item) => item.employeeId === currentUser.employeeId);
 
     if (!visibleSchedules.length) {
       rosterList.innerHTML = `<div class="list-item"><p>目前沒有排程資料。</p></div>`;
@@ -3148,6 +3262,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   function setLoggedInUser(user) {
     currentUser = user;
     updateUserInfo(user);
+    populateScheduleFilters();
+    applyDefaultScheduleFiltersByUser(user);
     if (loginPage) loginPage.classList.add("hidden");
     if (mainPage) mainPage.classList.remove("hidden");
     persistCurrentUserSession(user);
@@ -3637,6 +3753,21 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     });
   }
 
+  [filterRegion, filterDepartment, filterEmployee, filterShift].forEach(function (el) {
+    if (!el) return;
+    el.addEventListener("change", function () {
+      renderSchedules();
+      renderRosterCalendar();
+    });
+  });
+
+  if (openScheduleCreateBtn) {
+    openScheduleCreateBtn.addEventListener("click", function () {
+      const fallbackDate = formatDate(new Date());
+      openScheduleModal(selectedScheduleDate || fallbackDate);
+    });
+  }
+
   if (scheduleRegionSelect) {
     scheduleRegionSelect.addEventListener("change", function () {
       refreshScheduleEmployeeOptions(scheduleEmployeeSelect?.value || "");
@@ -3653,6 +3784,20 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   if (scheduleModalBackdrop) {
     scheduleModalBackdrop.addEventListener("click", function (event) {
       if (event.target === scheduleModalBackdrop) closeScheduleModal();
+    });
+  }
+
+  if (scheduleDetailClose) scheduleDetailClose.addEventListener("click", closeSchedulePopover);
+  if (scheduleDetailBackdrop) {
+    scheduleDetailBackdrop.addEventListener("click", function (event) {
+      if (event.target === scheduleDetailBackdrop) closeSchedulePopover();
+    });
+  }
+  if (scheduleDetailAddBtn) {
+    scheduleDetailAddBtn.addEventListener("click", function () {
+      if (!selectedScheduleDate) return;
+      closeSchedulePopover();
+      openScheduleModal(selectedScheduleDate);
     });
   }
 
@@ -4099,6 +4244,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   };
 
   populateFixedOptions();
+  populateScheduleFilters();
   syncAdminPermissionState();
   setLoginLoadingState(false, "");
   startEmployeesListener();
