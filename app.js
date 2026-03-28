@@ -168,6 +168,7 @@ function safeStorageRemove(key) {
 let currentUser = null;
 let editingAnnouncementId = null;
 let calendarDate = new Date();
+let rosterCalendarDate = new Date();
 let selectedScheduleDate = "";
 let editingScheduleId = null;
 let editingEmployeeId = null;
@@ -954,6 +955,20 @@ document.addEventListener("DOMContentLoaded", function () {
   const rosterShift = document.getElementById("roster-shift");
   const rosterNote = document.getElementById("roster-note");
   const rosterList = document.getElementById("roster-list");
+  const rosterCalendarTitle = document.getElementById("roster-calendar-title");
+  const rosterPrevMonthBtn = document.getElementById("roster-prev-month");
+  const rosterNextMonthBtn = document.getElementById("roster-next-month");
+  const calendarGrid = document.getElementById("calendar-grid");
+  const scheduleModalBackdrop = document.getElementById("schedule-modal-backdrop");
+  const scheduleModalClose = document.getElementById("schedule-modal-close");
+  const scheduleDateLabel = document.getElementById("schedule-date-label");
+  const scheduleTitleInput = document.getElementById("schedule-title");
+  const scheduleContentInput = document.getElementById("schedule-content");
+  const scheduleRegionSelect = document.getElementById("schedule-region");
+  const scheduleDepartmentSelect = document.getElementById("schedule-department");
+  const scheduleEmployeeSelect = document.getElementById("schedule-employee");
+  const scheduleShiftSelect = document.getElementById("schedule-shift");
+  const saveScheduleBtn = document.getElementById("save-schedule");
 
   const leaveForm = document.getElementById("leave-form");
   const leaveType = document.getElementById("leave-type");
@@ -2264,6 +2279,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     onSnapshot(q, function (snapshot) {
       schedules = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
       renderSchedules();
+      renderRosterCalendar();
     });
   }
 
@@ -2273,6 +2289,100 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     return item?.employeeId === currentUser.employeeId;
   }
 
+  function formatScheduleDate(year, monthIndex, day) {
+    return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  function getSchedulesByDate(dateString) {
+    return schedules.filter((item) => item.date === dateString);
+  }
+
+  function getCalendarDayTitle(dateString) {
+    const items = getSchedulesByDate(dateString);
+    if (!items.length) return "";
+    return items[0].title || items[0].note || items[0].shift || "";
+  }
+
+  function renderRosterCalendar() {
+    if (!calendarGrid || !rosterCalendarTitle) return;
+    const year = rosterCalendarDate.getFullYear();
+    const month = rosterCalendarDate.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const days = new Date(year, month + 1, 0).getDate();
+
+    rosterCalendarTitle.textContent = `${year} 年 ${month + 1} 月`;
+    calendarGrid.innerHTML = "";
+
+    for (let i = 0; i < firstDay; i += 1) {
+      const empty = document.createElement("div");
+      empty.className = "calendar-day empty";
+      calendarGrid.appendChild(empty);
+    }
+
+    for (let d = 1; d <= days; d += 1) {
+      const dateStr = formatScheduleDate(year, month, d);
+      const title = getCalendarDayTitle(dateStr);
+      const cell = document.createElement("div");
+      cell.className = "calendar-day";
+      cell.setAttribute("data-date", dateStr);
+      cell.innerHTML = `
+        <div class="day-number">${d}</div>
+        <div class="day-title">${title}</div>
+      `;
+      cell.addEventListener("click", function () {
+        openScheduleModal(dateStr);
+      });
+      calendarGrid.appendChild(cell);
+    }
+  }
+
+  function refreshScheduleEmployeeOptions(defaultEmployeeId = "") {
+    if (!scheduleEmployeeSelect) return;
+    const region = scheduleRegionSelect?.value || "";
+    const department = scheduleDepartmentSelect?.value || "";
+    const candidates = employees.filter((employee) => {
+      if (employee.isHidden || employee.status === "deleted") return false;
+      if (region && employee.region !== region) return false;
+      if (department && employee.department !== department) return false;
+      return true;
+    });
+    scheduleEmployeeSelect.innerHTML = candidates.map((employee) => {
+      const selected = defaultEmployeeId && defaultEmployeeId === employee.employeeId ? "selected" : "";
+      return `<option value="${employee.employeeId}" ${selected}>${employee.name || employee.employeeId}</option>`;
+    }).join("");
+    if (!scheduleEmployeeSelect.value && candidates.length) scheduleEmployeeSelect.value = candidates[0].employeeId;
+  }
+
+  function populateScheduleModalOptions() {
+    if (!scheduleRegionSelect || !scheduleDepartmentSelect || !currentUser) return;
+    scheduleRegionSelect.innerHTML = REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("");
+    scheduleDepartmentSelect.innerHTML = DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("");
+    scheduleRegionSelect.value = currentUser.region && REGIONS.includes(currentUser.region) ? currentUser.region : REGIONS[0];
+    scheduleDepartmentSelect.value = currentUser.department && DEPARTMENTS.includes(currentUser.department) ? currentUser.department : DEPARTMENTS[0];
+    refreshScheduleEmployeeOptions(currentUser.employeeId || "");
+  }
+
+  function openScheduleModal(dateString) {
+    if (!currentUser) return alert("請先登入");
+    selectedScheduleDate = dateString;
+    populateScheduleModalOptions();
+    if (scheduleDateLabel) scheduleDateLabel.textContent = dateString;
+    if (scheduleTitleInput) scheduleTitleInput.value = "";
+    if (scheduleContentInput) scheduleContentInput.value = "";
+    if (scheduleShiftSelect) scheduleShiftSelect.value = "早班";
+    if (scheduleModalBackdrop) scheduleModalBackdrop.classList.remove("hidden");
+    if (scheduleTitleInput) scheduleTitleInput.focus();
+  }
+
+  function closeScheduleModal() {
+    if (scheduleModalBackdrop) scheduleModalBackdrop.classList.add("hidden");
+  }
+
+  async function saveSchedule(data) {
+    if (!db) throw new Error("Firebase 未設定");
+    return addDoc(collection(db, "schedules"), data);
+  }
+  
   function renderSchedules() {
     if (!rosterList) return;
     if (!currentUser) {
@@ -2292,13 +2402,14 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     rosterList.innerHTML = visibleSchedules.map((item) => {
       const itemDate = item.date || "-";
       const itemShift = item.shift || "-";
-      const itemNote = item.note || "無";
+      const itemTitle = item.title || "";
+      const itemNote = item.content || item.note || "無";
       const itemAuthor = item.employeeName || item.employeeId || "-";
       const actions = canManageScheduleItem(item)
         ? `<div class="item-actions"><button type="button" class="small-btn delete-btn" onclick="deleteSchedule('${item.id}')">刪除</button></div>`
         : "";
-
-      return `<div class="list-item"><h4>${itemDate}｜${itemShift}</h4><div class="item-meta">${itemAuthor}｜${item.region || "-"}｜${item.department || "-"}</div><p>備註：${itemNote}</p>${actions}</div>`;
+      const titleHtml = itemTitle ? `<p>標題：${itemTitle}</p>` : "";
+      return `<div class="list-item"><h4>${itemDate}｜${itemShift}</h4><div class="item-meta">${itemAuthor}｜${item.region || "-"}｜${item.department || "-"}</div>${titleHtml}<p>內容：${itemNote}</p>${actions}</div>`;
     }).join("");
   }
 
@@ -3481,6 +3592,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const payload = {
         date,
         shift,
+        title: "",
+        content: note,
         note,
         employeeId: currentUser.employeeId || "",
         employeeName: currentUser.name || "",
@@ -3493,6 +3606,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         if (!db) {
           schedules = [{ id: `local-${Date.now()}`, ...payload }, ...schedules];
           renderSchedules();
+          renderRosterCalendar();
           rosterForm.reset();
           return;
         }
@@ -3509,6 +3623,87 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     });
   }
 
+  if (rosterPrevMonthBtn) {
+    rosterPrevMonthBtn.addEventListener("click", function () {
+      rosterCalendarDate.setMonth(rosterCalendarDate.getMonth() - 1);
+      renderRosterCalendar();
+    });
+  }
+
+  if (rosterNextMonthBtn) {
+    rosterNextMonthBtn.addEventListener("click", function () {
+      rosterCalendarDate.setMonth(rosterCalendarDate.getMonth() + 1);
+      renderRosterCalendar();
+    });
+  }
+
+  if (scheduleRegionSelect) {
+    scheduleRegionSelect.addEventListener("change", function () {
+      refreshScheduleEmployeeOptions(scheduleEmployeeSelect?.value || "");
+    });
+  }
+
+  if (scheduleDepartmentSelect) {
+    scheduleDepartmentSelect.addEventListener("change", function () {
+      refreshScheduleEmployeeOptions(scheduleEmployeeSelect?.value || "");
+    });
+  }
+
+  if (scheduleModalClose) scheduleModalClose.addEventListener("click", closeScheduleModal);
+  if (scheduleModalBackdrop) {
+    scheduleModalBackdrop.addEventListener("click", function (event) {
+      if (event.target === scheduleModalBackdrop) closeScheduleModal();
+    });
+  }
+
+  if (saveScheduleBtn) {
+    saveScheduleBtn.addEventListener("click", async function () {
+      const title = scheduleTitleInput?.value.trim() || "";
+      const content = scheduleContentInput?.value.trim() || "";
+      const region = scheduleRegionSelect?.value || "";
+      const department = scheduleDepartmentSelect?.value || "";
+      const employeeId = scheduleEmployeeSelect?.value || "";
+      const employeeRecord = employees.find((item) => item.employeeId === employeeId);
+      const shift = scheduleShiftSelect?.value || "";
+      if (!currentUser) return alert("請先登入");
+      if (!selectedScheduleDate) return alert("請先選擇日期");
+      if (!title) return alert("請輸入標題");
+      if (!employeeRecord) return alert("請選擇有效員工");
+      const payload = {
+        date: selectedScheduleDate,
+        title,
+        content,
+        note: content,
+        region,
+        department,
+        employeeId: employeeRecord.employeeId || "",
+        employeeName: employeeRecord.name || employeeRecord.employeeId || "",
+        shift,
+        createdBy: currentUser.employeeId || "",
+        createdByName: currentUser.name || "",
+        updatedAt: serverTimestamp()
+      };
+      try {
+        if (!db) {
+          schedules = [{ id: `local-${Date.now()}`, ...payload }, ...schedules];
+          renderSchedules();
+          renderRosterCalendar();
+          closeScheduleModal();
+          return;
+        }
+        await saveSchedule({
+          ...payload,
+          createdAt: serverTimestamp(),
+          createdAtClient: new Date()
+        });
+        closeScheduleModal();
+      } catch (error) {
+        console.error("儲存排程失敗", error);
+        alert("儲存排程失敗，請稍後再試。");
+      }
+    });
+  }
+  
   window.deleteSchedule = async function (id) {
     const target = schedules.find((item) => item.id === id);
     if (!target) return;
@@ -3912,6 +4107,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   renderLeaveBoard();
   renderTodayWorkingStaff();
   renderSchedules();
+  renderRosterCalendar();
 
   startAnnouncementsListener();
   startLeaveListener();
