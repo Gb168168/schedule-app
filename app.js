@@ -2362,6 +2362,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     return "";
   }
 
+  function getShiftEmoji(shift) {
+    if (shift === "早班") return "🔵";
+    if (shift === "晚班") return "🟣";
+    if (shift === "支援") return "🟡";
+    return "";
+  }
+  
   function getCalendarDayTitle(dateString) {
     const items = getSchedulesByDate(dateString);
     if (!items.length) return "";
@@ -2394,7 +2401,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         const title = item.title || item.note || "未命名";
         const shift = item.shift || "";
         const shiftClass = getShiftClassName(shift);
-        return `<div class="schedule-tag ${shiftClass}">${title}${shift ? `｜${shift}` : ""}</div>`;
+        const shiftEmoji = getShiftEmoji(shift);
+        return `<div class="schedule-tag ${shiftClass}">${title}${shift ? `｜${shiftEmoji}${shift}` : ""}</div>`;
       }).join("");
       cell.innerHTML = `<div class="day-number">${d}</div><div class="day-title"></div><div class="calendar-events">${tagsHtml}</div>`;
       cell.addEventListener("click", function () {
@@ -2437,7 +2445,12 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const html = Array.from(grouped.entries()).map(([region, departmentMap]) => {
         const departmentHtml = Array.from(departmentMap.entries()).map(([department, employeeMap]) => {
           const employeeHtml = Array.from(employeeMap.entries()).map(([employee, items]) => {
-            const itemHtml = items.map((item) => `<div class="schedule-item">${item.shift || "-"}｜${item.title || item.note || "未命名"}${item.content ? `<br>${item.content}` : ""}</div>`).join("");
+            const itemHtml = items.map((item) => {
+              const shift = item.shift || "-";
+              const shiftClass = getShiftClassName(shift);
+              const shiftEmoji = getShiftEmoji(shift);
+              return `<div class="schedule-item"><span class="shift ${shiftClass}">${shiftEmoji ? `${shiftEmoji} ` : ""}${shift}</span><span>${item.title || item.note || "未命名"}</span><span>${item.startTime || "-"}</span><span>${item.content || "-"}</span></div>`;
+            }).join("");
             return `<details><summary>${employee}</summary><div class="schedule-item-group">${itemHtml}</div></details>`;
           }).join("");
           return `<details><summary>${department}</summary>${employeeHtml}</details>`;
