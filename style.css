@@ -839,7 +839,10 @@ textarea {
 }
 
 .schedule-tag.shift-morning {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #0ea5a6, #0f766e);
+  border-color: rgba(15, 118, 110, 0.3);
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.3);
+}
 }
 
 .schedule-tag.shift-evening {
