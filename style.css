@@ -906,6 +906,11 @@ textarea {
   padding: 16px;
 }
 
+#schedule-modal {
+  width: min(680px, calc(100vw - 48px));
+  padding: 22px;
+}
+
 #schedule-modal .field-label input,
 #schedule-modal .field-label select,
 #schedule-modal .field-label textarea {
