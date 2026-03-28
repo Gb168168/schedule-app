@@ -3024,7 +3024,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         const leaveTypeText = leaveTypeValue ? `｜假別：${leaveTypeValue}` : "";
         const title = metas.length ? `${metas.map((meta) => meta.label).join(" + ")}${leaveTypeText}${holidayText}${autoRestText}` : `${dateString}${leaveTypeText}${holidayText}${autoRestText}`;
         const symbols = metas.map((meta) => `<span class="symbol ${meta.color === "red" ? "symbol-red" : ""} ${autoRest ? "symbol-auto-rest" : ""}">${meta.icon}</span>`).join("");
-        const editableClass = canEditAny && !autoRest ? "editable" : "readonly";
+        const editableClass = canEditAny ? "editable" : "readonly";
         const leaveTagColor = LEAVE_TYPE_COLORS[leaveTypeValue] || "#64748b";
         const leaveTypeHtml = leaveTypeValue ? `<span class="leave-tag" style="background:${leaveTagColor}">${leaveTypeValue}</span>` : "";
         return `<button type="button" class="leave-cell ${editableClass} ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}" data-employee-id="${employee.employeeId}" data-date="${dateString}" title="${title}"><div class="leave-cell-symbols">${symbols}</div>${leaveTypeHtml}</button>`;
@@ -3174,10 +3174,11 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     const monthlyRestLimit = Number(monthSetting?.totalRestDays);
     const isLimited = Number.isFinite(monthlyRestLimit) && monthlyRestLimit >= 0;
     const isTargetRestSymbol = targetSymbolTypes.some((symbolType) => ["rest", "must_rest"].includes(symbolType));
+    const existingEffectiveSymbolTypes = getEffectiveCellSymbolTypes(targetEmployee, existing, dateString);
 
     if (isLimited && isTargetRestSymbol) {
       const counts = getEmployeeSummaryCounts(employeeId, currentLeaveMonth);
-      const existingRestCount = currentSymbolTypes.some((symbolType) => ["rest", "must_rest"].includes(symbolType)) ? 1 : 0;
+      const existingRestCount = existingEffectiveSymbolTypes.some((symbolType) => ["rest", "must_rest"].includes(symbolType)) ? 1 : 0;
       const nextRestCount = counts.rest - existingRestCount + 1;
       if (nextRestCount > monthlyRestLimit) {
         alert(`本月可排休上限為 ${monthlyRestLimit} 天，無法再新增。`);
