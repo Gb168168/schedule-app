@@ -895,7 +895,7 @@ textarea {
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 999;
-  width: 360px;
+  width: 520px;
   max-width: calc(100vw - 48px);
   max-height: calc(100vh - 48px);
   overflow-y: auto;
@@ -904,6 +904,17 @@ textarea {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-pop);
   padding: 16px;
+}
+
+#schedule-modal .field-label input,
+#schedule-modal .field-label select,
+#schedule-modal .field-label textarea {
+  min-height: 44px;
+  font-size: 16px;
+}
+
+#schedule-modal .field-label textarea {
+  min-height: 140px;
 }
 
 .schedule-popover-backdrop {
