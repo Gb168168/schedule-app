@@ -965,6 +965,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const filterShift = document.getElementById("filter-shift");
   const calendarGrid = document.getElementById("calendar-grid");
   const scheduleModalBackdrop = document.getElementById("schedule-modal-backdrop");
+  const scheduleModalTitle = document.getElementById("schedule-modal-title");
   const scheduleModalClose = document.getElementById("schedule-modal-close");
   const scheduleDateLabel = document.getElementById("schedule-date-label");
   const scheduleTitleInput = document.getElementById("schedule-title");
@@ -2306,6 +2307,12 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     return isOwnerMemo || isDepartmentMemo;
   }
 
+  function canEditScheduleItem(item, viewer = currentUser) {
+    if (!viewer || !item) return false;
+    if (isAdmin(viewer)) return true;
+    return Boolean(item.createdBy) && item.createdBy === viewer.employeeId;
+  }
+
   function formatScheduleDate(year, monthIndex, day) {
     return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   }
@@ -2463,13 +2470,15 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
           employeeMap.forEach(function (items, employee) {
             items.forEach(function (item) {
               rows.push({
+                id: item.id || "",
                 region,
                 department,
                 employee,
                 shift: item.shift || "-",
                 title: item.title || item.note || "未命名",
                 content: item.content || "無",
-                startTime: item.startTime || ""
+                startTime: item.startTime || "",
+                canEdit: canEditScheduleItem(item)
               });
             });
           });
@@ -2480,11 +2489,18 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         const shiftClass = getShiftClassName(row.shift);
         const shiftEmoji = getShiftEmoji(row.shift);
         const startTimeText = row.startTime ? `｜${row.startTime}` : "";
+        const actionHtml = row.canEdit
+          ? `<div class="item-actions schedule-item-actions">
+              <button type="button" class="small-btn edit-btn" data-action="edit-schedule" data-id="${row.id}">編輯</button>
+              <button type="button" class="small-btn delete-btn" data-action="delete-schedule" data-id="${row.id}">刪除</button>
+            </div>`
+          : "";
         return `<article class="schedule-detail-card">
           <h5>${dateString}｜${shiftEmoji ? `${shiftEmoji} ` : ""}<span class="shift ${shiftClass}">${row.shift}</span>${startTimeText}</h5>
           <p class="schedule-detail-meta">${row.employee}｜${row.region}｜${row.department}</p>
           <p><strong>標題：</strong>${row.title}</p>
           <p><strong>內容：</strong>${row.content}</p>
+          ${actionHtml}
         </article>`;
       }).join("");
      
@@ -2523,25 +2539,46 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     refreshScheduleEmployeeOptions("");
   }
 
-  function openScheduleModal(dateString) {
+  function openScheduleModal(dateString, scheduleItem = null) {
     if (!currentUser) return alert("請先登入");
     selectedScheduleDate = dateString;
     populateScheduleModalOptions();
+    editingScheduleId = scheduleItem?.id || null;
+    if (scheduleModalTitle) scheduleModalTitle.textContent = editingScheduleId ? "編輯排程" : "新增排程";
+    if (saveScheduleBtn) saveScheduleBtn.textContent = editingScheduleId ? "儲存修改" : "儲存";
     if (scheduleDateLabel) scheduleDateLabel.textContent = dateString;
-    if (scheduleTitleInput) scheduleTitleInput.value = "";
-    if (scheduleContentInput) scheduleContentInput.value = "";
-    if (scheduleShiftSelect) scheduleShiftSelect.value = "早班";
+    if (scheduleTitleInput) scheduleTitleInput.value = scheduleItem?.title || "";
+    if (scheduleContentInput) scheduleContentInput.value = scheduleItem?.content || scheduleItem?.note || "";
+    if (scheduleShiftSelect) scheduleShiftSelect.value = scheduleItem?.shift || "早班";
+    if (scheduleItem) {
+      if (scheduleRegionSelect && scheduleItem.region && REGIONS.includes(scheduleItem.region)) scheduleRegionSelect.value = scheduleItem.region;
+      if (scheduleDepartmentSelect && scheduleItem.department && DEPARTMENTS.includes(scheduleItem.department)) scheduleDepartmentSelect.value = scheduleItem.department;
+      refreshScheduleEmployeeOptions(scheduleItem.employeeId || "");
+    }
     if (scheduleModalBackdrop) scheduleModalBackdrop.classList.remove("hidden");
     if (scheduleTitleInput) scheduleTitleInput.focus();
   }
 
   function closeScheduleModal() {
+    editingScheduleId = null;
+    if (scheduleModalTitle) scheduleModalTitle.textContent = "新增排程";
+    if (saveScheduleBtn) saveScheduleBtn.textContent = "儲存";
     if (scheduleModalBackdrop) scheduleModalBackdrop.classList.add("hidden");
   }
 
   async function saveSchedule(data) {
     if (!db) throw new Error("Firebase 未設定");
     return addDoc(collection(db, "schedules"), data);
+  }
+  
+  async function updateSchedule(scheduleId, data) {
+    if (!db) throw new Error("Firebase 未設定");
+    return updateDoc(doc(db, "schedules", scheduleId), data);
+  }
+
+  async function deleteSchedule(scheduleId) {
+    if (!db) throw new Error("Firebase 未設定");
+    return deleteDoc(doc(db, "schedules", scheduleId));
   }
   
   function renderSchedules() {
@@ -2566,7 +2603,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const itemNote = item.content || item.note || "無";
       const itemAuthor = item.employeeName || item.employeeId || "-";
       const titleHtml = itemTitle ? `<p>標題：${itemTitle}</p>` : "";
-      return `<div class="list-item"><h4>${itemDate}｜${itemShift}</h4><div class="item-meta">${itemAuthor}｜${item.region || "-"}｜${item.department || "-"}</div>${titleHtml}<p>內容：${itemNote}</p></div>`;
+      const actionHtml = canEditScheduleItem(item)
+        ? `<div class="item-actions schedule-item-actions">
+            <button type="button" class="small-btn edit-btn" data-action="edit-schedule" data-id="${item.id}">編輯</button>
+            <button type="button" class="small-btn delete-btn" data-action="delete-schedule" data-id="${item.id}">刪除</button>
+          </div>`
+        : "";
+      return `<div class="list-item"><h4>${itemDate}｜${itemShift}</h4><div class="item-meta">${itemAuthor}｜${item.region || "-"}｜${item.department || "-"}</div>${titleHtml}<p>內容：${itemNote}</p>${actionHtml}</div>`;
     }).join("");
   }
 
@@ -3846,6 +3889,73 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       openScheduleModal(selectedScheduleDate);
     });
   }
+  if (scheduleDetailBody) {
+    scheduleDetailBody.addEventListener("click", async function (event) {
+      const actionButton = event.target.closest("button[data-action]");
+      if (!actionButton) return;
+      const action = actionButton.dataset.action || "";
+      const scheduleId = actionButton.dataset.id || "";
+      const targetSchedule = schedules.find((item) => item.id === scheduleId);
+      if (!targetSchedule) return alert("找不到該行程，請重新整理後再試。");
+      if (!canEditScheduleItem(targetSchedule)) return alert("你沒有編輯此行程的權限。");
+
+      if (action === "edit-schedule") {
+        closeSchedulePopover();
+        openScheduleModal(targetSchedule.date || selectedScheduleDate, targetSchedule);
+        return;
+      }
+
+      if (action === "delete-schedule") {
+        if (!confirm("確定要刪除此行程嗎？")) return;
+        try {
+          if (!db) {
+            schedules = schedules.filter((item) => item.id !== scheduleId);
+            renderSchedules();
+            renderRosterCalendar();
+            openScheduleDetail(selectedScheduleDate);
+            return;
+          }
+          await deleteSchedule(scheduleId);
+        } catch (error) {
+          console.error("刪除行程失敗", error);
+          alert("刪除行程失敗，請稍後再試。");
+        }
+      }
+    });
+  }
+  if (rosterList) {
+    rosterList.addEventListener("click", async function (event) {
+      const actionButton = event.target.closest("button[data-action]");
+      if (!actionButton) return;
+      const action = actionButton.dataset.action || "";
+      const scheduleId = actionButton.dataset.id || "";
+      const targetSchedule = schedules.find((item) => item.id === scheduleId);
+      if (!targetSchedule) return alert("找不到該行程，請重新整理後再試。");
+      if (!canEditScheduleItem(targetSchedule)) return alert("你沒有編輯此行程的權限。");
+
+      if (action === "edit-schedule") {
+        openScheduleModal(targetSchedule.date || formatDate(new Date()), targetSchedule);
+        return;
+      }
+
+      if (action === "delete-schedule") {
+        if (!confirm("確定要刪除此行程嗎？")) return;
+        try {
+          if (!db) {
+            schedules = schedules.filter((item) => item.id !== scheduleId);
+            renderSchedules();
+            renderRosterCalendar();
+            if (selectedScheduleDate) openScheduleDetail(selectedScheduleDate);
+            return;
+          }
+          await deleteSchedule(scheduleId);
+        } catch (error) {
+          console.error("刪除行程失敗", error);
+          alert("刪除行程失敗，請稍後再試。");
+        }
+      }
+    });
+  }
 
   if (saveScheduleBtn) {
     saveScheduleBtn.addEventListener("click", async function () {
@@ -3876,17 +3986,32 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       };
       try {
         if (!db) {
-          schedules = [{ id: `local-${Date.now()}`, ...payload }, ...schedules];
+          if (editingScheduleId) {
+            schedules = schedules.map((item) => (item.id === editingScheduleId
+              ? { ...item, ...payload, updatedAt: new Date(), updatedBy: currentUser.employeeId || "", updatedByName: currentUser.name || "" }
+              : item));
+          } else {
+            schedules = [{ id: `local-${Date.now()}`, ...payload }, ...schedules];
+          }
           renderSchedules();
           renderRosterCalendar();
           closeScheduleModal();
           return;
         }
-        await saveSchedule({
-          ...payload,
-          createdAt: serverTimestamp(),
-          createdAtClient: new Date()
-        });
+        if (editingScheduleId) {
+          await updateSchedule(editingScheduleId, {
+            ...payload,
+            updatedAt: serverTimestamp(),
+            updatedBy: currentUser.employeeId || "",
+            updatedByName: currentUser.name || ""
+          });
+        } else {
+          await saveSchedule({
+            ...payload,
+            createdAt: serverTimestamp(),
+            createdAtClient: new Date()
+          });
+        }
         closeScheduleModal();
       } catch (error) {
         console.error("儲存排程失敗", error);
