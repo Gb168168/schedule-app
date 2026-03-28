@@ -1424,7 +1424,7 @@ textarea {
 }
 
 #page-schedule {
-  overflow: hidden;
+  overflow: auto;
 }
 
 .leave-board-header,
@@ -1664,10 +1664,10 @@ textarea {
 }
 
 .leave-grid-wrap {
-    flex: 1;
+  flex: 1;
   min-height: 0;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
 }
 
 .leave-board-table {
