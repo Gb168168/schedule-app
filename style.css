@@ -1666,8 +1666,9 @@ textarea {
 .leave-grid-wrap {
   flex: 1;
   min-height: 0;
-  overflow-x: auto;
-  overflow-y: visible;
+  max-height: clamp(320px, 60vh, 720px);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .leave-board-table {
@@ -1689,12 +1690,21 @@ textarea {
   .leave-top-card {
     flex-basis: 100%;
   }
+  
+  .leave-board-head,
+  .leave-board-row {
+    grid-template-columns: 180px minmax(720px, 1fr) 100px;
+    min-width: 1000px;
+  }
+
+  .leave-sticky-col,
+  .leave-employee-card {
+    left: 0;
+  }
 }
 
 .leave-board-body {
-  max-height: clamp(280px, 52vh, 620px);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
   padding-right: 4px;
 }
 
@@ -1709,6 +1719,9 @@ textarea {
 
 .leave-board-head {
   margin-bottom: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 9;
 }
 
 .leave-sticky-col,
@@ -1743,6 +1756,16 @@ textarea {
 
 .leave-sticky-col {
   z-index: 6;
+}
+
+.leave-board-head .leave-sticky-col,
+.leave-board-head .leave-header-days,
+.leave-board-head .leave-summary-head {
+  background: var(--surface);
+}
+
+.leave-board-row .leave-employee-card {
+  z-index: 5;
 }
 
 .leave-sticky-col-head {
