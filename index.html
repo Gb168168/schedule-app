@@ -173,26 +173,6 @@
         <div class="card">
           <h3>排程表</h3>
           <p class="helper-text">排程資料會儲存到 Firebase，重新整理後仍會保留。</p>
-          <form id="roster-form" class="form-grid">
-            <label class="field-label">
-              <span>排程日期</span>
-              <input id="roster-date" type="date" required />
-            </label>
-            <label class="field-label">
-              <span>班別</span>
-              <select id="roster-shift" required>
-                <option value="早班">早班</option>
-                <option value="晚班">晚班</option>
-                <option value="支援">支援</option>
-                <option value="教育訓練">教育訓練</option>
-              </select>
-            </label>
-            <label class="field-label">
-              <span>備註</span>
-              <textarea id="roster-note" placeholder="可選填，例如：門市支援、外勤行程"></textarea>
-            </label>
-            <button type="submit" class="primary-btn">儲存排程</button>
-          </form>
           <div class="calendar-wrap">
             <div class="calendar-toolbar">
               <button type="button" id="roster-prev-month" class="small-btn">上個月</button>
