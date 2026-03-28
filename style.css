@@ -2111,3 +2111,49 @@ textarea {
     flex-basis: auto;
   }
 }
+
+/* Mobile-first refinements for leave board header/cards */
+@media (max-width: 900px) {
+  .content-header {
+    padding: 16px;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .leave-top-cards {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .leave-top-card,
+  .leave-total-rest-header-card,
+  .leave-message-board-card {
+    flex: 1 1 100%;
+    min-width: 100%;
+  }
+
+  .leave-month-card .leave-month-toolbar {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .leave-board-header .leave-month-toolbar #calendar-title,
+  #calendar-title {
+    width: 100%;
+    font-size: 24px;
+    padding: 8px 12px;
+    text-align: center;
+  }
+
+  .leave-top-card-main {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .leave-message-board-content {
+    font-size: 16px !important;
+  }
+}
