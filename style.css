@@ -824,27 +824,32 @@ textarea {
 }
 
 .schedule-tag {
-  font-size: 11px;
-  padding: 2px 4px;
-  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  padding: 4px 8px;
+  border-radius: 8px;
   color: #ffffff;
-  background: #64748b;
+  background: linear-gradient(135deg, #475569, #334155);
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .schedule-tag.shift-morning {
-  background: #2563eb;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
 }
 
 .schedule-tag.shift-evening {
-  background: #7c3aed;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
 }
 
 .schedule-tag.shift-support {
-  background: #eab308;
-  color: #1f2937;
+  background: linear-gradient(135deg, #facc15, #eab308);
+  border-color: rgba(146, 64, 14, 0.25);
+  box-shadow: 0 2px 8px rgba(202, 138, 4, 0.28);
 }
 
 .schedule-group {
