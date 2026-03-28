@@ -2312,7 +2312,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (canManageAllSchedules(viewer)) return true;
     const isOwnerMemo = Boolean(item?.employeeId) && item.employeeId === viewer.employeeId;
     const isDepartmentMemo = !item?.employeeId && item?.region === viewer.region && item?.department === viewer.department;
-    return isOwnerMemo || isDepartmentMemo;
+    const isCreator = Boolean(item?.createdBy) && item.createdBy === viewer.employeeId;
+    return isOwnerMemo || isDepartmentMemo || isCreator;
   }
 
   function canEditScheduleItem(item, viewer = currentUser) {
