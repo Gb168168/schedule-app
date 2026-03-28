@@ -4248,6 +4248,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (!cell.classList.contains("editable")) return;
       const employeeId = cell.dataset.employeeId || "";
       const dateString = cell.dataset.date || "";
+      if (activeSymbolType) {
+        toggleLeaveAssignment(employeeId, dateString);
+        return;
+      }
       openLeaveTypePicker(employeeId, dateString, cell);
     });
     
