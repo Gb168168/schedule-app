@@ -2318,16 +2318,28 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     const previousDepartment = filterDepartment.value || "";
     const previousEmployee = filterEmployee.value || "";
 
-    const employeeOptions = employees
-      .filter((employee) => !employee.isHidden && employee.status !== "deleted")
-      .map((employee) => ({ value: employee.name || employee.employeeId, label: employee.name || employee.employeeId }));
-
     filterRegion.innerHTML = `<option value="">全部地區</option>${REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("")}`;
     filterDepartment.innerHTML = `<option value="">全部部門</option>${DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("")}`;
-    filterEmployee.innerHTML = `<option value="">全部人員</option>${employeeOptions.map((option) => `<option value="${option.value}">${option.label}</option>`).join("")}`;
 
     filterRegion.value = REGIONS.includes(previousRegion) ? previousRegion : "";
     filterDepartment.value = DEPARTMENTS.includes(previousDepartment) ? previousDepartment : "";
+    refreshScheduleFilterEmployeeOptions(previousEmployee);
+  }
+
+  function refreshScheduleFilterEmployeeOptions(previousEmployee = "") {
+    if (!filterEmployee) return;
+    const region = filterRegion?.value || "";
+    const department = filterDepartment?.value || "";
+    const employeeOptions = employees
+      .filter((employee) => {
+        if (employee.isHidden || employee.status === "deleted") return false;
+        if (region && employee.region !== region) return false;
+        if (department && employee.department !== department) return false;
+        return true;
+      })
+      .map((employee) => ({ value: employee.name || employee.employeeId, label: employee.name || employee.employeeId }));
+
+    filterEmployee.innerHTML = `<option value="">全部人員</option>${employeeOptions.map((option) => `<option value="${option.value}">${option.label}</option>`).join("")}`;
     filterEmployee.value = employeeOptions.some((option) => option.value === previousEmployee) ? previousEmployee : "";
   }
 
@@ -2335,7 +2347,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (!user || !filterRegion || !filterDepartment || !filterEmployee) return;
     filterRegion.value = user.region && REGIONS.includes(user.region) ? user.region : "";
     filterDepartment.value = user.department && DEPARTMENTS.includes(user.department) ? user.department : "";
-    filterEmployee.value = user.name || "";
+    refreshScheduleFilterEmployeeOptions("");
+    filterEmployee.value = "";
     if (filterShift) filterShift.value = "";
   }
 
@@ -2472,11 +2485,15 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (department && employee.department !== department) return false;
       return true;
     });
-    scheduleEmployeeSelect.innerHTML = candidates.map((employee) => {
+    scheduleEmployeeSelect.innerHTML = `<option value="">全部員工</option>${candidates.map((employee) => {
       const selected = defaultEmployeeId && defaultEmployeeId === employee.employeeId ? "selected" : "";
       return `<option value="${employee.employeeId}" ${selected}>${employee.name || employee.employeeId}</option>`;
-    }).join("");
-    if (!scheduleEmployeeSelect.value && candidates.length) scheduleEmployeeSelect.value = candidates[0].employeeId;
+    }).join("")}`;
+    if (defaultEmployeeId && candidates.some((employee) => employee.employeeId === defaultEmployeeId)) {
+      scheduleEmployeeSelect.value = defaultEmployeeId;
+    } else {
+      scheduleEmployeeSelect.value = "";
+    }
   }
 
   function populateScheduleModalOptions() {
@@ -2485,7 +2502,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     scheduleDepartmentSelect.innerHTML = DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("");
     scheduleRegionSelect.value = currentUser.region && REGIONS.includes(currentUser.region) ? currentUser.region : REGIONS[0];
     scheduleDepartmentSelect.value = currentUser.department && DEPARTMENTS.includes(currentUser.department) ? currentUser.department : DEPARTMENTS[0];
-    refreshScheduleEmployeeOptions(currentUser.employeeId || "");
+    refreshScheduleEmployeeOptions("");
   }
 
   function openScheduleModal(dateString) {
@@ -2519,7 +2536,11 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     const filteredSchedules = filterSchedules();
     const visibleSchedules = isAdmin(currentUser)
       ? filteredSchedules
-      : filteredSchedules.filter((item) => item.employeeId === currentUser.employeeId);
+      : filteredSchedules.filter((item) => {
+          const isOwner = item.employeeId === currentUser.employeeId;
+          const isDepartmentBroadcast = !item.employeeId && item.region === currentUser.region && item.department === currentUser.department;
+          return isOwner || isDepartmentBroadcast;
+        });
 
     if (!visibleSchedules.length) {
       rosterList.innerHTML = `<div class="list-item"><p>目前沒有排程資料。</p></div>`;
@@ -3769,6 +3790,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   [filterRegion, filterDepartment, filterEmployee, filterShift].forEach(function (el) {
     if (!el) return;
     el.addEventListener("change", function () {
+      if (el === filterRegion || el === filterDepartment) {
+        refreshScheduleFilterEmployeeOptions(filterEmployee?.value || "");
+      }
       renderSchedules();
       renderRosterCalendar();
     });
@@ -3826,7 +3850,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (!currentUser) return alert("請先登入");
       if (!selectedScheduleDate) return alert("請先選擇日期");
       if (!title) return alert("請輸入標題");
-      if (!employeeRecord) return alert("請選擇有效員工");
+      if (employeeId && !employeeRecord) return alert("請選擇有效員工");
       const payload = {
         date: selectedScheduleDate,
         title,
@@ -3834,8 +3858,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         note: content,
         region,
         department,
-        employeeId: employeeRecord.employeeId || "",
-        employeeName: employeeRecord.name || employeeRecord.employeeId || "",
+        employeeId: employeeRecord?.employeeId || "",
+        employeeName: employeeRecord?.name || employeeRecord?.employeeId || "全部員工",
         shift,
         createdBy: currentUser.employeeId || "",
         createdByName: currentUser.name || "",
