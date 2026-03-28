@@ -1691,15 +1691,124 @@ textarea {
     flex-basis: 100%;
   }
   
+  .leave-board-header .leave-month-toolbar {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .leave-board-header .leave-month-toolbar #calendar-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 22px;
+    padding: 10px 12px;
+  }
+
+  .leave-board-header .leave-month-toolbar .small-btn {
+    min-width: 72px;
+    padding: 10px 12px;
+  }
+
+  .leave-top-card {
+    min-height: 0;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .leave-symbol-toolbar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .leave-symbol-btn {
+    min-width: 0;
+    width: 100%;
+    padding: 10px 8px;
+  }
+
+  .leave-grid-wrap {
+    max-height: clamp(360px, 58vh, 640px);
+  }
+  
   .leave-board-head,
   .leave-board-row {
-    grid-template-columns: 180px minmax(720px, 1fr) 100px;
-    min-width: 1000px;
+    grid-template-columns: 160px minmax(620px, 1fr) 90px;
+    min-width: 880px;
+    gap: 8px;
   }
 
   .leave-sticky-col,
   .leave-employee-card {
     left: 0;
+  }
+  
+  .leave-sticky-col,
+  .leave-employee-card,
+  .leave-summary-head,
+  .leave-summary-card {
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .leave-board-head {
+    margin-bottom: 8px;
+  }
+
+  .leave-employee-card {
+    margin-bottom: 8px;
+  }
+
+  .leave-cell {
+    min-height: 44px;
+  }
+
+  .leave-day-cell {
+    min-height: 54px;
+    min-width: 34px;
+  }
+
+  .leave-day-label {
+    font-size: 11px;
+  }
+
+  .leave-day-date {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  #page-schedule {
+    padding-bottom: 8px;
+  }
+
+  .leave-board-header .leave-month-toolbar #calendar-title {
+    font-size: 18px;
+    letter-spacing: 0.5px;
+  }
+
+  .leave-board-header .leave-month-toolbar .small-btn {
+    min-width: 64px;
+    font-size: 14px;
+  }
+
+  .leave-edit-hint {
+    font-size: 13px;
+  }
+
+  .leave-board-head,
+  .leave-board-row {
+    grid-template-columns: 132px minmax(560px, 1fr) 78px;
+    min-width: 800px;
+  }
+
+  .leave-employee-card h4 {
+    font-size: 18px;
+  }
+
+  .leave-employee-meta {
+    font-size: 13px;
+    line-height: 1.25;
   }
 }
 
