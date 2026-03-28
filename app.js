@@ -21,6 +21,23 @@ const LEAVE_TYPE_GROUPS = [
   { label: "補/調假", options: ["補(天)", "補(時)", "調班"] },
   { label: "旅遊假", options: ["旅遊", "旅(例)"] }
 ];
+const LEAVE_TYPE_COLORS = {
+  事假: "#60a5fa",
+  病假: "#f87171",
+  公假: "#34d399",
+  年假: "#818cf8",
+  特休: "#6366f1",
+  婚假: "#f472b6",
+  產假: "#ec4899",
+  生理: "#fb7185",
+  喪假: "#6b7280",
+  公傷: "#f97316",
+  "補(天)": "#22c55e",
+  "補(時)": "#16a34a",
+  調班: "#84cc16",
+  旅遊: "#eab308",
+  "旅(例)": "#facc15"
+};
 const LOCATION_CATEGORIES = {
   office: "區域固定點",
   customer: "工作店家"
@@ -2692,7 +2709,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         const title = metas.length ? `${metas.map((meta) => meta.label).join(" + ")}${leaveTypeText}${holidayText}${autoRestText}` : `${dateString}${leaveTypeText}${holidayText}${autoRestText}`;
         const symbols = metas.map((meta) => `<span class="symbol ${meta.color === "red" ? "symbol-red" : ""} ${autoRest ? "symbol-auto-rest" : ""}">${meta.icon}</span>`).join("");
         const editableClass = canEditAny && !autoRest ? "editable" : "readonly";
-        const leaveTypeHtml = leaveTypeValue ? `<small class="leave-cell-type">${leaveTypeValue}</small>` : "";
+        const leaveTagColor = LEAVE_TYPE_COLORS[leaveTypeValue] || "#64748b";
+        const leaveTypeHtml = leaveTypeValue ? `<span class="leave-tag" style="background:${leaveTagColor}">${leaveTypeValue}</span>` : "";
         return `<button type="button" class="leave-cell ${editableClass} ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}" data-employee-id="${employee.employeeId}" data-date="${dateString}" title="${title}"><div class="leave-cell-symbols">${symbols}</div>${leaveTypeHtml}</button>`;
       }).join("");
       return `<div class="leave-board-row"><div class="leave-employee-card"><strong>${employee.name || employee.employeeId}</strong><small>${employee.region || "-"}｜${employee.department || "-"}</small><small>${employee.category || getUserShiftType(employee) || "-"}</small></div><div class="leave-row-cells" style="--days:${daysInMonth}">${cells}</div><div class="leave-summary-card"><div><span>▲</span><strong>${counts.rest}</strong></div><div><span>★</span><strong>${counts.newYear}</strong></div><div><span>🎰</span><strong>${counts.event}</strong></div></div></div>`;
@@ -2793,13 +2811,15 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     const picker = document.createElement("div");
     picker.id = "leave-type-picker-popover";
     picker.className = "leave-type-picker-popover";
-    picker.innerHTML = `
-      <label class="field-label">
-        <span>假別</span>
-        <select id="leave-type-picker-select">${renderLeaveTypeSelectOptions(selectedType)}</select>
-      </label>
+    picker.innerHTML = LEAVE_TYPE_GROUPS.map((group) => {
+      const optionsHtml = group.options.map((type) => {
+        const selectedClass = selectedType === type ? "is-selected" : "";
+        return `<button type="button" class="leave-type-option ${selectedClass}" data-leave-type="${type}">${type}</button>`;
+      }).join("");
+      return `<div class="leave-type-group">${group.label}</div>${optionsHtml}`;
+    }).join("") + `
       <div class="item-actions">
-        <button type="button" id="leave-type-picker-save" class="primary-btn">儲存</button>
+        <button type="button" id="leave-type-picker-clear" class="small-btn">清除假別</button>
         <button type="button" id="leave-type-picker-cancel" class="small-btn cancel-btn">取消</button>
       </div>
     `;
@@ -2808,8 +2828,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     picker.style.top = `${Math.min(window.innerHeight - picker.offsetHeight - 12, rect.bottom + window.scrollY + 6)}px`;
     picker.style.left = `${Math.min(window.innerWidth - picker.offsetWidth - 12, rect.left + window.scrollX)}px`;
     leaveTypePickerState = { employeeId, dateString };
-    const selectEl = picker.querySelector("#leave-type-picker-select");
-    if (selectEl) selectEl.focus();
   }
 
     async function toggleLeaveAssignment(employeeId, dateString) {
@@ -3782,15 +3800,29 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       closeLeaveTypePicker();
       return;
     }
-    if (target.id === "leave-type-picker-save") {
-      const picker = document.getElementById("leave-type-picker-popover");
-      const selectElement = picker?.querySelector("#leave-type-picker-select");
-      if (!leaveTypePickerState || !(selectElement instanceof HTMLSelectElement)) {
+    if (target.id === "leave-type-picker-clear") {
+      if (!leaveTypePickerState) {
         closeLeaveTypePicker();
         return;
       }
       try {
-        await saveLeaveTypeAssignment(leaveTypePickerState.employeeId, leaveTypePickerState.dateString, selectElement.value || "");
+        await saveLeaveTypeAssignment(leaveTypePickerState.employeeId, leaveTypePickerState.dateString, "");
+      } catch (error) {
+        console.error("儲存假別失敗", error);
+        alert("儲存假別失敗，請稍後再試。");
+      } finally {
+        closeLeaveTypePicker();
+      }
+      return;
+    }
+    const leaveTypeOption = target.closest(".leave-type-option[data-leave-type]");
+    if (leaveTypeOption instanceof HTMLElement) {
+      if (!leaveTypePickerState) {
+        closeLeaveTypePicker();
+        return;
+      }
+      try {
+        await saveLeaveTypeAssignment(leaveTypePickerState.employeeId, leaveTypePickerState.dateString, leaveTypeOption.dataset.leaveType || "");
       } catch (error) {
         console.error("儲存假別失敗", error);
         alert("儲存假別失敗，請稍後再試。");
