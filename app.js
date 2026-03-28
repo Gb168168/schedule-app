@@ -352,6 +352,14 @@ function isAdmin(user) {
  return Boolean(user?.permissions?.admin || user?.role === "管理員");
 }
 
+function isGoldBricksUser(user) {
+  return String(user?.employeeId || "").trim() === "GoldBricks";
+}
+
+function canManageAllSchedules(user) {
+  return isAdmin(user) || isGoldBricksUser(user);
+}
+
 function canViewShiftAndAttendance(user) {
   if (!user) return false;
   const employeeId = String(user.employeeId || user.account || "").trim();
@@ -2301,7 +2309,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   function canViewScheduleItem(item, viewer = currentUser) {
     if (!viewer) return false;
-    if (isAdmin(viewer)) return true;
+    if (canManageAllSchedules(viewer)) return true;
     const isOwnerMemo = Boolean(item?.employeeId) && item.employeeId === viewer.employeeId;
     const isDepartmentMemo = !item?.employeeId && item?.region === viewer.region && item?.department === viewer.department;
     return isOwnerMemo || isDepartmentMemo;
@@ -2309,7 +2317,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   function canEditScheduleItem(item, viewer = currentUser) {
     if (!viewer || !item) return false;
-    if (isAdmin(viewer)) return true;
+    if (canManageAllSchedules(viewer)) return true;
     return Boolean(item.createdBy) && item.createdBy === viewer.employeeId;
   }
 
@@ -2850,10 +2858,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   function isAutoRestDay(employee, dateString) {
     return Boolean(employee?.weekendsOff) && isWeekendOrHoliday(dateString);
-  }
-
-    function isGoldBricksUser(user) {
-    return user?.employeeId === "GoldBricks";
   }
 
      function canEditLeaveCell(targetEmployee, monthSetting) {
