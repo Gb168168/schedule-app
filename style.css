@@ -816,6 +816,61 @@ textarea {
   text-overflow: ellipsis;
 }
 
+.schedule-filter {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 10px 0 14px;
+}
+
+.schedule-tag {
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: #ffffff;
+  background: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.schedule-tag.shift-morning {
+  background: #2563eb;
+}
+
+.schedule-tag.shift-evening {
+  background: #7c3aed;
+}
+
+.schedule-tag.shift-support {
+  background: #eab308;
+  color: #1f2937;
+}
+
+.schedule-group {
+  margin-bottom: 8px;
+}
+
+.schedule-group details,
+.schedule-group details details {
+  margin-top: 4px;
+}
+
+.schedule-item-group {
+  margin: 8px 0 0 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.schedule-item {
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
 .schedule-popover {
   position: fixed;
   top: 50%;
@@ -969,6 +1024,10 @@ textarea {
     min-height: 90px;
     padding: 10px;
   }
+  
+  .schedule-filter {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -976,6 +1035,10 @@ textarea {
   .employee-card-header,
   .section-header-row {
     flex-direction: column;
+  }
+
+   .schedule-filter {
+    grid-template-columns: 1fr;
   }
 
   .schedule-item-actions {
