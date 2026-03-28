@@ -2455,22 +2455,38 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (!grouped.size) {
       scheduleDetailBody.innerHTML = `<div class="list-item"><p>此日期目前沒有符合篩選條件的行程。</p></div>`;
     } else {
-      const html = Array.from(grouped.entries()).map(([region, departmentMap]) => {
-        const departmentHtml = Array.from(departmentMap.entries()).map(([department, employeeMap]) => {
-          const employeeHtml = Array.from(employeeMap.entries()).map(([employee, items]) => {
-            const itemHtml = items.map((item) => {
-              const shift = item.shift || "-";
-              const shiftClass = getShiftClassName(shift);
-              const shiftEmoji = getShiftEmoji(shift);
-              return `<div class="schedule-item"><span class="shift ${shiftClass}">${shiftEmoji ? `${shiftEmoji} ` : ""}${shift}</span><span>${item.title || item.note || "未命名"}</span><span>${item.startTime || "-"}</span><span>${item.content || "-"}</span></div>`;
-            }).join("");
-            return `<details><summary>${employee}</summary><div class="schedule-item-group">${itemHtml}</div></details>`;
-          }).join("");
-          return `<details><summary>${department}</summary>${employeeHtml}</details>`;
-        }).join("");
-        return `<div class="schedule-group"><details><summary>${region}</summary>${departmentHtml}</details></div>`;
+      const rows = [];
+      grouped.forEach(function (departmentMap, region) {
+        departmentMap.forEach(function (employeeMap, department) {
+          employeeMap.forEach(function (items, employee) {
+            items.forEach(function (item) {
+              rows.push({
+                region,
+                department,
+                employee,
+                shift: item.shift || "-",
+                title: item.title || item.note || "未命名",
+                content: item.content || "無",
+                startTime: item.startTime || ""
+              });
+            });
+          });
+        });
+      });
+
+      const html = rows.map(function (row) {
+        const shiftClass = getShiftClassName(row.shift);
+        const shiftEmoji = getShiftEmoji(row.shift);
+        const startTimeText = row.startTime ? `｜${row.startTime}` : "";
+        return `<article class="schedule-detail-card">
+          <h5>${dateString}｜${shiftEmoji ? `${shiftEmoji} ` : ""}<span class="shift ${shiftClass}">${row.shift}</span>${startTimeText}</h5>
+          <p class="schedule-detail-meta">${row.employee}｜${row.region}｜${row.department}</p>
+          <p><strong>標題：</strong>${row.title}</p>
+          <p><strong>內容：</strong>${row.content}</p>
+        </article>`;
       }).join("");
-      scheduleDetailBody.innerHTML = html;
+     
+      scheduleDetailBody.innerHTML = `<div class="schedule-detail-card-list">${html}</div>`;
     }
     scheduleDetailBackdrop.classList.remove("hidden");
   }
