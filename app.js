@@ -973,8 +973,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const scheduleDepartmentSelect = document.getElementById("schedule-department");
   const scheduleEmployeeSelect = document.getElementById("schedule-employee");
   const scheduleShiftSelect = document.getElementById("schedule-shift");
-  const scheduleSupportDepartmentsInput = document.getElementById("schedule-support-departments");
-  const scheduleSupportShiftsInput = document.getElementById("schedule-support-shifts");
   const saveScheduleBtn = document.getElementById("save-schedule");
   const scheduleDetailBackdrop = document.getElementById("schedule-detail-backdrop");
   const scheduleDetailTitle = document.getElementById("schedule-detail-title");
@@ -2300,10 +2298,12 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     });
   }
 
-  function canManageScheduleItem(item) {
-    if (!currentUser) return false;
-    if (isAdmin(currentUser)) return true;
-    return item?.employeeId === currentUser.employeeId;
+  function canViewScheduleItem(item, viewer = currentUser) {
+    if (!viewer) return false;
+    if (isAdmin(viewer)) return true;
+    const isOwnerMemo = Boolean(item?.employeeId) && item.employeeId === viewer.employeeId;
+    const isDepartmentMemo = !item?.employeeId && item?.region === viewer.region && item?.department === viewer.department;
+    return isOwnerMemo || isDepartmentMemo;
   }
 
   function formatScheduleDate(year, monthIndex, day) {
@@ -2311,7 +2311,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   function getSchedulesByDate(dateString) {
-    return filterSchedules().filter((item) => item.date === dateString);
+    return filterSchedules().filter((item) => item.date === dateString && canViewScheduleItem(item));
   }
 
   function populateScheduleFilters() {
@@ -2361,38 +2361,15 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     const shift = filterShift?.value || "";
 
     return schedules.filter(function (item) {
-      const supportDepartments = getScheduleSupportDepartments(item);
-      const supportShifts = getScheduleSupportShifts(item);
       if (region && item.region !== region) return false;
-      if (department && item.department !== department && !supportDepartments.includes(department)) return false;
+      if (department && item.department !== department) return false;
       const itemEmployee = item.employeeName || item.employee || "";
       if (employee && itemEmployee !== employee) return false;
-      if (shift && item.shift !== shift && !supportShifts.includes(shift)) return false;
+      if (shift && item.shift !== shift) return false;
       return true;
     });
   }
 
-   function parseCommaSeparatedList(value) {
-    return String(value || "")
-      .split(/[,、，]/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-
-  function getNormalizedStringList(value) {
-    if (Array.isArray(value)) return value.map((item) => String(item || "").trim()).filter(Boolean);
-    if (typeof value === "string") return parseCommaSeparatedList(value);
-    return [];
-  }
-
-  function getScheduleSupportDepartments(item) {
-    return getNormalizedStringList(item?.supportDepartments);
-  }
-
-  function getScheduleSupportShifts(item) {
-    return getNormalizedStringList(item?.supportShifts);
-  }
-  
   function getShiftClassName(shift) {
     if (shift === "早班") return "shift-morning";
     if (shift === "晚班") return "shift-evening";
@@ -2490,8 +2467,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                 department,
                 employee,
                 shift: item.shift || "-",
-                supportDepartments: getScheduleSupportDepartments(item),
-                supportShifts: getScheduleSupportShifts(item),
                 title: item.title || item.note || "未命名",
                 content: item.content || "無",
                 startTime: item.startTime || ""
@@ -2508,8 +2483,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         return `<article class="schedule-detail-card">
           <h5>${dateString}｜${shiftEmoji ? `${shiftEmoji} ` : ""}<span class="shift ${shiftClass}">${row.shift}</span>${startTimeText}</h5>
           <p class="schedule-detail-meta">${row.employee}｜${row.region}｜${row.department}</p>
-          ${row.supportDepartments.length ? `<p><strong>協助部門：</strong>${row.supportDepartments.join("、")}</p>` : ""}
-          ${row.supportShifts.length ? `<p><strong>協助班別：</strong>${row.supportShifts.join("、")}</p>` : ""}
           <p><strong>標題：</strong>${row.title}</p>
           <p><strong>內容：</strong>${row.content}</p>
         </article>`;
@@ -2558,8 +2531,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (scheduleTitleInput) scheduleTitleInput.value = "";
     if (scheduleContentInput) scheduleContentInput.value = "";
     if (scheduleShiftSelect) scheduleShiftSelect.value = "早班";
-    if (scheduleSupportDepartmentsInput) scheduleSupportDepartmentsInput.value = "";
-    if (scheduleSupportShiftsInput) scheduleSupportShiftsInput.value = "";
     if (scheduleModalBackdrop) scheduleModalBackdrop.classList.remove("hidden");
     if (scheduleTitleInput) scheduleTitleInput.focus();
   }
@@ -2581,14 +2552,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     }
 
     const filteredSchedules = filterSchedules();
-    const visibleSchedules = isAdmin(currentUser)
-      ? filteredSchedules
-      : filteredSchedules.filter((item) => {
-          const isOwner = item.employeeId === currentUser.employeeId;
-          const isDepartmentBroadcast = !item.employeeId && item.region === currentUser.region && item.department === currentUser.department;
-          const isSupportDepartment = getScheduleSupportDepartments(item).includes(currentUser.department || "");
-          return isOwner || isDepartmentBroadcast || isSupportDepartment;
-        });
+    const visibleSchedules = filteredSchedules.filter((item) => canViewScheduleItem(item));
 
     if (!visibleSchedules.length) {
       rosterList.innerHTML = `<div class="list-item"><p>目前沒有排程資料。</p></div>`;
@@ -2601,15 +2565,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const itemTitle = item.title || "";
       const itemNote = item.content || item.note || "無";
       const itemAuthor = item.employeeName || item.employeeId || "-";
-      const supportDepartments = getScheduleSupportDepartments(item);
-      const supportShifts = getScheduleSupportShifts(item);
-      const supportDepartmentsText = supportDepartments.length ? `<p>協助部門：${supportDepartments.join("、")}</p>` : "";
-      const supportShiftsText = supportShifts.length ? `<p>協助班別：${supportShifts.join("、")}</p>` : "";
-      const actions = canManageScheduleItem(item)
-        ? `<div class="item-actions"><button type="button" class="small-btn delete-btn" onclick="deleteSchedule('${item.id}')">刪除</button></div>`
-        : "";
       const titleHtml = itemTitle ? `<p>標題：${itemTitle}</p>` : "";
-      return `<div class="list-item"><h4>${itemDate}｜${itemShift}</h4><div class="item-meta">${itemAuthor}｜${item.region || "-"}｜${item.department || "-"}</div>${titleHtml}<p>內容：${itemNote}</p>${supportDepartmentsText}${supportShiftsText}${actions}</div>`;
+      return `<div class="list-item"><h4>${itemDate}｜${itemShift}</h4><div class="item-meta">${itemAuthor}｜${item.region || "-"}｜${item.department || "-"}</div>${titleHtml}<p>內容：${itemNote}</p></div>`;
     }).join("");
   }
 
@@ -3899,8 +3856,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const employeeId = scheduleEmployeeSelect?.value || "";
       const employeeRecord = employees.find((item) => item.employeeId === employeeId);
       const shift = scheduleShiftSelect?.value || "";
-      const supportDepartments = parseCommaSeparatedList(scheduleSupportDepartmentsInput?.value || "");
-      const supportShifts = parseCommaSeparatedList(scheduleSupportShiftsInput?.value || "");
       if (!currentUser) return alert("請先登入");
       if (!selectedScheduleDate) return alert("請先選擇日期");
       if (!title) return alert("請輸入標題");
@@ -3915,8 +3870,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         employeeId: employeeRecord?.employeeId || "",
         employeeName: employeeRecord?.name || employeeRecord?.employeeId || "全部員工",
         shift,
-        supportDepartments,
-        supportShifts,
         createdBy: currentUser.employeeId || "",
         createdByName: currentUser.name || "",
         updatedAt: serverTimestamp()
@@ -3942,24 +3895,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     });
   }
   
-  window.deleteSchedule = async function (id) {
-    const target = schedules.find((item) => item.id === id);
-    if (!target) return;
-    if (!canManageScheduleItem(target)) return alert("你沒有刪除此排程的權限");
-    if (!confirm("確定要刪除此排程嗎？")) return;
-    try {
-      if (!db) {
-        schedules = schedules.filter((item) => item.id !== id);
-        renderSchedules();
-        return;
-      }
-      await deleteDoc(doc(db, "schedules", id));
-    } catch (error) {
-      console.error("刪除排程失敗", error);
-      alert("刪除排程失敗，請稍後再試。");
-    }
-  };
-
   if (shiftCodeSelect) {
     shiftCodeSelect.addEventListener("change", syncShiftForm);
   }
