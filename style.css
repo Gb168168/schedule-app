@@ -264,6 +264,24 @@ textarea {
   width: auto;
 }
 
+.scope-region-department-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.scope-region-department-group {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.scope-region-title {
+  margin: 0 0 6px;
+  font-weight: 700;
+}
+
 .main-page.sidebar-collapsed .sidebar {
   width: 0;
   padding: 0;
