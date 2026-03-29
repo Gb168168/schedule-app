@@ -978,6 +978,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const employeeForm = document.getElementById("employee-form");
   const employeeFormCard = document.getElementById("employee-form-card");
   const employeeList = document.getElementById("employee-list");
+  const permissionsEmployeeList = document.getElementById("permissions-employee-list");
   const employeeDepartmentSelect = document.getElementById("employee-form-department");
   const employeeRegionSelect = document.getElementById("employee-form-region");
   const manageRegions = document.getElementById("manage-regions");
@@ -2415,6 +2416,76 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     refreshShiftEmployeeOptions();
     renderLeaveBoard();
     renderTodayWorkingStaff();
+     renderPermissionsEmployeeList();
+  }
+
+  function renderPermissionsEmployeeList() {
+    if (!permissionsEmployeeList) return;
+
+    const visibleEmployees = employees.filter(function (employee) {
+      return !employee.isHidden;
+    });
+
+    if (visibleEmployees.length === 0) {
+      permissionsEmployeeList.innerHTML = `<div class="list-item"><p>目前沒有可設定權限的人員。</p></div>`;
+      return;
+    }
+
+    const grouped = {};
+    visibleEmployees.forEach(function (employee) {
+      const region = employee.region || "未分類地區";
+      const department = employee.department || "未分類部門";
+      if (!grouped[region]) grouped[region] = {};
+      if (!grouped[region][department]) grouped[region][department] = [];
+      grouped[region][department].push(employee);
+    });
+
+    const canManageEmployeeData = canManageEmployees(currentUser);
+
+    permissionsEmployeeList.innerHTML = Object.keys(grouped)
+      .sort(compareRegionsNorthToSouth)
+      .map(function (region) {
+        return `
+          <details class="scope-collapse">
+            <summary>${region}</summary>
+            ${Object.keys(grouped[region])
+              .sort(function (a, b) {
+                const orderDiff = getDepartmentOrder(a) - getDepartmentOrder(b);
+                if (orderDiff !== 0) return orderDiff;
+                return String(a || "").localeCompare(String(b || ""), "zh-Hant");
+              })
+              .map(function (department) {
+                const sortedEmployees = [...grouped[region][department]].sort(function (a, b) {
+                  const nameDiff = String(a.name || "").localeCompare(String(b.name || ""), "zh-Hant");
+                  if (nameDiff !== 0) return nameDiff;
+                  return String(a.employeeId || "").localeCompare(String(b.employeeId || ""), "zh-Hant");
+                });
+
+                return `
+                  <details class="scope-collapse">
+                    <summary>${department}（${sortedEmployees.length} 人）</summary>
+                    <div class="list-wrap">
+                      ${sortedEmployees.map(function (employee) {
+                        const permissionSwitches = EMPLOYEE_PERMISSION_FIELDS.map(function (permission) {
+                          const checked = employee.permissions?.[permission.key] ? "checked" : "";
+                          const disabled = !canManageEmployeeData || isSuperAdminEmployee(employee.employeeId) ? "disabled" : "";
+                          return `<label class="permission-chip"><input type="checkbox" data-action="toggle-employee-permission" data-id="${employee.id}" data-key="${permission.key}" ${checked} ${disabled} /><span>${permission.label}</span></label>`;
+                        }).join("");
+
+                        return `
+                          <div class="list-item">
+                            <h4>${employee.name || "未命名員工"}（${employee.employeeId || "-"}）</h4>
+                            <div class="employee-permission-switches">${permissionSwitches}</div>
+                          </div>
+                        `;
+                      }).join("")}
+                    </div>
+                  </details>
+                `;
+              }).join("")}
+          </details>
+        `;
+      }).join("");
   }
 
   function startEmployeesListener() {
@@ -2423,6 +2494,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       markEmployeesReady();
       populateScheduleFilters();
       renderEmployees();
+      renderPermissionsEmployeeList();
       restoreLogin();
       return;
     }
@@ -4679,59 +4751,64 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     }
   });
   
-  if (employeeList) {
-    employeeList.addEventListener("change", async function (event) {
-      const toggle = event.target.closest('input[data-action="toggle-employee-permission"]');
-      if (!toggle) return;
-      if (!canManageEmployees(currentUser)) {
-        toggle.checked = !toggle.checked;
-        alert("你沒有權限設定員工功能權限");
-        return;
-      }
+  async function handleEmployeePermissionToggle(event) {
+    const toggle = event.target.closest('input[data-action="toggle-employee-permission"]');
+    if (!toggle) return;
+    if (!canManageEmployees(currentUser)) {
+      toggle.checked = !toggle.checked;
+      alert("你沒有權限設定員工功能權限");
+      return;
+    }
 
-      const id = toggle.dataset.id || "";
-      const permissionKey = toggle.dataset.key || "";
-      const checked = Boolean(toggle.checked);
-      const targetEmployee = employees.find((item) => item.id === id);
-      if (!targetEmployee) return;
-      if (isSuperAdminEmployee(targetEmployee.employeeId)) {
-        toggle.checked = true;
-        alert("最高權限帳號不需調整功能權限");
-        return;
-      }
-      if (!db) {
-        toggle.checked = !checked;
-        alert("Firebase 未設定，無法儲存權限變更。");
-        return;
-      }
+    const id = toggle.dataset.id || "";
+    const permissionKey = toggle.dataset.key || "";
+    const checked = Boolean(toggle.checked);
+    const targetEmployee = employees.find((item) => item.id === id);
+    if (!targetEmployee) return;
+    if (isSuperAdminEmployee(targetEmployee.employeeId)) {
+      toggle.checked = true;
+      alert("最高權限帳號不需調整功能權限");
+      return;
+    }
+    if (!db) {
+      toggle.checked = !checked;
+      alert("Firebase 未設定，無法儲存權限變更。");
+      return;
+    }
 
-      const nextPermissions = {
-        ...(targetEmployee.permissions || {}),
-        [permissionKey]: checked
-      };
-      if (permissionKey === "attendanceCoordinateManage") {
-        nextPermissions.coordinateAdmin = checked;
-      }
+    const nextPermissions = {
+      ...(targetEmployee.permissions || {}),
+      [permissionKey]: checked
+    };
+    if (permissionKey === "attendanceCoordinateManage") {
+      nextPermissions.coordinateAdmin = checked;
+    }
 
       employees = employees.map(function (item) {
-        if (item.id !== id) return item;
-        return {
-          ...item,
-          permissions: nextPermissions
-        };
-      });
+      if (item.id !== id) return item;
+      return {
+        ...item,
+        permissions: nextPermissions
+      };
+    });
       renderEmployees();
 
-      try {
-        await updateDoc(doc(db, "employees", id), {
-          permissions: nextPermissions,
-          updatedAt: serverTimestamp()
-        });
+    try {
+      await updateDoc(doc(db, "employees", id), {
+        permissions: nextPermissions,
+        updatedAt: serverTimestamp()
+      });
       } catch (error) {
-        console.error("更新員工權限失敗", error);
-        alert("儲存權限失敗，請稍後再試");
-      }
-    });
+      console.error("更新員工權限失敗", error);
+      alert("儲存權限失敗，請稍後再試");
+    }
+  }
+
+      if (employeeList) {
+    employeeList.addEventListener("change", handleEmployeePermissionToggle);
+  }
+  if (permissionsEmployeeList) {
+    permissionsEmployeeList.addEventListener("change", handleEmployeePermissionToggle);
   }
   if (prevMonthBtn) prevMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() - 1); renderLeaveBoard(); });
   if (nextMonthBtn) nextMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() + 1); renderLeaveBoard(); });
