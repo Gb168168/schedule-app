@@ -980,6 +980,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const permissionShiftSettingsInput = document.getElementById("permission-shift-settings");
   const permissionLeaveApproveInput = document.getElementById("permission-leave-approve");
   const permissionAnnouncementManageInput = document.getElementById("permission-announcement-manage");
+  const employeeShiftMorningInput = document.getElementById("employee-shift-morning");
+  const employeeShiftEveningInput = document.getElementById("employee-shift-evening");
+  const employeeWeekendsOffInput = document.getElementById("employee-weekends-off");
+  const employeeShowOnLeaveBoardInput = document.getElementById("employee-show-on-leave-board");
   const employeeSubmitBtn = document.getElementById("employee-submit-btn");
   const employeeIdField = document.getElementById("employee-form-id");
   let photoData = "";
@@ -2257,6 +2261,23 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       input.disabled = isSuperAdminEditing;
     });
 
+    if (employeeShiftMorningInput) {
+      employeeShiftMorningInput.checked = isSuperAdminEditing ? true : employeeShiftMorningInput.checked;
+      employeeShiftMorningInput.disabled = isSuperAdminEditing;
+    }
+    if (employeeShiftEveningInput) {
+      employeeShiftEveningInput.checked = isSuperAdminEditing ? true : employeeShiftEveningInput.checked;
+      employeeShiftEveningInput.disabled = isSuperAdminEditing;
+    }
+    if (employeeWeekendsOffInput) {
+      employeeWeekendsOffInput.checked = isSuperAdminEditing ? false : employeeWeekendsOffInput.checked;
+      employeeWeekendsOffInput.disabled = isSuperAdminEditing;
+    }
+    if (employeeShowOnLeaveBoardInput) {
+      employeeShowOnLeaveBoardInput.checked = isSuperAdminEditing ? true : employeeShowOnLeaveBoardInput.checked;
+      employeeShowOnLeaveBoardInput.disabled = isSuperAdminEditing;
+    }
+    
     if (manageRegions) {
       manageRegions.disabled = isSuperAdminEditing || !permissionLeaveApproveInput?.checked;
       if (isSuperAdminEditing) {
@@ -2329,6 +2350,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                       ${departments[department]
                         .map(function (employee) {
                           const showOnLeaveBoard = employee.showOnLeaveBoard !== false;
+                          const shiftLabels = [
+                            employee.shifts?.morning ? "早班" : "",
+                            employee.shifts?.evening ? "晚班" : ""
+                          ].filter(Boolean);
 
                           const canManageEmployeeData = canManageEmployees(currentUser);
                           return `
@@ -2352,6 +2377,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                                   <p>部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}</p>
                                   <p>類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}</p>
                                   <p>年度特休：${employee.annualLeaveDays || 0} 天（期限：${employee.annualLeaveExpiry || "未設定"}）｜旅遊假：${employee.travelLeaveDays || 0} 天（期限：${employee.travelLeaveExpiry || "未設定"}）</p>
+                                  <p>班別：${shiftLabels.length ? shiftLabels.join(" / ") : "未設定"}｜週休二日與國定假日：${employee.weekendsOff ? "啟用" : "關閉"}</p>
                                   <p>休假表顯示：${showOnLeaveBoard ? "顯示" : "隱藏"}</p>
                                   <p>功能權限：${formatEmployeePermissions(employee)}</p>
                                   ${canManageEmployeeData ? `<div class="item-actions"><button type="button" class="small-btn edit-btn" onclick="editEmployee('${employee.id}')">編輯</button><button type="button" class="small-btn delete-btn" onclick="deleteEmployee('${employee.id}')">刪除</button></div>` : ""}
@@ -3790,6 +3816,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const canShiftSettingsManage = isSuperAdmin || Boolean(permissionShiftSettingsInput?.checked);
       const canLeaveApprove = isSuperAdmin || Boolean(permissionLeaveApproveInput?.checked);
       const canAnnouncementManage = isSuperAdmin || Boolean(permissionAnnouncementManageInput?.checked);
+      const hasMorningShift = isSuperAdmin || Boolean(employeeShiftMorningInput?.checked);
+      const hasEveningShift = isSuperAdmin || Boolean(employeeShiftEveningInput?.checked);
+      const weekendsOff = isSuperAdmin ? false : Boolean(employeeWeekendsOffInput?.checked);
+      const showOnLeaveBoard = isSuperAdmin ? true : Boolean(employeeShowOnLeaveBoardInput?.checked);
       const selectedManageRegions = canLeaveApprove
         ? Array.from(manageRegions?.selectedOptions || []).map((option) => option.value)
         : [];
@@ -3814,9 +3844,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         travelLeaveDays,
         travelLeaveExpiry,
         photoURL: photoData,
-        shifts: roleProfile.shifts,
-        weekendsOff: roleProfile.weekendsOff,
-        showOnLeaveBoard: roleProfile.showOnLeaveBoard,
+        shifts: {
+          ...roleProfile.shifts,
+          morning: hasMorningShift,
+          evening: hasEveningShift
+        },
+        weekendsOff,
+        showOnLeaveBoard,
         permissions: {
           ...roleProfile.permissions,
           employeeProfileManage: canEmployeeManage,
@@ -3873,6 +3907,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         if (permissionShiftSettingsInput) permissionShiftSettingsInput.checked = false;
         if (permissionLeaveApproveInput) permissionLeaveApproveInput.checked = false;
         if (permissionAnnouncementManageInput) permissionAnnouncementManageInput.checked = false;
+        if (employeeShiftMorningInput) employeeShiftMorningInput.checked = true;
+        if (employeeShiftEveningInput) employeeShiftEveningInput.checked = false;
+        if (employeeWeekendsOffInput) employeeWeekendsOffInput.checked = false;
+        if (employeeShowOnLeaveBoardInput) employeeShowOnLeaveBoardInput.checked = true;
         Array.from(manageRegions?.options || []).forEach((option) => { option.selected = false; });
         Array.from(manageDepartments?.options || []).forEach((option) => { option.selected = false; });
         setPhoto("");
@@ -3948,6 +3986,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (permissionShiftSettingsInput) permissionShiftSettingsInput.checked = Boolean(employee.permissions?.shiftSettingsManage || isSuperAdminEmployee(employee.employeeId));
     if (permissionLeaveApproveInput) permissionLeaveApproveInput.checked = Boolean(employee.permissions?.leaveApprove || isSuperAdminEmployee(employee.employeeId));
     if (permissionAnnouncementManageInput) permissionAnnouncementManageInput.checked = Boolean(employee.permissions?.announcementManage || isSuperAdminEmployee(employee.employeeId));
+    if (employeeShiftMorningInput) employeeShiftMorningInput.checked = Boolean(employee.shifts?.morning || isSuperAdminEmployee(employee.employeeId));
+    if (employeeShiftEveningInput) employeeShiftEveningInput.checked = Boolean(employee.shifts?.evening || isSuperAdminEmployee(employee.employeeId));
+    if (employeeWeekendsOffInput) employeeWeekendsOffInput.checked = Boolean(employee.weekendsOff);
+    if (employeeShowOnLeaveBoardInput) employeeShowOnLeaveBoardInput.checked = employee.showOnLeaveBoard !== false;
     const selectedRegions = isSuperAdminEmployee(employee.employeeId)
       ? [...REGIONS]
       : (employee.manageScopes?.regions || []);
