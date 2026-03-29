@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-1</title>
+  <title>班表系統-3</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -287,24 +287,8 @@
       <section id="page-permissions" class="page-section hidden">
         <div class="card">
           <h3>權限功能</h3>
-          <div class="list-item">
-            <h4>班別與休假表</h4>
-            <div class="permissions-grid">
-              <label class="field-label checkbox-inline"><span>早班</span><input type="checkbox" disabled /></label>
-              <label class="field-label checkbox-inline"><span>晚班</span><input type="checkbox" disabled /></label>
-              <label class="field-label checkbox-inline"><span>週休二日 &amp; 國定假日</span><input type="checkbox" disabled /></label>
-              <label class="field-label checkbox-inline"><span>休假表顯示</span><input type="checkbox" disabled /></label>
-            </div>
-          </div>
-          <div class="list-item">
-            <h4>功能權限說明</h4>
-            <p>1. 新增員工-建置基本資料：勾選後可在「人員資訊」新增 / 編輯 / 刪除。</p>
-            <p>2. 打卡紀錄 &amp; 打卡座標：勾選後左側顯示「打卡紀錄」與「打卡座標」並可管理。</p>
-            <p>3. 班別設定：勾選後左側顯示「班別設定」並可管理。</p>
-            <p>4. 審核假別：勾選後可設定地區/部門，僅可審核設定範圍內人員申請。</p>
-            <p>5. 公告欄：勾選後可新增 / 編輯 / 隱藏 / 刪除公告。</p>
-            <p class="helper-text">※ GoldBricks 為最高權限，不需勾選即可操作全部功能。</p>
-          </div>
+           <p class="helper-text">人員由「人員資訊」自動連動，依地區 → 部門 → 人員排序，僅顯示必要欄位。</p>
+          <div id="permissions-employee-list" class="list-wrap"></div>
         </div>
       </section>
       
