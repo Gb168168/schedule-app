@@ -75,7 +75,10 @@ const users = [
     shifts: { morning: true, evening: true },
     weekendsOff: false,
     permissions: {
-     announcementManage: true,
+     employeeProfileManage: true,
+      attendanceCoordinateManage: true,
+      shiftSettingsManage: true,
+      announcementManage: true,
       leaveApprove: true,
       admin: true,
       coordinateAdmin: true
@@ -363,9 +366,11 @@ function canManageAllSchedules(user) {
 }
 
 function canViewShiftAndAttendance(user) {
-  if (!user) return false;
-  const employeeId = String(user.employeeId || user.account || "").trim();
-  return employeeId === "GoldBricks" || isAdmin(user);
+  return Boolean(
+    isGoldBricksUser(user) ||
+    user?.permissions?.admin ||
+    user?.permissions?.attendanceCoordinateManage
+  );
 }
 
 function canViewTodayAttendanceStaff(user) {
@@ -373,11 +378,42 @@ function canViewTodayAttendanceStaff(user) {
 }
 
 function canManageAnnouncements(user) {
-  return Boolean(user?.permissions?.admin || user?.permissions?.announcementManage);
+  return Boolean(isGoldBricksUser(user) || user?.permissions?.admin || user?.permissions?.announcementManage);
 }
 
 function canManageCoordinates(user) {
-  return Boolean(user?.permissions?.admin || user?.permissions?.coordinateAdmin);
+  return Boolean(
+    isGoldBricksUser(user) ||
+    user?.permissions?.admin ||
+    user?.permissions?.coordinateAdmin ||
+    user?.permissions?.attendanceCoordinateManage
+  );
+}
+
+function canManageEmployees(user) {
+  return Boolean(
+    isGoldBricksUser(user) ||
+    user?.permissions?.admin ||
+    user?.permissions?.employeeProfileManage
+  );
+}
+
+function canManageShiftSettings(user) {
+  return Boolean(
+    isGoldBricksUser(user) ||
+    user?.permissions?.admin ||
+    user?.permissions?.shiftSettingsManage
+  );
+}
+
+function canApproveLeaveInScope(user, leaveItem = null) {
+  if (!user) return false;
+  if (isGoldBricksUser(user) || user?.permissions?.admin) return true;
+  if (!user?.permissions?.leaveApprove) return false;
+  if (!leaveItem) return true;
+  const regions = Array.isArray(user?.manageScopes?.regions) ? user.manageScopes.regions : [];
+  const departments = Array.isArray(user?.manageScopes?.departments) ? user.manageScopes.departments : [];
+  return regions.includes(leaveItem.region || "") && departments.includes(leaveItem.department || "");
 }
 
 function normalizeLoginValue(value) {
@@ -602,6 +638,9 @@ function formatDate(date) {
 function formatEmployeePermissions(employee) {
   const tags = [];
   if (employee.permissions?.admin) tags.push("管理員");
+  if (employee.permissions?.employeeProfileManage) tags.push("可建置員工資料");
+  if (employee.permissions?.attendanceCoordinateManage) tags.push("打卡與座標管理");
+  if (employee.permissions?.shiftSettingsManage) tags.push("班別設定");
   if (employee.permissions?.leaveApprove) tags.push("可審核請假");
   if (employee.permissions?.announcementManage) tags.push("公告管理");
   if (employee.permissions?.coordinateAdmin) tags.push("座標管理");
@@ -623,6 +662,9 @@ function getEmployeeRoleProfile(employeeId = "") {
     showOnLeaveBoard: true,
     permissions: {
       admin: isSuperAdmin,
+      employeeProfileManage: isSuperAdmin,
+      attendanceCoordinateManage: isSuperAdmin,
+      shiftSettingsManage: isSuperAdmin,
       leaveApprove: isSuperAdmin,
       announcementManage: isSuperAdmin,
       coordinateAdmin: isSuperAdmin
@@ -932,6 +974,12 @@ document.addEventListener("DOMContentLoaded", function () {
   const employeeRegionSelect = document.getElementById("employee-form-region");
   const manageRegions = document.getElementById("manage-regions");
   const manageDepartments = document.getElementById("manage-departments");
+  const leaveApproveScopeBox = document.getElementById("leave-approve-scope-box");
+  const permissionEmployeeManageInput = document.getElementById("permission-employee-manage");
+  const permissionAttendanceCoordinateInput = document.getElementById("permission-attendance-coordinate");
+  const permissionShiftSettingsInput = document.getElementById("permission-shift-settings");
+  const permissionLeaveApproveInput = document.getElementById("permission-leave-approve");
+  const permissionAnnouncementManageInput = document.getElementById("permission-announcement-manage");
   const employeeSubmitBtn = document.getElementById("employee-submit-btn");
   const employeeIdField = document.getElementById("employee-form-id");
   let photoData = "";
@@ -940,6 +988,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const photoPreview = document.getElementById("photo-preview");
   
   const coordinateMenuBtn = document.getElementById("menu-coordinate-btn");
+  const permissionsMenuBtn = document.getElementById("menu-permissions-btn");
   const shiftSettingsMenuBtn = document.getElementById("menu-shift-settings-btn");
   const attendanceMenuBtn = document.getElementById("menu-attendance-btn");
   const coordinateAdminDisabled = document.getElementById("coordinate-admin-disabled");
@@ -1069,13 +1118,17 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function updateMenuPermissions(user) {
-   if (coordinateMenuBtn) {
+   if (permissionsMenuBtn) {
+      permissionsMenuBtn.classList.toggle("hidden", !canManageEmployees(user));
+    }
+    if (coordinateMenuBtn) {
       coordinateMenuBtn.classList.toggle("hidden", !canManageCoordinates(user));
     }
 
     const allowShiftAttendance = canViewShiftAndAttendance(user);
+    const allowShiftSettings = canManageShiftSettings(user);
     if (shiftSettingsMenuBtn) {
-      shiftSettingsMenuBtn.classList.toggle("hidden", !allowShiftAttendance);
+      shiftSettingsMenuBtn.classList.toggle("hidden", !allowShiftSettings);
     }
     if (attendanceMenuBtn) {
       attendanceMenuBtn.classList.toggle("hidden", !allowShiftAttendance);
@@ -1083,6 +1136,12 @@ document.addEventListener("DOMContentLoaded", function () {
     
     if (homeTodayAttendanceCard) {
       homeTodayAttendanceCard.classList.toggle("hidden", !canViewTodayAttendanceStaff(user));
+    }
+    if (announcementForm) {
+      announcementForm.classList.toggle("hidden", !canManageAnnouncements(user));
+    }
+    if (!canManageAnnouncements(user)) {
+      hideAnnouncementEditor();
     }
   }
 
@@ -1112,6 +1171,14 @@ document.addEventListener("DOMContentLoaded", function () {
   function populateCoordinateRegionOptions() {
     if (!coordinateRegionSelect) return;
     coordinateRegionSelect.innerHTML = REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("");
+  }
+
+  populateManageScopeOptions();
+  if (permissionLeaveApproveInput) {
+    permissionLeaveApproveInput.addEventListener("change", function () {
+      updateLeaveApproveScopeVisibility();
+      updateSuperAdminFormState();
+    });
   }
 
   function getVisibleAttendanceLocations() {
@@ -2156,7 +2223,54 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     renderTodayWorkingStaff();
   }
 
-  function updateSuperAdminFormState() {}
+  function populateManageScopeOptions() {
+    if (manageRegions) {
+      manageRegions.innerHTML = REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("");
+    }
+    if (manageDepartments) {
+      manageDepartments.innerHTML = DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("");
+    }
+  }
+
+  function updateLeaveApproveScopeVisibility() {
+    if (!leaveApproveScopeBox) return;
+    leaveApproveScopeBox.classList.toggle("hidden", !permissionLeaveApproveInput?.checked);
+  }
+
+  function updateSuperAdminFormState() {
+    const isSuperAdminEditing = isSuperAdminEmployee(employeeIdField?.value.trim() || "");
+    const forceEnabled = isSuperAdminEditing;
+    if (permissionEmployeeManageInput) permissionEmployeeManageInput.checked = forceEnabled || permissionEmployeeManageInput.checked;
+    if (permissionAttendanceCoordinateInput) permissionAttendanceCoordinateInput.checked = forceEnabled || permissionAttendanceCoordinateInput.checked;
+    if (permissionShiftSettingsInput) permissionShiftSettingsInput.checked = forceEnabled || permissionShiftSettingsInput.checked;
+    if (permissionLeaveApproveInput) permissionLeaveApproveInput.checked = forceEnabled || permissionLeaveApproveInput.checked;
+    if (permissionAnnouncementManageInput) permissionAnnouncementManageInput.checked = forceEnabled || permissionAnnouncementManageInput.checked;
+
+    [
+      permissionEmployeeManageInput,
+      permissionAttendanceCoordinateInput,
+      permissionShiftSettingsInput,
+      permissionLeaveApproveInput,
+      permissionAnnouncementManageInput
+    ].forEach(function (input) {
+      if (!input) return;
+      input.disabled = isSuperAdminEditing;
+    });
+
+    if (manageRegions) {
+      manageRegions.disabled = isSuperAdminEditing || !permissionLeaveApproveInput?.checked;
+      if (isSuperAdminEditing) {
+        Array.from(manageRegions.options).forEach((option) => { option.selected = true; });
+      }
+    }
+    if (manageDepartments) {
+      manageDepartments.disabled = isSuperAdminEditing || !permissionLeaveApproveInput?.checked;
+      if (isSuperAdminEditing) {
+        Array.from(manageDepartments.options).forEach((option) => { option.selected = true; });
+      }
+    }
+    updateLeaveApproveScopeVisibility();
+  }
 
   function setPhoto(src) {
     photoData = src || "";
@@ -2173,8 +2287,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   function toggleEmployeeManagementUI() {
-    const canManageEmployees = isAdmin(currentUser);
-    if (employeeFormCard) employeeFormCard.classList.toggle("hidden", !canManageEmployees);
+    const allowManage = canManageEmployees(currentUser);
+    if (employeeFormCard) employeeFormCard.classList.toggle("hidden", !allowManage);
     renderEmployees();
   }
 
@@ -2216,7 +2330,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                         .map(function (employee) {
                           const showOnLeaveBoard = employee.showOnLeaveBoard !== false;
 
-                          const canManageEmployees = isAdmin(currentUser);
+                          const canManageEmployeeData = canManageEmployees(currentUser);
                           return `
                             <div class="list-item">
                               <div class="employee-card-main">
@@ -2239,7 +2353,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                                   <p>類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}</p>
                                   <p>年度特休：${employee.annualLeaveDays || 0} 天（期限：${employee.annualLeaveExpiry || "未設定"}）｜旅遊假：${employee.travelLeaveDays || 0} 天（期限：${employee.travelLeaveExpiry || "未設定"}）</p>
                                   <p>休假表顯示：${showOnLeaveBoard ? "顯示" : "隱藏"}</p>
-                                  ${canManageEmployees ? `<div class="item-actions"><button type="button" class="small-btn edit-btn" onclick="editEmployee('${employee.id}')">編輯</button><button type="button" class="small-btn delete-btn" onclick="deleteEmployee('${employee.id}')">刪除</button></div>` : ""}
+                                  <p>功能權限：${formatEmployeePermissions(employee)}</p>
+                                  ${canManageEmployeeData ? `<div class="item-actions"><button type="button" class="small-btn edit-btn" onclick="editEmployee('${employee.id}')">編輯</button><button type="button" class="small-btn delete-btn" onclick="deleteEmployee('${employee.id}')">刪除</button></div>` : ""}
                               </div>
                               </div>
                             </div>
@@ -2753,11 +2868,11 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   function renderLeaveStats() {
     if (!leaveStats) return;
 
-    const visibleLeaves = isAdmin(currentUser)
-      ? leaveRequests
-      : leaveRequests.filter(function (item) {
-          return currentUser && item.userName === currentUser.name;
-        });
+    const visibleLeaves = leaveRequests.filter(function (item) {
+      if (!currentUser) return false;
+      if (item.userName === currentUser.name) return true;
+      return canApproveLeaveInScope(currentUser, item);
+    });
 
     const stats = {
       特休: 0,
@@ -2782,11 +2897,11 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   function renderLeaves() {
     if (!leaveList) return;
 
-    const visibleLeaves = isAdmin(currentUser)
-      ? leaveRequests
-      : leaveRequests.filter(function (item) {
-          return currentUser && item.userName === currentUser.name;
-        });
+    const visibleLeaves = leaveRequests.filter(function (item) {
+      if (!currentUser) return false;
+      if (item.userName === currentUser.name) return true;
+      return canApproveLeaveInScope(currentUser, item);
+    });
 
     renderLeaveStats();
 
@@ -2799,7 +2914,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       .map(function (item) {
         let actions = "";
 
-        if (item.status === "待審核" && isAdmin(currentUser)) {
+        if (item.status === "待審核" && canApproveLeaveInScope(currentUser, item)) {
           actions = `
             <div class="item-actions">
               <button type="button" class="small-btn approve-btn" onclick="approveLeave('${item.id}')">核准</button>
@@ -3466,11 +3581,15 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   window.approveLeave = async function (id) {
     if (!db) return;
+    const item = leaveRequests.find((request) => request.id === id);
+    if (!canApproveLeaveInScope(currentUser, item)) return alert("你沒有該筆請假單審核權限");
     await updateDoc(doc(db, "leaveRequests", id), { status: "已核准", reviewedBy: currentUser.name, reviewedAt: new Date().toLocaleString() });
   };
 
   window.rejectLeave = async function (id) {
     if (!db) return;
+    const item = leaveRequests.find((request) => request.id === id);
+    if (!canApproveLeaveInScope(currentUser, item)) return alert("你沒有該筆請假單審核權限");
     await updateDoc(doc(db, "leaveRequests", id), { status: "已駁回", reviewedBy: currentUser.name, reviewedAt: new Date().toLocaleString() });
   };
 
@@ -3598,6 +3717,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   if (announcementForm) {
     announcementForm.addEventListener("submit", async function (event) {
       event.preventDefault();
+      if (!canManageAnnouncements(currentUser)) return alert("你沒有公告欄管理權限");
       const title = announcementTitle?.value.trim() || "";
       const content = announcementContent?.value.trim() || "";
       if (!title || !content) return alert("請填寫完整公告內容");
@@ -3625,6 +3745,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   if (announcementEditForm) {
     announcementEditForm.addEventListener("submit", async function (event) {
       event.preventDefault();
+      if (!canManageAnnouncements(currentUser)) return alert("你沒有公告欄管理權限");
       if (!editingAnnouncementId || !db) return;
       const title = announcementEditTitle?.value.trim() || "";
       const content = announcementEditContent?.value.trim() || "";
@@ -3646,7 +3767,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   if (employeeForm) {
     employeeForm.addEventListener("submit", async function (event) {
       event.preventDefault();
-      if (!isAdmin(currentUser)) return alert("非管理員只能查看員工資料");
+      if (!canManageEmployees(currentUser)) return alert("只有 GoldBricks 或被授權人員可建置員工基本資料");
       const employeeId = document.getElementById("employee-form-id")?.value.trim() || "";
       const account = document.getElementById("employee-form-account")?.value.trim() || "";
       const name = document.getElementById("employee-form-name")?.value.trim() || "";
@@ -3663,6 +3784,18 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const travelLeaveDays = Number(document.getElementById("employee-form-travel-leave-days")?.value || 0);
       const travelLeaveExpiry = document.getElementById("employee-form-travel-leave-expiry")?.value || "";
       const roleProfile = getEmployeeRoleProfile(employeeId);
+      const isSuperAdmin = isSuperAdminEmployee(employeeId);
+      const canEmployeeManage = isSuperAdmin || Boolean(permissionEmployeeManageInput?.checked);
+      const canAttendanceCoordinateManage = isSuperAdmin || Boolean(permissionAttendanceCoordinateInput?.checked);
+      const canShiftSettingsManage = isSuperAdmin || Boolean(permissionShiftSettingsInput?.checked);
+      const canLeaveApprove = isSuperAdmin || Boolean(permissionLeaveApproveInput?.checked);
+      const canAnnouncementManage = isSuperAdmin || Boolean(permissionAnnouncementManageInput?.checked);
+      const selectedManageRegions = canLeaveApprove
+        ? Array.from(manageRegions?.selectedOptions || []).map((option) => option.value)
+        : [];
+      const selectedManageDepartments = canLeaveApprove
+        ? Array.from(manageDepartments?.selectedOptions || []).map((option) => option.value)
+        : [];
       const employeeData = {
         employeeId,
         account,
@@ -3684,8 +3817,21 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         shifts: roleProfile.shifts,
         weekendsOff: roleProfile.weekendsOff,
         showOnLeaveBoard: roleProfile.showOnLeaveBoard,
-        permissions: roleProfile.permissions,
-        manageScopes: roleProfile.manageScopes,
+        permissions: {
+          ...roleProfile.permissions,
+          employeeProfileManage: canEmployeeManage,
+          attendanceCoordinateManage: canAttendanceCoordinateManage,
+          shiftSettingsManage: canShiftSettingsManage,
+          leaveApprove: canLeaveApprove,
+          announcementManage: canAnnouncementManage,
+          coordinateAdmin: canAttendanceCoordinateManage
+        },
+        manageScopes: canLeaveApprove
+          ? {
+              regions: isSuperAdmin ? [...REGIONS] : selectedManageRegions,
+              departments: isSuperAdmin ? [...DEPARTMENTS] : selectedManageDepartments
+            }
+          : { regions: [], departments: [] },
         status: "active",
         isHidden: false,
         fcmToken: editingEmployeeId ? (employees.find((item) => item.id === editingEmployeeId)?.fcmToken || "") : "",
@@ -3696,13 +3842,14 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         )
       };
 
-      const isSuperAdmin = isSuperAdminEmployee(employeeData.employeeId);
-      
       if (!employeeData.employeeId) return alert("請輸入員工代號");
       if (!employeeData.name) return alert("請輸入姓名");
       if (!employeeData.password) return alert("請輸入密碼");
       if (!employeeData.department) return alert("請選擇部門");
       if (!employeeData.region) return alert("請選擇地區");
+      if (canLeaveApprove && !isSuperAdmin && (selectedManageRegions.length === 0 || selectedManageDepartments.length === 0)) {
+        return alert("審核假別需至少勾選 1 個地區與 1 個部門");
+      }
       if (!isSuperAdmin && !employeeData.shifts.morning && !employeeData.shifts.evening) return alert("員工班別尚未預設成功，請重新嘗試");
 
       if (!db) return alert("Firebase 未設定，無法新增員工。");
@@ -3721,6 +3868,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         }
         
         employeeForm.reset();
+        if (permissionEmployeeManageInput) permissionEmployeeManageInput.checked = false;
+        if (permissionAttendanceCoordinateInput) permissionAttendanceCoordinateInput.checked = false;
+        if (permissionShiftSettingsInput) permissionShiftSettingsInput.checked = false;
+        if (permissionLeaveApproveInput) permissionLeaveApproveInput.checked = false;
+        if (permissionAnnouncementManageInput) permissionAnnouncementManageInput.checked = false;
+        Array.from(manageRegions?.options || []).forEach((option) => { option.selected = false; });
+        Array.from(manageDepartments?.options || []).forEach((option) => { option.selected = false; });
         setPhoto("");
         if (employeeSubmitBtn) {
           employeeSubmitBtn.textContent = "新增員工";
@@ -3765,7 +3919,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
   
   window.editEmployee = function (id) {
-    if (!isAdmin(currentUser)) return;
+    if (!canManageEmployees(currentUser)) return;
     const employee = employees.find(function (item) {
       return item.id === id;
     });
@@ -3789,6 +3943,23 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     document.getElementById("employee-form-annual-leave-expiry").value = employee.annualLeaveExpiry || "";
     document.getElementById("employee-form-travel-leave-days").value = employee.travelLeaveDays || 0;
     document.getElementById("employee-form-travel-leave-expiry").value = employee.travelLeaveExpiry || "";
+    if (permissionEmployeeManageInput) permissionEmployeeManageInput.checked = Boolean(employee.permissions?.employeeProfileManage || isSuperAdminEmployee(employee.employeeId));
+    if (permissionAttendanceCoordinateInput) permissionAttendanceCoordinateInput.checked = Boolean(employee.permissions?.attendanceCoordinateManage || employee.permissions?.coordinateAdmin || isSuperAdminEmployee(employee.employeeId));
+    if (permissionShiftSettingsInput) permissionShiftSettingsInput.checked = Boolean(employee.permissions?.shiftSettingsManage || isSuperAdminEmployee(employee.employeeId));
+    if (permissionLeaveApproveInput) permissionLeaveApproveInput.checked = Boolean(employee.permissions?.leaveApprove || isSuperAdminEmployee(employee.employeeId));
+    if (permissionAnnouncementManageInput) permissionAnnouncementManageInput.checked = Boolean(employee.permissions?.announcementManage || isSuperAdminEmployee(employee.employeeId));
+    const selectedRegions = isSuperAdminEmployee(employee.employeeId)
+      ? [...REGIONS]
+      : (employee.manageScopes?.regions || []);
+    const selectedDepartments = isSuperAdminEmployee(employee.employeeId)
+      ? [...DEPARTMENTS]
+      : (employee.manageScopes?.departments || []);
+    Array.from(manageRegions?.options || []).forEach((option) => {
+      option.selected = selectedRegions.includes(option.value);
+    });
+    Array.from(manageDepartments?.options || []).forEach((option) => {
+      option.selected = selectedDepartments.includes(option.value);
+    });
     setPhoto(employee.photoURL || "");   
 
     if (employeeSubmitBtn) {
@@ -3804,7 +3975,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   hydrateLeaveTypeSelect();
 
   window.deleteEmployee = async function (id) {
-    if (!isAdmin(currentUser)) return;
+    if (!canManageEmployees(currentUser)) return;
     if (!db) return;
 
     const confirmed = confirm("確定要刪除此員工嗎？");
