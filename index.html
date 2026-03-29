@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-2</title>
+  <title>班表系統-3</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -41,6 +41,7 @@
         <button class="menu-btn hidden" id="menu-permissions-btn" data-page="permissions">權限功能</button>
         <button class="menu-btn hidden" id="menu-shift-settings-btn" data-page="shift-settings">班別設定</button>
         <button class="menu-btn" data-page="leave">請假申請</button>
+        <button class="menu-btn" data-page="monthly-summary">本月統計</button>
         <button class="menu-btn hidden" id="menu-attendance-btn" data-page="attendance">打卡紀錄</button>
         <button class="menu-btn hidden" id="menu-coordinate-btn" data-page="coordinates">打卡座標</button>
       </nav>
@@ -380,6 +381,37 @@
           </form>
 
           <div id="leave-list" class="list-wrap"></div>
+        </div>
+      </section>
+
+      <section id="page-monthly-summary" class="page-section hidden">
+        <div class="card">
+          <div class="section-header-row">
+            <div>
+              <h3>本月統計</h3>
+              <p class="helper-text">統計休假表與請假申請總和，可查看各地區／部門／人員與剩餘假別。</p>
+            </div>
+          </div>
+          <div class="monthly-summary-toolbar">
+            <label class="field-label">
+              <span>月份</span>
+              <input id="monthly-summary-month" type="month" />
+            </label>
+            <label class="field-label">
+              <span>地區</span>
+              <select id="monthly-summary-region"></select>
+            </label>
+            <label class="field-label">
+              <span>部門</span>
+              <select id="monthly-summary-department"></select>
+            </label>
+            <label class="field-label">
+              <span>人員</span>
+              <select id="monthly-summary-employee"></select>
+            </label>
+          </div>
+          <div id="monthly-summary-cards" class="stats-grid"></div>
+          <div id="monthly-summary-table" class="list-wrap"></div>
         </div>
       </section>
 
