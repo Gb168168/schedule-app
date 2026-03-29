@@ -1019,6 +1019,26 @@ textarea {
   margin: 0;
 }
 
+.permission-editor-modal {
+  width: min(760px, calc(100vw - 48px));
+}
+
+.permission-editor-form {
+  display: grid;
+  gap: 12px;
+}
+
+.permission-editor-section {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--surface-soft);
+}
+
+.permission-editor-section h5 {
+  margin: 0 0 8px;
+}
+
 .selected-date-box {
   margin-bottom: 12px;
 }
