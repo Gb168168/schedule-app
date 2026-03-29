@@ -2616,23 +2616,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     const canManageEmployeeData = canManageEmployees(currentUser);
 
     permissionsEmployeeList.innerHTML = Object.keys(grouped)
-      .sort(compareRegionsNorthToSouth)
       .map(function (region) {
         return `
           <details class="scope-collapse">
             <summary>${region}</summary>
             ${Object.keys(grouped[region])
-              .sort(function (a, b) {
-                const orderDiff = getDepartmentOrder(a) - getDepartmentOrder(b);
-                if (orderDiff !== 0) return orderDiff;
-                return String(a || "").localeCompare(String(b || ""), "zh-Hant");
-              })
               .map(function (department) {
-                const sortedEmployees = [...grouped[region][department]].sort(function (a, b) {
-                  const nameDiff = String(a.name || "").localeCompare(String(b.name || ""), "zh-Hant");
-                  if (nameDiff !== 0) return nameDiff;
-                  return String(a.employeeId || "").localeCompare(String(b.employeeId || ""), "zh-Hant");
-                });
+                const sortedEmployees = grouped[region][department];
 
                 return `
                   <details class="scope-collapse">
