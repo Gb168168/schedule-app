@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-5</title>
+  <title>班表系統-1</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -217,6 +217,27 @@
                 </div>
               </div>
               <div class="form-section">
+                <h4>班別與休假表</h4>
+                <div class="permissions-grid">
+                  <label class="field-label checkbox-inline">
+                    <span>早班</span>
+                    <input id="employee-shift-morning" type="checkbox" checked />
+                  </label>
+                  <label class="field-label checkbox-inline">
+                    <span>晚班</span>
+                    <input id="employee-shift-evening" type="checkbox" />
+                  </label>
+                  <label class="field-label checkbox-inline">
+                    <span>週休二日 &amp; 國定假日</span>
+                    <input id="employee-weekends-off" type="checkbox" />
+                  </label>
+                  <label class="field-label checkbox-inline">
+                    <span>休假表顯示</span>
+                    <input id="employee-show-on-leave-board" type="checkbox" checked />
+                  </label>
+                </div>
+              </div>
+              <div class="form-section">
                 <h4>功能權限</h4>
                 <div class="permissions-grid">
                   <label class="field-label checkbox-inline">
@@ -236,7 +257,7 @@
                     <input id="permission-leave-approve" type="checkbox" />
                   </label>
                   <label class="field-label checkbox-inline">
-                    <span>公告欄管理</span>
+                    <span>公告欄</span>
                     <input id="permission-announcement-manage" type="checkbox" />
                   </label>
                 </div>
@@ -268,12 +289,12 @@
           <h3>權限功能</h3>
           <div class="list-item">
             <h4>班別與休假表</h4>
-            <ol>
-              <li>早班</li>
-              <li>晚班</li>
-              <li>週休二日 &amp; 國定假日</li>
-              <li>休假表顯示</li>
-            </ol>
+            <div class="permissions-grid">
+              <label class="field-label checkbox-inline"><span>早班</span><input type="checkbox" disabled /></label>
+              <label class="field-label checkbox-inline"><span>晚班</span><input type="checkbox" disabled /></label>
+              <label class="field-label checkbox-inline"><span>週休二日 &amp; 國定假日</span><input type="checkbox" disabled /></label>
+              <label class="field-label checkbox-inline"><span>休假表顯示</span><input type="checkbox" disabled /></label>
+            </div>
           </div>
           <div class="list-item">
             <h4>功能權限說明</h4>
