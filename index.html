@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-2</title>
+  <title>班表系統-3</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -515,24 +515,25 @@
         </label>
         <label class="field-label">
           <span>地區</span>
-          <select id="schedule-region"></select>
+          <select id="schedule-region" multiple size="4"></select>
         </label>
         <label class="field-label">
           <span>部門</span>
-          <select id="schedule-department"></select>
+          <select id="schedule-department" multiple size="6"></select>
         </label>
         <label class="field-label">
           <span>員工</span>
-          <select id="schedule-employee"></select>
+          <select id="schedule-employee" multiple size="8"></select>
         </label>
         <label class="field-label">
           <span>班別</span>
-          <select id="schedule-shift">
+          <select id="schedule-shift" multiple size="3">
             <option value="全部班別">全部班別</option>
             <option value="早班">早班</option>
             <option value="晚班">晚班</option>
           </select>
         </label>
+        <p class="helper-text">可按住 Ctrl / Command 多選，系統會自動建立多人通知排程。</p>
         <button id="save-schedule" type="button" class="primary-btn">儲存</button>
       </div>
     </div>
