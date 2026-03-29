@@ -4,6 +4,7 @@ import {
   getFirestore,
   collection,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   doc,
@@ -210,6 +211,7 @@ let shiftSettings = DEFAULT_SHIFT_SETTINGS.map((item) => ({
 }));
 let shiftTemplates = [];
 let employeeShiftSettings = [];
+let deletedDefaultShiftTemplateKeys = new Set();
 let editingShiftRule = null;
 let editingCoordinateId = null;
 let lastAttendanceAttempt = null;
@@ -1108,6 +1110,7 @@ document.addEventListener("DOMContentLoaded", function () {
       DEFAULT_SHIFT_SETTINGS.forEach(function (shift) {
         const key = `${region}__${department}__${shift.code}`;
         if (!combos.has(key)) {
+          if (deletedDefaultShiftTemplateKeys.has(key)) return;
           combos.set(key, {
             id: `template-${key}`,
             region,
@@ -1131,6 +1134,10 @@ document.addEventListener("DOMContentLoaded", function () {
     return shiftTemplates.find((item) => item.region === region && item.department === department && item.shiftType === shiftCode) || null;
   }
 
+  function getShiftTemplateKey(region, department, shiftType) {
+    return `${region || ""}__${department || ""}__${shiftType || ""}`;
+  }
+  
   function getEmployeeShiftOverride(employeeId, shiftCode) {
     return employeeShiftSettings.find((item) => item.employeeId === employeeId && item.shiftType === shiftCode) || null;
   }
@@ -1268,7 +1275,12 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!grouped[item.region][item.department]) grouped[item.region][item.department] = { templates: [], employees: [] };
       grouped[item.region][item.department].employees.push(item);
     });
-    shiftSettingsList.innerHTML = Object.keys(grouped).sort(compareRegionsNorthToSouth).map((region) => `
+    const groupedRegions = Object.keys(grouped).sort(compareRegionsNorthToSouth);
+    if (!groupedRegions.length) {
+      shiftSettingsList.innerHTML = `<div class="list-item"><p>目前沒有班別規則，請先新增地區/部門班別設定。</p></div>`;
+      return;
+    }
+    shiftSettingsList.innerHTML = groupedRegions.map((region) => `
       <details class="scope-collapse">
         <summary>${region}</summary>
         ${Object.keys(grouped[region]).map((department) => {
@@ -1284,7 +1296,7 @@ document.addEventListener("DOMContentLoaded", function () {
                       <p>${getShiftNameFromCode(item.shiftType)}｜上班 ${formatTimeText(item.startTime)}｜下班 ${formatTimeText(item.endTime)}｜提醒 ${formatTimeText(item.reminderTime)}｜寬限 ${item.graceMinutes} 分鐘</p>
                       <div class="item-actions">
                         <button type="button" class="small-btn" data-action="edit-shift-rule" data-scope="template" data-id="${item.id}">編輯</button>
-                        <button type="button" class="small-btn danger-btn" data-action="delete-shift-rule" data-scope="template" data-id="${item.id}" ${String(item.id || "").startsWith("template-") ? "disabled title='預設規則不可刪除'" : ""}>刪除</button>
+                        <button type="button" class="small-btn danger-btn" data-action="delete-shift-rule" data-scope="template" data-id="${item.id}">刪除</button>
                       </div>
                     </div>
                   `).join("") || "<p>尚未設定。</p>"}
@@ -1345,19 +1357,38 @@ document.addEventListener("DOMContentLoaded", function () {
     const sourceList = isEmployeeScope ? employeeShiftSettings : shiftTemplates;
     const target = sourceList.find((item) => item.id === id);
     if (!target) return alert("找不到要刪除的班別規則");
-    if (!isEmployeeScope && String(target.id || "").startsWith("template-")) return alert("預設班別規則不可刪除");
     if (!confirm("確定要刪除此班別規則嗎？")) return;
 
     try {
+      const isDefaultTemplate = !isEmployeeScope && String(target.id || "").startsWith("template-");
+      const templateKey = getShiftTemplateKey(target.region, target.department, target.shiftType);
       if (!db) {
-        if (isEmployeeScope) employeeShiftSettings = employeeShiftSettings.filter((item) => item.id !== id);
-        else shiftTemplates = shiftTemplates.filter((item) => item.id !== id);
+        if (isEmployeeScope) {
+          employeeShiftSettings = employeeShiftSettings.filter((item) => item.id !== id);
+        } else if (isDefaultTemplate) {
+          deletedDefaultShiftTemplateKeys.add(templateKey);
+          safeStorageSet("deleted_default_shift_template_keys", JSON.stringify(Array.from(deletedDefaultShiftTemplateKeys)));
+          shiftTemplates = shiftTemplates.filter((item) => getShiftTemplateKey(item.region, item.department, item.shiftType) !== templateKey);
+        } else {
+          shiftTemplates = shiftTemplates.filter((item) => item.id !== id);
+        }
         if (editingShiftRule?.id === id && editingShiftRule?.scope === scope) editingShiftRule = null;
         refreshShiftSettingViews();
         refreshAttendanceSettings();
         return;
       }
-      await deleteDoc(doc(db, targetCollection, id));
+      if (isDefaultTemplate) {
+        await setDoc(doc(db, "shiftTemplateDeletes", templateKey), {
+          key: templateKey,
+          region: target.region || "",
+          department: target.department || "",
+          shiftType: target.shiftType || "",
+          deletedAt: serverTimestamp(),
+          deletedBy: currentUser?.employeeId || ""
+        });
+      } else {
+        await deleteDoc(doc(db, targetCollection, id));
+      }
       if (editingShiftRule?.id === id && editingShiftRule?.scope === scope) editingShiftRule = null;
     } catch (error) {
       console.error("刪除班別規則失敗", error);
@@ -1961,6 +1992,14 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
     function startShiftSettingsListener() {
+    const storedDeletedKeys = safeStorageGet("deleted_default_shift_template_keys");
+    if (storedDeletedKeys) {
+      try {
+        deletedDefaultShiftTemplateKeys = new Set(JSON.parse(storedDeletedKeys));
+      } catch (error) {
+        console.warn("讀取預設班別刪除清單失敗", error);
+      }
+    }
     if (!db) {
       ensureBaseShiftTemplates();
       refreshShiftSettingViews();
@@ -1988,6 +2027,12 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
     onSnapshot(query(collection(db, "employeeShiftSettings"), orderBy("employeeName", "asc")), function (snapshot) {
       employeeShiftSettings = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
+      refreshShiftSettingViews();
+      refreshAttendanceSettings();
+    });
+      
+    onSnapshot(collection(db, "shiftTemplateDeletes"), function (snapshot) {
+      deletedDefaultShiftTemplateKeys = new Set(snapshot.docs.map((docItem) => String(docItem.data()?.key || docItem.id || "")));
       refreshShiftSettingViews();
       refreshAttendanceSettings();
     });
