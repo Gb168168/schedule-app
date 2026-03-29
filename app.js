@@ -2381,22 +2381,29 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (department && item.department !== department) return false;
       const itemEmployee = item.employeeName || item.employee || "";
       if (employee && itemEmployee !== employee) return false;
-      if (shift && item.shift !== shift) return false;
+      if (shift && normalizeScheduleShift(item.shift) !== shift) return false;
       return true;
     });
   }
 
+  function normalizeScheduleShift(shift) {
+    if (shift === "支援") return "全部班別";
+    return shift || "";
+  }
+
   function getShiftClassName(shift) {
-    if (shift === "早班") return "shift-morning";
-    if (shift === "晚班") return "shift-evening";
-    if (shift === "支援") return "shift-support";
+    const normalizedShift = normalizeScheduleShift(shift);
+    if (normalizedShift === "全部班別") return "shift-support";
+    if (normalizedShift === "早班") return "shift-morning";
+    if (normalizedShift === "晚班") return "shift-evening";
     return "";
   }
 
   function getShiftEmoji(shift) {
-    if (shift === "早班") return "🔵";
-    if (shift === "晚班") return "🟣";
-    if (shift === "支援") return "🟡";
+    const normalizedShift = normalizeScheduleShift(shift);
+    if (normalizedShift === "全部班別") return "🎰";
+    if (normalizedShift === "早班") return "🌞";
+    if (normalizedShift === "晚班") return "🌚";
     return "";
   }
   
@@ -2430,7 +2437,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       cell.setAttribute("data-date", dateStr);
       const tagsHtml = daySchedules.map((item) => {
         const title = item.title || item.note || "未命名";
-        const shift = item.shift || "";
+        const shift = normalizeScheduleShift(item.shift);
         const shiftClass = getShiftClassName(shift);
         const shiftEmoji = getShiftEmoji(shift);
         return `<div class="schedule-tag ${shiftClass}">${title}${shift ? `｜${shiftEmoji}${shift}` : ""}</div>`;
@@ -2483,7 +2490,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                 region,
                 department,
                 employee,
-                shift: item.shift || "-",
+                shift: normalizeScheduleShift(item.shift) || "-",
                 title: item.title || item.note || "未命名",
                 content: item.content || "無",
                 startTime: item.startTime || "",
@@ -2558,7 +2565,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (scheduleDateLabel) scheduleDateLabel.textContent = dateString;
     if (scheduleTitleInput) scheduleTitleInput.value = scheduleItem?.title || "";
     if (scheduleContentInput) scheduleContentInput.value = scheduleItem?.content || scheduleItem?.note || "";
-    if (scheduleShiftSelect) scheduleShiftSelect.value = scheduleItem?.shift || "早班";
+    if (scheduleShiftSelect) scheduleShiftSelect.value = normalizeScheduleShift(scheduleItem?.shift) || "早班";
     if (scheduleItem) {
       if (scheduleRegionSelect && scheduleItem.region && REGIONS.includes(scheduleItem.region)) scheduleRegionSelect.value = scheduleItem.region;
       if (scheduleDepartmentSelect && scheduleItem.department && DEPARTMENTS.includes(scheduleItem.department)) scheduleDepartmentSelect.value = scheduleItem.department;
@@ -2607,7 +2614,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
     rosterList.innerHTML = visibleSchedules.map((item) => {
       const itemDate = item.date || "-";
-      const itemShift = item.shift || "-";
+      const itemShift = normalizeScheduleShift(item.shift) || "-";
       const itemTitle = item.title || "";
       const itemNote = item.content || item.note || "無";
       const itemAuthor = item.employeeName || item.employeeId || "-";
