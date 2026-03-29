@@ -1734,7 +1734,7 @@ textarea {
   .leave-board-head,
   .leave-board-row {
     grid-template-columns: 160px minmax(620px, 1fr) 90px;
-    min-width: 880px;
+    min-width: calc(160px + (var(--days, 31) * 32px) + 90px + 16px);
     gap: 8px;
   }
 
@@ -1798,17 +1798,85 @@ textarea {
 
   .leave-board-head,
   .leave-board-row {
-    grid-template-columns: 132px minmax(560px, 1fr) 78px;
-    min-width: 800px;
+    grid-template-columns: 116px minmax(0, 1fr) 66px;
+    min-width: calc(116px + (var(--days, 31) * 28px) + 66px + 12px);
+    gap: 6px;
   }
 
   .leave-employee-card h4 {
     font-size: 18px;
   }
 
+  .leave-employee-card strong {
+    font-size: 16px;
+    line-height: 1.2;
+  }
+
   .leave-employee-meta {
     font-size: 13px;
     line-height: 1.25;
+  }
+  
+  .leave-sticky-col,
+  .leave-employee-card,
+  .leave-summary-head,
+  .leave-summary-card {
+    padding: 8px;
+    border-radius: 10px;
+  }
+
+  .leave-row-cells,
+  .leave-header-days {
+    grid-template-columns: repeat(var(--days, 31), minmax(28px, 1fr));
+    gap: 4px;
+  }
+
+  .leave-day-header,
+  .leave-cell {
+    min-height: 42px;
+    border-radius: 10px;
+    padding: 2px;
+  }
+
+  .leave-day-header span {
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .leave-day-header small {
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  .leave-cell .symbol {
+    font-size: 14px;
+  }
+
+  .leave-cell-type {
+    font-size: 9px;
+  }
+
+  .leave-tag {
+    padding: 2px 4px;
+    font-size: 10px;
+    border-radius: 5px;
+  }
+
+  .leave-summary-card {
+    gap: 4px;
+  }
+
+  .leave-summary-card div {
+    display: grid;
+    justify-items: center;
+    gap: 1px;
+    font-size: 12px;
+    line-height: 1.1;
+  }
+
+  .leave-summary-card strong {
+    font-size: 18px;
+    line-height: 1;
   }
 }
 
@@ -1823,7 +1891,7 @@ textarea {
   grid-template-columns: 220px minmax(720px, 1fr) 110px;
   gap: 12px;
   align-items: stretch;
-  min-width: 1100px;
+  min-width: calc(220px + (var(--days, 31) * 34px) + 110px + 24px);
 }
 
 .leave-board-head {
