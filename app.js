@@ -176,6 +176,7 @@ let rosterCalendarDate = new Date();
 let selectedScheduleDate = "";
 let editingScheduleId = null;
 let editingEmployeeId = null;
+let editingPermissionEmployeeId = null;
 let announcements = [];
 let leaveRequests = [];
 let schedules = [];
@@ -196,7 +197,8 @@ let employees = users.map((user, index) => ({
   id: `builtin-${index}`,
   status: "active",
   isHidden: false,
-  ...user
+  ...user,
+  permissions: normalizeEmployeePermissions(user.permissions || {})
 }));
 let isBootstrappingEmployees = false;
 let hasLoadedEmployees = false;
@@ -369,7 +371,9 @@ function canViewShiftAndAttendance(user) {
   return Boolean(
     isGoldBricksUser(user) ||
     user?.permissions?.admin ||
-    user?.permissions?.attendanceCoordinateManage
+    user?.permissions?.attendanceCoordinateManage ||
+    user?.permissions?.attendanceListVisible ||
+    user?.permissions?.coordinateListVisible
   );
 }
 
@@ -386,7 +390,8 @@ function canManageCoordinates(user) {
     isGoldBricksUser(user) ||
     user?.permissions?.admin ||
     user?.permissions?.coordinateAdmin ||
-    user?.permissions?.attendanceCoordinateManage
+    user?.permissions?.attendanceCoordinateManage ||
+    user?.permissions?.coordinateListVisible
   );
 }
 
@@ -402,8 +407,26 @@ function canManageShiftSettings(user) {
   return Boolean(
     isGoldBricksUser(user) ||
     user?.permissions?.admin ||
-    user?.permissions?.shiftSettingsManage
+    user?.permissions?.shiftSettingsManage ||
+    user?.permissions?.shiftSettingsListVisible
   );
+}
+
+function normalizeEmployeePermissions(permissions = {}) {
+  return {
+    ...permissions,
+    employeeProfileManage: Boolean(permissions.employeeProfileManage || permissions.personInfoBasicDataManage),
+    shiftSettingsManage: Boolean(permissions.shiftSettingsManage || permissions.shiftSettingsListVisible),
+    attendanceCoordinateManage: Boolean(permissions.attendanceCoordinateManage || permissions.coordinateListVisible || permissions.attendanceListVisible),
+    coordinateAdmin: Boolean(permissions.coordinateAdmin || permissions.attendanceCoordinateManage || permissions.coordinateListVisible),
+    leaveApprove: Boolean(permissions.leaveApprove),
+    announcementManage: Boolean(permissions.announcementManage),
+    permissionsListVisible: Boolean(permissions.permissionsListVisible),
+    shiftSettingsListVisible: Boolean(permissions.shiftSettingsListVisible || permissions.shiftSettingsManage),
+    attendanceListVisible: Boolean(permissions.attendanceListVisible || permissions.attendanceCoordinateManage),
+    coordinateListVisible: Boolean(permissions.coordinateListVisible || permissions.attendanceCoordinateManage),
+    personInfoBasicDataManage: Boolean(permissions.personInfoBasicDataManage || permissions.employeeProfileManage)
+  };
 }
 
 function canApproveLeaveInScope(user, leaveItem = null) {
@@ -639,21 +662,14 @@ function formatEmployeePermissions(employee) {
   const tags = [];
   if (employee.permissions?.admin) tags.push("管理員");
   if (employee.permissions?.employeeProfileManage) tags.push("可建置員工資料");
-  if (employee.permissions?.attendanceCoordinateManage) tags.push("打卡與座標管理");
-  if (employee.permissions?.shiftSettingsManage) tags.push("班別設定");
+  if (employee.permissions?.attendanceListVisible) tags.push("打卡紀錄");
+  if (employee.permissions?.coordinateListVisible) tags.push("打卡座標");
+  if (employee.permissions?.shiftSettingsListVisible) tags.push("班別設定")
+  if (employee.permissions?.permissionsListVisible) tags.push("權限功能");
   if (employee.permissions?.leaveApprove) tags.push("可審核請假");
   if (employee.permissions?.announcementManage) tags.push("公告管理");
-  if (employee.permissions?.coordinateAdmin) tags.push("座標管理");
   return tags.length > 0 ? tags.join("、") : "一般員工";
 }
-
-const EMPLOYEE_PERMISSION_FIELDS = [
-  { key: "employeeProfileManage", label: "建置員工資料" },
-  { key: "attendanceCoordinateManage", label: "打卡/座標" },
-  { key: "shiftSettingsManage", label: "班別設定" },
-  { key: "leaveApprove", label: "審核假別" },
-  { key: "announcementManage", label: "公告欄" }
-];
 
 function isSuperAdminEmployee(employeeId) {
   return employeeId === "GoldBricks";
@@ -671,8 +687,13 @@ function getEmployeeRoleProfile(employeeId = "") {
     permissions: {
       admin: isSuperAdmin,
       employeeProfileManage: isSuperAdmin,
+      personInfoBasicDataManage: isSuperAdmin,
       attendanceCoordinateManage: isSuperAdmin,
+      attendanceListVisible: isSuperAdmin,
+      coordinateListVisible: isSuperAdmin,
       shiftSettingsManage: isSuperAdmin,
+      shiftSettingsListVisible: isSuperAdmin,
+      permissionsListVisible: isSuperAdmin,
       leaveApprove: isSuperAdmin,
       announcementManage: isSuperAdmin,
       coordinateAdmin: isSuperAdmin
@@ -710,7 +731,8 @@ function getBuiltinEmployees() {
       id: `builtin-${index}`,
       status: "active",
       isHidden: false,
-      ...user
+      ...user,
+      permissions: normalizeEmployeePermissions(user.permissions || {})
     };
   });
 }
@@ -994,6 +1016,24 @@ document.addEventListener("DOMContentLoaded", function () {
   const employeeWeekendsOffInput = document.getElementById("employee-weekends-off");
   const employeeShowOnLeaveBoardInput = document.getElementById("employee-show-on-leave-board");
   const employeeSubmitBtn = document.getElementById("employee-submit-btn");
+  const permissionEditorBackdrop = document.getElementById("permission-editor-backdrop");
+  const permissionEditorForm = document.getElementById("permission-editor-form");
+  const permissionEditorCloseBtn = document.getElementById("permission-editor-close-btn");
+  const permissionEditorTarget = document.getElementById("permission-editor-target");
+  const permAnnouncementManageInput = document.getElementById("perm-announcement-manage");
+  const permShiftMorningInput = document.getElementById("perm-shift-morning");
+  const permShiftEveningInput = document.getElementById("perm-shift-evening");
+  const permWeekendsOffInput = document.getElementById("perm-weekends-off");
+  const permShowOnLeaveBoardInput = document.getElementById("perm-show-on-leave-board");
+  const permEmployeeProfileManageInput = document.getElementById("perm-employee-profile-manage");
+  const permPermissionsListVisibleInput = document.getElementById("perm-permissions-list-visible");
+  const permShiftSettingsListVisibleInput = document.getElementById("perm-shift-settings-list-visible");
+  const permLeaveApproveInput = document.getElementById("perm-leave-approve");
+  const permAttendanceListVisibleInput = document.getElementById("perm-attendance-list-visible");
+  const permCoordinateListVisibleInput = document.getElementById("perm-coordinate-list-visible");
+  const permManageRegions = document.getElementById("perm-manage-regions");
+  const permManageDepartments = document.getElementById("perm-manage-departments");
+  const permissionLeaveApproveScopeBox = document.getElementById("permission-leave-approve-scope-box");
   const employeeIdField = document.getElementById("employee-form-id");
   let photoData = "";
   const photoZone = document.getElementById("photo-zone");
@@ -1132,7 +1172,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function updateMenuPermissions(user) {
    if (permissionsMenuBtn) {
-      permissionsMenuBtn.classList.toggle("hidden", !canManageEmployees(user));
+      const allowPermissionPage = canManageEmployees(user) || Boolean(user?.permissions?.permissionsListVisible);
+      permissionsMenuBtn.classList.toggle("hidden", !allowPermissionPage);
     }
     if (coordinateMenuBtn) {
       coordinateMenuBtn.classList.toggle("hidden", !canManageCoordinates(user));
@@ -1347,7 +1388,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const region = shiftRegionSelect?.value || "";
     const department = shiftDepartmentSelect?.value || "";
     const options = employees.filter((employee) => employee.region === region && employee.department === department);
-    shiftEmployeeSelect.innerHTML = `<option value="">請選擇員工</option>${options.map((employee) => `<option value="${employee.employeeId}">${employee.name}（${employee.employeeId}）</option>`).join("")}`;
+    shiftEmployeeSelect.innerHTML = `<option value="">請選擇員工</option>${options.map((employee) => `<option value="${employee.employeeId}">${employee.name}（${employee.employeeId}｜${employee.department || "-"}｜${employee.title || "-"}）</option>`).join("")}`;
     shiftEmployeeSelect.parentElement?.classList.toggle("hidden", shiftScopeSelect?.value !== "employee");
   }
 
@@ -2243,6 +2284,12 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (manageDepartments) {
       manageDepartments.innerHTML = DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("");
     }
+    if (permManageRegions) {
+      permManageRegions.innerHTML = REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("");
+    }
+    if (permManageDepartments) {
+      permManageDepartments.innerHTML = DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("");
+    }
   }
 
   function updateLeaveApproveScopeVisibility() {
@@ -2365,13 +2412,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                           ].filter(Boolean);
 
                           const canManageEmployeeData = canManageEmployees(currentUser);
-                          const permissionSwitches = EMPLOYEE_PERMISSION_FIELDS
-                            .map(function (permission) {
-                              const checked = employee.permissions?.[permission.key] ? "checked" : "";
-                              const disabled = !canManageEmployeeData || isSuperAdminEmployee(employee.employeeId) ? "disabled" : "";
-                              return `<label class="permission-chip"><input type="checkbox" data-action="toggle-employee-permission" data-id="${employee.id}" data-key="${permission.key}" ${checked} ${disabled} /><span>${permission.label}</span></label>`;
-                            })
-                            .join("");
                           return `
                             <div class="list-item">
                               <div class="employee-card-main">
@@ -2396,7 +2436,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                                   <p>班別：${shiftLabels.length ? shiftLabels.join(" / ") : "未設定"}｜週休二日與國定假日：${employee.weekendsOff ? "啟用" : "關閉"}</p>
                                   <p>休假表顯示：${showOnLeaveBoard ? "顯示" : "隱藏"}</p>
                                   <p>功能權限：${formatEmployeePermissions(employee)}</p>
-                                  <div class="employee-permission-switches">${permissionSwitches}</div>
                                   ${canManageEmployeeData ? `<div class="item-actions"><button type="button" class="small-btn edit-btn" onclick="editEmployee('${employee.id}')">編輯</button><button type="button" class="small-btn delete-btn" onclick="deleteEmployee('${employee.id}')">刪除</button></div>` : ""}
                               </div>
                               </div>
@@ -2466,16 +2505,11 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                     <summary>${department}（${sortedEmployees.length} 人）</summary>
                     <div class="list-wrap">
                       ${sortedEmployees.map(function (employee) {
-                        const permissionSwitches = EMPLOYEE_PERMISSION_FIELDS.map(function (permission) {
-                          const checked = employee.permissions?.[permission.key] ? "checked" : "";
-                          const disabled = !canManageEmployeeData || isSuperAdminEmployee(employee.employeeId) ? "disabled" : "";
-                          return `<label class="permission-chip"><input type="checkbox" data-action="toggle-employee-permission" data-id="${employee.id}" data-key="${permission.key}" ${checked} ${disabled} /><span>${permission.label}</span></label>`;
-                        }).join("");
-
                         return `
                           <div class="list-item">
                             <h4>${employee.name || "未命名員工"}（${employee.employeeId || "-"}）</h4>
-                            <div class="employee-permission-switches">${permissionSwitches}</div>
+                            <p class="helper-text">部門：${employee.department || "-"}｜職稱：${employee.title || "-"}</p>
+                            ${canManageEmployeeData ? `<div class="item-actions"><button type="button" class="small-btn edit-btn" data-action="open-permission-editor" data-id="${employee.id}">編輯</button></div>` : ""}
                           </div>
                         `;
                       }).join("")}
@@ -2507,9 +2541,11 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         const visibleEmployees = sortEmployeesForDisplay(
           snapshot.docs
             .map(function (docItem) {
+              const data = docItem.data();
               return {
                 id: docItem.id,
-                ...docItem.data()
+                ...data,
+                permissions: normalizeEmployeePermissions(data.permissions || {})
               };
             })
             .filter(function (employee) {
@@ -2869,7 +2905,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     const selectedEmployeeIds = Array.isArray(defaultEmployeeId) ? defaultEmployeeId : (defaultEmployeeId ? [defaultEmployeeId] : []);
     scheduleEmployeeSelect.innerHTML = `${candidates.map((employee) => {
       const selected = selectedEmployeeIds.includes(employee.employeeId) ? "selected" : "";
-      return `<option value="${employee.employeeId}" ${selected}>${employee.name || employee.employeeId}</option>`;
+      const department = employee.department || "-";
+      const title = employee.title || "-";
+      return `<option value="${employee.employeeId}" ${selected}>${employee.name || employee.employeeId}｜${department}｜${title}</option>`;
     }).join("")}`;
     setSelectedValues(
       scheduleEmployeeSelect,
@@ -3942,8 +3980,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         permissions: {
           ...roleProfile.permissions,
           employeeProfileManage: canEmployeeManage,
+          personInfoBasicDataManage: canEmployeeManage,
           attendanceCoordinateManage: canAttendanceCoordinateManage,
+          attendanceListVisible: canAttendanceCoordinateManage,
+          coordinateListVisible: canAttendanceCoordinateManage,
           shiftSettingsManage: canShiftSettingsManage,
+          shiftSettingsListVisible: canShiftSettingsManage,
+          permissionsListVisible: canEmployeeManage,
           leaveApprove: canLeaveApprove,
           announcementManage: canAnnouncementManage,
           coordinateAdmin: canAttendanceCoordinateManage
@@ -4750,65 +4793,121 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       }
     }
   });
+
+  function updatePermissionEditorLeaveScopeVisibility() {
+    if (!permissionLeaveApproveScopeBox) return;
+    permissionLeaveApproveScopeBox.classList.toggle("hidden", !permLeaveApproveInput?.checked);
+  }
   
-  async function handleEmployeePermissionToggle(event) {
-    const toggle = event.target.closest('input[data-action="toggle-employee-permission"]');
-    if (!toggle) return;
-    if (!canManageEmployees(currentUser)) {
-      toggle.checked = !toggle.checked;
-      alert("你沒有權限設定員工功能權限");
-      return;
-    }
+    function closePermissionEditor() {
+    editingPermissionEmployeeId = null;
+    permissionEditorBackdrop?.classList.add("hidden");
+  }
 
-    const id = toggle.dataset.id || "";
-    const permissionKey = toggle.dataset.key || "";
-    const checked = Boolean(toggle.checked);
-    const targetEmployee = employees.find((item) => item.id === id);
-    if (!targetEmployee) return;
-    if (isSuperAdminEmployee(targetEmployee.employeeId)) {
-      toggle.checked = true;
-      alert("最高權限帳號不需調整功能權限");
-      return;
-    }
-    if (!db) {
-      toggle.checked = !checked;
-      alert("Firebase 未設定，無法儲存權限變更。");
-      return;
-    }
-
-    const nextPermissions = {
-      ...(targetEmployee.permissions || {}),
-      [permissionKey]: checked
-    };
-    if (permissionKey === "attendanceCoordinateManage") {
-      nextPermissions.coordinateAdmin = checked;
-    }
-
-      employees = employees.map(function (item) {
-      if (item.id !== id) return item;
-      return {
-        ...item,
-        permissions: nextPermissions
-      };
+  function openPermissionEditor(employeeId = "") {
+    if (!canManageEmployees(currentUser)) return alert("你沒有權限設定員工功能權限");
+    const employee = employees.find((item) => item.id === employeeId);
+    if (!employee) return;
+    const normalizedPermissions = normalizeEmployeePermissions(employee.permissions || {});
+    editingPermissionEmployeeId = employeeId;
+    if (permissionEditorTarget) permissionEditorTarget.textContent = `${employee.name || "未命名員工"}（${employee.employeeId || "-"}）｜${employee.department || "-"}｜${employee.title || "-"}`;
+    if (permAnnouncementManageInput) permAnnouncementManageInput.checked = Boolean(normalizedPermissions.announcementManage);
+    if (permShiftMorningInput) permShiftMorningInput.checked = Boolean(employee.shifts?.morning);
+    if (permShiftEveningInput) permShiftEveningInput.checked = Boolean(employee.shifts?.evening);
+    if (permWeekendsOffInput) permWeekendsOffInput.checked = Boolean(employee.weekendsOff);
+    if (permShowOnLeaveBoardInput) permShowOnLeaveBoardInput.checked = employee.showOnLeaveBoard !== false;
+    if (permEmployeeProfileManageInput) permEmployeeProfileManageInput.checked = Boolean(normalizedPermissions.employeeProfileManage);
+    if (permPermissionsListVisibleInput) permPermissionsListVisibleInput.checked = Boolean(normalizedPermissions.permissionsListVisible);
+    if (permShiftSettingsListVisibleInput) permShiftSettingsListVisibleInput.checked = Boolean(normalizedPermissions.shiftSettingsListVisible);
+    if (permLeaveApproveInput) permLeaveApproveInput.checked = Boolean(normalizedPermissions.leaveApprove);
+    if (permAttendanceListVisibleInput) permAttendanceListVisibleInput.checked = Boolean(normalizedPermissions.attendanceListVisible);
+    if (permCoordinateListVisibleInput) permCoordinateListVisibleInput.checked = Boolean(normalizedPermissions.coordinateListVisible);
+    const currentRegions = Array.isArray(employee.manageScopes?.regions) ? employee.manageScopes.regions : [];
+    const currentDepartments = Array.isArray(employee.manageScopes?.departments) ? employee.manageScopes.departments : [];
+    Array.from(permManageRegions?.options || []).forEach((option) => {
+      option.selected = currentRegions.includes(option.value);
     });
-      renderEmployees();
+      Array.from(permManageDepartments?.options || []).forEach((option) => {
+      option.selected = currentDepartments.includes(option.value);
+    });
+    updatePermissionEditorLeaveScopeVisibility();
+    permissionEditorBackdrop?.classList.remove("hidden");
+  }
 
-    try {
-      await updateDoc(doc(db, "employees", id), {
-        permissions: nextPermissions,
-        updatedAt: serverTimestamp()
+    if (permissionsEmployeeList) {
+    permissionsEmployeeList.addEventListener("click", function (event) {
+      const target = event.target.closest('button[data-action="open-permission-editor"]');
+      if (!target) return;
+      openPermissionEditor(target.dataset.id || "");
+    });
+  }
+
+      if (permLeaveApproveInput) permLeaveApproveInput.addEventListener("change", updatePermissionEditorLeaveScopeVisibility);
+  if (permissionEditorCloseBtn) permissionEditorCloseBtn.addEventListener("click", closePermissionEditor);
+  if (permissionEditorBackdrop) {
+    permissionEditorBackdrop.addEventListener("click", function (event) {
+      if (event.target === permissionEditorBackdrop) closePermissionEditor();
+    });
+  }
+  
+  if (permissionEditorForm) {
+    permissionEditorForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      if (!editingPermissionEmployeeId) return;
+      const employee = employees.find((item) => item.id === editingPermissionEmployeeId);
+      if (!employee) return;
+      if (isSuperAdminEmployee(employee.employeeId)) return alert("最高權限帳號不需調整功能權限");
+      const leaveApproveEnabled = Boolean(permLeaveApproveInput?.checked);
+      const nextManageScopes = leaveApproveEnabled
+        ? {
+            regions: Array.from(permManageRegions?.selectedOptions || []).map((option) => option.value),
+            departments: Array.from(permManageDepartments?.selectedOptions || []).map((option) => option.value)
+          }
+        : { regions: [], departments: [] };
+      if (leaveApproveEnabled && (nextManageScopes.regions.length === 0 || nextManageScopes.departments.length === 0)) {
+        return alert("審核假別需至少勾選 1 個地區與 1 個部門");
+      }
+      const nextPermissions = normalizeEmployeePermissions({
+        ...(employee.permissions || {}),
+        announcementManage: Boolean(permAnnouncementManageInput?.checked),
+        employeeProfileManage: Boolean(permEmployeeProfileManageInput?.checked),
+        personInfoBasicDataManage: Boolean(permEmployeeProfileManageInput?.checked),
+        permissionsListVisible: Boolean(permPermissionsListVisibleInput?.checked),
+        shiftSettingsListVisible: Boolean(permShiftSettingsListVisibleInput?.checked),
+        leaveApprove: leaveApproveEnabled,
+        attendanceListVisible: Boolean(permAttendanceListVisibleInput?.checked),
+        coordinateListVisible: Boolean(permCoordinateListVisibleInput?.checked),
+        attendanceCoordinateManage: Boolean(permAttendanceListVisibleInput?.checked || permCoordinateListVisibleInput?.checked),
+        shiftSettingsManage: Boolean(permShiftSettingsListVisibleInput?.checked),
+        coordinateAdmin: Boolean(permCoordinateListVisibleInput?.checked)
       });
-      } catch (error) {
-      console.error("更新員工權限失敗", error);
-      alert("儲存權限失敗，請稍後再試");
-    }
-  }
+      const nextShifts = {
+        morning: Boolean(permShiftMorningInput?.checked),
+        evening: Boolean(permShiftEveningInput?.checked)
+      };
+      if (!nextShifts.morning && !nextShifts.evening) return alert("至少需勾選一種班別");
 
-      if (employeeList) {
-    employeeList.addEventListener("change", handleEmployeePermissionToggle);
-  }
-  if (permissionsEmployeeList) {
-    permissionsEmployeeList.addEventListener("change", handleEmployeePermissionToggle);
+      employees = employees.map((item) => item.id === editingPermissionEmployeeId
+        ? { ...item, permissions: nextPermissions, shifts: nextShifts, weekendsOff: Boolean(permWeekendsOffInput?.checked), showOnLeaveBoard: Boolean(permShowOnLeaveBoardInput?.checked), manageScopes: nextManageScopes }
+        : item);
+      renderEmployees();
+      try {
+        if (db) {
+          await updateDoc(doc(db, "employees", editingPermissionEmployeeId), {
+            permissions: nextPermissions,
+            shifts: nextShifts,
+            weekendsOff: Boolean(permWeekendsOffInput?.checked),
+            showOnLeaveBoard: Boolean(permShowOnLeaveBoardInput?.checked),
+            manageScopes: nextManageScopes,
+            updatedAt: serverTimestamp()
+          });
+        }
+        closePermissionEditor();
+      } catch (error) {
+        console.error("更新員工權限失敗", error);
+        alert("儲存權限失敗，請稍後再試");
+      }
+    });
   }
   if (prevMonthBtn) prevMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() - 1); renderLeaveBoard(); });
   if (nextMonthBtn) nextMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() + 1); renderLeaveBoard(); });
