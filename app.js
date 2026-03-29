@@ -2358,8 +2358,36 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   }
 
+  function normalizeScheduleDateValue(dateValue) {
+    if (!dateValue) return "";
+    if (typeof dateValue === "string") {
+      const trimmed = dateValue.trim();
+      if (!trimmed) return "";
+      const directMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (directMatch) {
+        return `${directMatch[1]}-${directMatch[2].padStart(2, "0")}-${directMatch[3].padStart(2, "0")}`;
+      }
+      const slashMatch = trimmed.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+      if (slashMatch) {
+        return `${slashMatch[1]}-${slashMatch[2].padStart(2, "0")}-${slashMatch[3].padStart(2, "0")}`;
+      }
+      const parsed = new Date(trimmed);
+      if (!Number.isNaN(parsed.getTime())) return formatDate(parsed);
+      return trimmed;
+    }
+    if (dateValue?.toDate && typeof dateValue.toDate === "function") {
+      const converted = dateValue.toDate();
+      if (!Number.isNaN(converted?.getTime?.())) return formatDate(converted);
+    }
+    if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
+      return formatDate(dateValue);
+    }
+    return "";
+  }
+
   function getSchedulesByDate(dateString) {
-    return filterSchedules().filter((item) => item.date === dateString && canViewScheduleItem(item));
+    const normalizedDate = normalizeScheduleDateValue(dateString);
+    return filterSchedules().filter((item) => normalizeScheduleDateValue(item.date) === normalizedDate && canViewScheduleItem(item));
   }
 
   function populateScheduleFilters() {
@@ -2645,7 +2673,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     }
 
     rosterList.innerHTML = visibleSchedules.map((item) => {
-      const itemDate = item.date || "-";
+      const itemDate = normalizeScheduleDateValue(item.date) || "-";
       const itemShift = normalizeScheduleShift(item.shift) || "-";
       const itemTitle = item.title || "";
       const itemNote = item.content || item.note || "無";
@@ -3979,7 +4007,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (!canEditScheduleItem(targetSchedule)) return alert("你沒有編輯此行程的權限。");
 
       if (action === "edit-schedule") {
-        openScheduleModal(targetSchedule.date || formatDate(new Date()), targetSchedule);
+        openScheduleModal(normalizeScheduleDateValue(targetSchedule.date) || formatDate(new Date()), targetSchedule);
         return;
       }
 
