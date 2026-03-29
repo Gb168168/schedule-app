@@ -2412,6 +2412,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                           ].filter(Boolean);
 
                           const canManageEmployeeData = canManageEmployees(currentUser);
+                          const limitedInfoText = `部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}｜類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}｜班別：${shiftLabels.length ? shiftLabels.join(" / ") : "未設定"}`;
                           return `
                             <div class="list-item">
                               <div class="employee-card-main">
@@ -2422,20 +2423,22 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                                   <div class="employee-card-header">
                                     <div>
                                       <h4>${employee.name || "未命名員工"}</h4>
-                                      <div class="item-meta">
+                                      <div class="item-meta ${canManageEmployeeData ? "" : "hidden"}">
                                         員工代號：${employee.employeeId || "-"}｜
                                         帳號：${employee.account || "-"}｜
                                         Email：${employee.email || "-"}
                                       </div>
                                     </div>
-                                    <span class="status-badge status-${employee.status || "active"}">${employee.status || "active"}</span>
+                                    ${canManageEmployeeData ? `<span class="status-badge status-${employee.status || "active"}">${employee.status || "active"}</span>` : ""}
                                   </div>
-                                  <p>部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}</p>
+                                  ${canManageEmployeeData
+                                    ? `<p>部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}</p>
                                   <p>類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}</p>
                                   <p>年度特休：${employee.annualLeaveDays || 0} 天（期限：${employee.annualLeaveExpiry || "未設定"}）｜旅遊假：${employee.travelLeaveDays || 0} 天（期限：${employee.travelLeaveExpiry || "未設定"}）</p>
                                   <p>班別：${shiftLabels.length ? shiftLabels.join(" / ") : "未設定"}｜週休二日與國定假日：${employee.weekendsOff ? "啟用" : "關閉"}</p>
                                   <p>休假表顯示：${showOnLeaveBoard ? "顯示" : "隱藏"}</p>
-                                  <p>功能權限：${formatEmployeePermissions(employee)}</p>
+                                  <p>功能權限：${formatEmployeePermissions(employee)}</p>`
+                                    : `<p>${limitedInfoText}</p>`}
                                   ${canManageEmployeeData ? `<div class="item-actions"><button type="button" class="small-btn edit-btn" onclick="editEmployee('${employee.id}')">編輯</button><button type="button" class="small-btn delete-btn" onclick="deleteEmployee('${employee.id}')">刪除</button></div>` : ""}
                               </div>
                               </div>
