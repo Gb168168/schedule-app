@@ -2610,7 +2610,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (scheduleDateLabel) scheduleDateLabel.textContent = dateString;
     if (scheduleTitleInput) scheduleTitleInput.value = scheduleItem?.title || "";
     if (scheduleContentInput) scheduleContentInput.value = scheduleItem?.content || scheduleItem?.note || "";
-    if (scheduleShiftSelect) scheduleShiftSelect.value = normalizeScheduleShift(scheduleItem?.shift) || "早班";
+    if (scheduleShiftSelect) scheduleShiftSelect.value = normalizeScheduleShift(scheduleItem?.shift) || "全部班別";
     if (scheduleItem) {
       if (scheduleRegionSelect && scheduleItem.region && REGIONS.includes(scheduleItem.region)) scheduleRegionSelect.value = scheduleItem.region;
       if (scheduleDepartmentSelect && scheduleItem.department && DEPARTMENTS.includes(scheduleItem.department)) scheduleDepartmentSelect.value = scheduleItem.department;
