@@ -1210,14 +1210,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function populateShiftSelectOptions() {
     if (shiftCodeSelect) {
-      shiftCodeSelect.innerHTML = shiftSettings.map((shift) => `<option value="${shift.code}">${shift.name}（${shift.code}）</option>`).join("");
+      shiftCodeSelect.innerHTML = `<option value="">選擇班別</option>${shiftSettings.map((shift) => `<option value="${shift.code}">${shift.name}（${shift.code}）</option>`).join("")}`;
     }
-        if (shiftRegionSelect) {
-      shiftRegionSelect.innerHTML = REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("");
+    if (shiftRegionSelect) {
+      shiftRegionSelect.innerHTML = `<option value="">選擇班別</option>${REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("")}`;
     }
     if (shiftDepartmentSelect) {
-      shiftDepartmentSelect.innerHTML = DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("");
+      shiftDepartmentSelect.innerHTML = `<option value="">選擇班別</option>${DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("")}`;
     }
+    if (shiftCodeSelect) shiftCodeSelect.value = "";
+    if (shiftRegionSelect) shiftRegionSelect.value = "";
+    if (shiftDepartmentSelect) shiftDepartmentSelect.value = "";
     refreshShiftEmployeeOptions();
     renderLeaveBoard();
   }
@@ -1232,14 +1235,31 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function syncShiftForm() {
-    const code = shiftCodeSelect?.value || shiftSettings[0]?.code;
-    const region = shiftRegionSelect?.value || REGIONS[0];
-    const department = shiftDepartmentSelect?.value || DEPARTMENTS[0];
+    const code = shiftCodeSelect?.value || "";
+    const region = shiftRegionSelect?.value || "";
+    const department = shiftDepartmentSelect?.value || "";
     const employeeId = shiftEmployeeSelect?.value || "";
     const shift = shiftScopeSelect?.value === "employee"
+      if (!code || !region || !department || (shiftScopeSelect?.value === "employee" && !employeeId)) {
+      if (shiftNameInput) shiftNameInput.value = "";
+      if (shiftStartTimeInput) shiftStartTimeInput.value = "";
+      if (shiftEndTimeInput) shiftEndTimeInput.value = "";
+      if (shiftReminderTimeInput) shiftReminderTimeInput.value = "";
+      if (shiftGraceMinutesInput) shiftGraceMinutesInput.value = "";
+      if (shiftIsActiveInput) shiftIsActiveInput.checked = true;
+      return;
+    }
       ? (getEmployeeShiftOverride(employeeId, code) || getTemplateShift(region, department, code) || findShiftSetting(code))
       : (getTemplateShift(region, department, code) || findShiftSetting(code));
-    if (!shift) return;
+    if (!shift) {
+      if (shiftNameInput) shiftNameInput.value = "";
+      if (shiftStartTimeInput) shiftStartTimeInput.value = "";
+      if (shiftEndTimeInput) shiftEndTimeInput.value = "";
+      if (shiftReminderTimeInput) shiftReminderTimeInput.value = "";
+      if (shiftGraceMinutesInput) shiftGraceMinutesInput.value = "";
+      if (shiftIsActiveInput) shiftIsActiveInput.checked = true;
+      return;
+    }
     if (shiftNameInput) shiftNameInput.value = shift.name || getShiftNameFromCode(code);
     if (shiftStartTimeInput) shiftStartTimeInput.value = formatTimeText(shift.startTime);
     if (shiftEndTimeInput) shiftEndTimeInput.value = formatTimeText(shift.endTime);
