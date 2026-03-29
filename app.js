@@ -230,6 +230,12 @@ let messagingServiceWorkerRegistration = null;
 let leaveTypePickerState = null;
 
 const ALL_LEAVE_TYPES = LEAVE_TYPE_GROUPS.flatMap((group) => group.options);
+const MONTHLY_SUMMARY_LEAVE_MAPPING = {
+  特休: "annual",
+  年假: "annual",
+  旅遊: "travel",
+  "旅(例)": "travel"
+};
 
 function initHolidayCalendar(startYear = 2020, endYear = 2035) {
   HOLIDAY_NAME_BY_DATE.clear();
@@ -1174,6 +1180,12 @@ document.addEventListener("DOMContentLoaded", function () {
   const leaveReason = document.getElementById("leave-reason");
   const leaveList = document.getElementById("leave-list");
   const leaveStats = document.getElementById("leave-stats");
+  const monthlySummaryMonth = document.getElementById("monthly-summary-month");
+  const monthlySummaryRegion = document.getElementById("monthly-summary-region");
+  const monthlySummaryDepartment = document.getElementById("monthly-summary-department");
+  const monthlySummaryEmployee = document.getElementById("monthly-summary-employee");
+  const monthlySummaryCards = document.getElementById("monthly-summary-cards");
+  const monthlySummaryTable = document.getElementById("monthly-summary-table");
 
   const calendarTitle = document.getElementById("calendar-title");
   const prevMonthBtn = document.getElementById("prev-month");
@@ -2589,7 +2601,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     refreshShiftEmployeeOptions();
     renderLeaveBoard();
     renderTodayWorkingStaff();
-     renderPermissionsEmployeeList();
+    renderPermissionsEmployeeList();
+    renderMonthlySummaryEmployeeOptions();
+    renderMonthlySummary();
   }
 
   function renderPermissionsEmployeeList() {
@@ -2762,6 +2776,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     onSnapshot(q, function (snapshot) {
       leaveRequests = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
       renderLeaves();
+      renderMonthlySummary();
     });
   }
 
@@ -3176,6 +3191,148 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     `;
   }
 
+  function toMonthKey(dateValue = new Date()) {
+    const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return "";
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  function calculateLeaveDurationDays(startDate, endDate) {
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0;
+    return Math.floor((end - start) / 86400000) + 1;
+  }
+
+  function calculateLeaveDaysInsideMonth(leaveItem, monthKey) {
+    const [year, month] = String(monthKey || "").split("-").map(Number);
+    if (!year || !month) return 0;
+    const monthStart = new Date(year, month - 1, 1);
+    const monthEnd = new Date(year, month, 0);
+    const leaveStart = new Date(`${leaveItem.startDate || ""}T00:00:00`);
+    const leaveEnd = new Date(`${leaveItem.endDate || ""}T00:00:00`);
+    if (Number.isNaN(leaveStart.getTime()) || Number.isNaN(leaveEnd.getTime()) || leaveEnd < leaveStart) return 0;
+    const overlapStart = leaveStart > monthStart ? leaveStart : monthStart;
+    const overlapEnd = leaveEnd < monthEnd ? leaveEnd : monthEnd;
+    if (overlapEnd < overlapStart) return 0;
+    return Math.floor((overlapEnd - overlapStart) / 86400000) + 1;
+  }
+
+  function formatMonthlyDuration(item, monthKey) {
+    const leaveTypeKey = MONTHLY_SUMMARY_LEAVE_MAPPING[getNormalizedLeaveType(item.type || "")] || "";
+    if (leaveTypeKey === "travel" && Number.isFinite(Number(item.durationHours))) {
+      return `${Number(item.durationHours).toFixed(1)} 小時`;
+    }
+    const days = calculateLeaveDaysInsideMonth(item, monthKey);
+    return `${days} 天`;
+  }
+
+  function getMonthlySummaryState() {
+    const monthKey = monthlySummaryMonth?.value || toMonthKey();
+    const region = monthlySummaryRegion?.value || "";
+    const department = monthlySummaryDepartment?.value || "";
+    const employeeId = monthlySummaryEmployee?.value || "";
+    return { monthKey, region, department, employeeId };
+  }
+
+  function renderMonthlySummaryFilters() {
+    if (monthlySummaryMonth && !monthlySummaryMonth.value) monthlySummaryMonth.value = toMonthKey();
+    if (monthlySummaryRegion) {
+      monthlySummaryRegion.innerHTML = `<option value="">全部地區</option>${REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("")}`;
+    }
+    if (monthlySummaryDepartment) {
+      monthlySummaryDepartment.innerHTML = `<option value="">全部部門</option>${DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("")}`;
+    }
+  }
+
+  function renderMonthlySummaryEmployeeOptions() {
+    if (!monthlySummaryEmployee) return;
+    const { region, department } = getMonthlySummaryState();
+    const options = employees
+      .filter((employee) => {
+        if (employee.status === "deleted" || employee.isHidden) return false;
+        if (region && employee.region !== region) return false;
+        if (department && employee.department !== department) return false;
+        return true;
+      })
+      .sort((a, b) => String(a.name || a.employeeId).localeCompare(String(b.name || b.employeeId), "zh-Hant"))
+      .map((employee) => `<option value="${employee.employeeId}">${employee.name || employee.employeeId}</option>`)
+      .join("");
+    const selected = monthlySummaryEmployee.value || "";
+    monthlySummaryEmployee.innerHTML = `<option value="">全部人員</option>${options}`;
+    if (selected) monthlySummaryEmployee.value = selected;
+  }
+
+  function renderMonthlySummary() {
+    if (!monthlySummaryTable || !monthlySummaryCards) return;
+    const { monthKey, region, department, employeeId } = getMonthlySummaryState();
+    const targetEmployees = employees.filter((employee) => {
+      if (employee.status === "deleted" || employee.isHidden) return false;
+      if (region && employee.region !== region) return false;
+      if (department && employee.department !== department) return false;
+      if (employeeId && employee.employeeId !== employeeId) return false;
+      return true;
+    });
+    const targetIds = new Set(targetEmployees.map((employee) => employee.employeeId));
+    const boardAssignments = leaveAssignments.filter((item) => item.monthKey === monthKey && targetIds.has(item.employeeId));
+    const requestItems = leaveRequests.filter((item) => {
+      if (!targetIds.has(item.employeeId)) return false;
+      if (calculateLeaveDaysInsideMonth(item, monthKey) <= 0) return false;
+      return true;
+    });
+
+    const approvedItems = requestItems.filter((item) => item.status === "已核准");
+    const totalDays = approvedItems.reduce((sum, item) => sum + calculateLeaveDaysInsideMonth(item, monthKey), 0);
+    monthlySummaryCards.innerHTML = `
+      <div class="stat-card"><h4>休假表筆數</h4><p>${boardAssignments.length}</p></div>
+      <div class="stat-card"><h4>請假申請筆數</h4><p>${requestItems.length}</p></div>
+      <div class="stat-card"><h4>已核准總天數</h4><p>${totalDays}</p></div>
+      <div class="stat-card"><h4>統計月份</h4><p>${monthKey}</p></div>
+    `;
+
+    if (targetEmployees.length === 0) {
+      monthlySummaryTable.innerHTML = `<div class="list-item"><p>目前沒有符合篩選的人員。</p></div>`;
+      return;
+    }
+
+    const rows = targetEmployees.map((employee) => {
+      const employeeRequests = approvedItems.filter((item) => item.employeeId === employee.employeeId);
+      const annualUsedDays = employeeRequests
+        .filter((item) => MONTHLY_SUMMARY_LEAVE_MAPPING[getNormalizedLeaveType(item.type || "")] === "annual")
+        .reduce((sum, item) => sum + calculateLeaveDaysInsideMonth(item, monthKey), 0);
+      const travelUsedDays = employeeRequests
+        .filter((item) => MONTHLY_SUMMARY_LEAVE_MAPPING[getNormalizedLeaveType(item.type || "")] === "travel")
+        .reduce((sum, item) => sum + calculateLeaveDaysInsideMonth(item, monthKey), 0);
+      const monthLeaves = employeeRequests.length
+        ? employeeRequests.map((item) => `${item.type}(${formatMonthlyDuration(item, monthKey)})`).join("、")
+        : "-";
+      const annualTotal = Number(employee.annualLeaveDays || 0);
+      const travelTotal = Number(employee.travelLeaveDays || 0);
+      return `<tr>
+        <td>${employee.region || "-"}</td>
+        <td>${employee.department || "-"}</td>
+        <td>${employee.name || employee.employeeId}</td>
+        <td>${monthLeaves}</td>
+        <td>${Math.max(annualTotal - annualUsedDays, 0)} / ${annualTotal}</td>
+        <td>${Math.max(travelTotal - travelUsedDays, 0)} / ${travelTotal}</td>
+      </tr>`;
+    }).join("");
+
+    monthlySummaryTable.innerHTML = `<table class="monthly-summary-table">
+      <thead>
+        <tr>
+          <th>地區</th>
+          <th>部門</th>
+          <th>人員</th>
+          <th>本月核准請假（天數/時間）</th>
+          <th>特休剩餘 / 年度</th>
+          <th>旅遊假剩餘 / 年度</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+  
   function renderLeaves() {
     if (!leaveList) return;
 
@@ -3243,6 +3400,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       leaveAssignments = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
       renderLeaveBoard();
       renderTodayWorkingStaff();
+      renderMonthlySummary();
     });
   }
 
@@ -5109,6 +5267,20 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
   if (prevMonthBtn) prevMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() - 1); renderLeaveBoard(); });
   if (nextMonthBtn) nextMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() + 1); renderLeaveBoard(); });
+  if (monthlySummaryMonth) monthlySummaryMonth.addEventListener("change", renderMonthlySummary);
+  if (monthlySummaryRegion) {
+    monthlySummaryRegion.addEventListener("change", function () {
+      renderMonthlySummaryEmployeeOptions();
+      renderMonthlySummary();
+    });
+  }
+  if (monthlySummaryDepartment) {
+    monthlySummaryDepartment.addEventListener("change", function () {
+      renderMonthlySummaryEmployeeOptions();
+      renderMonthlySummary();
+    });
+  }
+  if (monthlySummaryEmployee) monthlySummaryEmployee.addEventListener("change", renderMonthlySummary);
     
   if (coordinateForm) {
     coordinateForm.addEventListener("submit", async function (event) {
@@ -5185,11 +5357,14 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   populateFixedOptions();
   populateScheduleFilters();
+  renderMonthlySummaryFilters();
+  renderMonthlySummaryEmployeeOptions();
   setLoginLoadingState(false, "");
   startEmployeesListener();
 
   renderLeaves();
   renderLeaveBoard();
+  renderMonthlySummary();
   renderTodayWorkingStaff();
   renderSchedules();
   renderRosterCalendar();
