@@ -1271,6 +1271,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function renderShiftSettingsList() {
     if (!shiftSettingsList) return;
     ensureBaseShiftTemplates();
+    const shiftTypeOrder = ["morning", "evening"];
     const grouped = {};
     shiftTemplates.forEach(function (item) {
       if (!grouped[item.region]) grouped[item.region] = {};
@@ -1298,7 +1299,14 @@ document.addEventListener("DOMContentLoaded", function () {
               <div class="attendance-tree-node">
                 <div class="list-item">
                   <h4>預設早班 / 晚班</h4>
-                 ${bucket.templates.sort((a, b) => a.shiftType.localeCompare(b.shiftType)).map((item) => `
+                 ${bucket.templates.sort((a, b) => {
+                    const indexA = shiftTypeOrder.indexOf(a.shiftType);
+                    const indexB = shiftTypeOrder.indexOf(b.shiftType);
+                    const orderA = indexA === -1 ? Number.MAX_SAFE_INTEGER : indexA;
+                    const orderB = indexB === -1 ? Number.MAX_SAFE_INTEGER : indexB;
+                    if (orderA !== orderB) return orderA - orderB;
+                    return (a.shiftType || "").localeCompare(b.shiftType || "");
+                  }).map((item) => `
                     <div class="list-item">
                       <p>${getShiftNameFromCode(item.shiftType)}｜上班 ${formatTimeText(item.startTime)}｜下班 ${formatTimeText(item.endTime)}｜提醒 ${formatTimeText(item.reminderTime)}｜寬限 ${item.graceMinutes} 分鐘</p>
                       <div class="item-actions">
