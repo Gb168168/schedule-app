@@ -608,6 +608,34 @@ function formatEmployeePermissions(employee) {
   return tags.length > 0 ? tags.join("、") : "一般員工";
 }
 
+function isSuperAdminEmployee(employeeId) {
+  return employeeId === "GoldBricks";
+}
+
+function getEmployeeRoleProfile(employeeId = "") {
+  const isSuperAdmin = isSuperAdminEmployee(employeeId);
+  return {
+    shifts: {
+      morning: isSuperAdmin ? false : true,
+      evening: false
+    },
+    weekendsOff: false,
+    showOnLeaveBoard: true,
+    permissions: {
+      admin: isSuperAdmin,
+      leaveApprove: isSuperAdmin,
+      announcementManage: isSuperAdmin,
+      coordinateAdmin: isSuperAdmin
+    },
+    manageScopes: isSuperAdmin
+      ? {
+          regions: ["新竹區", "台中區", "嘉義區"],
+          departments: ["管理部", "TSE", "FAE", "新場", "倉管", "RD", "線上客服"]
+        }
+      : { regions: [], departments: [] }
+  };
+}
+
 function getDefaultNotificationSettings(settings = {}) {
   return {
     announcement: settings.announcement !== false,
@@ -904,12 +932,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const employeeRegionSelect = document.getElementById("employee-form-region");
   const manageRegions = document.getElementById("manage-regions");
   const manageDepartments = document.getElementById("manage-departments");
-  const adminCheckbox = document.getElementById("permission-admin");
-  const leaveApproveCheckbox = document.getElementById("permission-leave-approve");
-  const announcementManageCheckbox = document.getElementById("permission-announcement-manage");
-  const adminScopePanel = document.getElementById("admin-scope-panel");
   const employeeSubmitBtn = document.getElementById("employee-submit-btn");
-  const employeeShiftSection = document.getElementById("employee-shift-section");
   const employeeIdField = document.getElementById("employee-form-id");
   let photoData = "";
   const photoZone = document.getElementById("photo-zone");
@@ -2122,23 +2145,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     populateCoordinateRegionOptions();
     refreshShiftSettingViews();
   }
-
-  function syncAdminPermissionState() {
-     if (!adminCheckbox || !adminScopePanel) return;
-
-    adminScopePanel.classList.toggle("hidden", !adminCheckbox.checked);
-
-    if (!adminCheckbox.checked) {
-      if (leaveApproveCheckbox) leaveApproveCheckbox.checked = false;
-      if (announcementManageCheckbox) announcementManageCheckbox.checked = false;
-      document.querySelectorAll('input[name="manage-regions"], input[name="manage-departments"]').forEach(function (input) {
-        input.checked = false;
-      });
-      return;
-    }
-    
-    if (leaveApproveCheckbox) leaveApproveCheckbox.checked = true;
-  }
   
   function updateUserInfo(user) {
     if (currentUserName) currentUserName.textContent = user.name;
@@ -2150,18 +2156,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     renderTodayWorkingStaff();
   }
 
-    function isSuperAdminEmployee(employeeId) {
-    return employeeId === "GoldBricks";
-  }
-
-  function updateSuperAdminFormState() {
-    const employeeId = employeeIdField ? employeeIdField.value.trim() : "";
-    const isSuperAdmin = isSuperAdminEmployee(employeeId);
-
-    if (employeeShiftSection) {
-      employeeShiftSection.classList.toggle("hidden", isSuperAdmin);
-    }
-  }
+  function updateSuperAdminFormState() {}
 
   function setPhoto(src) {
     photoData = src || "";
@@ -2219,18 +2214,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                     <div class="list-wrap">
                       ${departments[department]
                         .map(function (employee) {
-                          const shifts = [];
-                          if (employee.shifts?.morning) shifts.push("早班");
-                          if (employee.shifts?.evening) shifts.push("晚班");
-                          if (employee.weekendsOff) shifts.push("週休二日 & 國定假日");
                           const showOnLeaveBoard = employee.showOnLeaveBoard !== false;
-
-                          const scopeRegions = employee.manageScopes?.regions?.length
-                            ? employee.manageScopes.regions.join("、")
-                            : "未設定";
-                          const scopeDepartments = employee.manageScopes?.departments?.length
-                            ? employee.manageScopes.departments.join("、")
-                            : "未設定";
 
                           const canManageEmployees = isAdmin(currentUser);
                           return `
@@ -2251,12 +2235,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                                     </div>
                                     <span class="status-badge status-${employee.status || "active"}">${employee.status || "active"}</span>
                                   </div>
-                              <p>部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}</p>
+                                  <p>部門：${employee.department || "-"}｜職稱：${employee.title || "-"}｜地區：${employee.region || "-"}</p>
                                   <p>類別：${employee.category || "-"}｜電話：${employee.phone || "-"}｜生日：${employee.birthday || "-"}</p>
-                                  <p>年度特休：${employee.annualLeaveDays || 0} 天（期限：${employee.annualLeaveExpiry || "未設定"}）｜旅遊假：${employee.travelLeaveDays || 0} 天（期限：${employee.travelLeaveExpiry || "未設定"}）｜班別與休假：${shifts.join("、") || "未設定"}</p>
+                                  <p>年度特休：${employee.annualLeaveDays || 0} 天（期限：${employee.annualLeaveExpiry || "未設定"}）｜旅遊假：${employee.travelLeaveDays || 0} 天（期限：${employee.travelLeaveExpiry || "未設定"}）</p>
                                   <p>休假表顯示：${showOnLeaveBoard ? "顯示" : "隱藏"}</p>
-                                  <p>權限：${formatEmployeePermissions(employee)}</p>
-                                  ${employee.permissions?.admin ? `<p>管理地區：${scopeRegions}</p><p>管理部門：${scopeDepartments}</p>` : ""}
                                   ${canManageEmployees ? `<div class="item-actions"><button type="button" class="small-btn edit-btn" onclick="editEmployee('${employee.id}')">編輯</button><button type="button" class="small-btn delete-btn" onclick="deleteEmployee('${employee.id}')">刪除</button></div>` : ""}
                               </div>
                               </div>
@@ -3680,6 +3662,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const annualLeaveExpiry = document.getElementById("employee-form-annual-leave-expiry")?.value || "";
       const travelLeaveDays = Number(document.getElementById("employee-form-travel-leave-days")?.value || 0);
       const travelLeaveExpiry = document.getElementById("employee-form-travel-leave-expiry")?.value || "";
+      const roleProfile = getEmployeeRoleProfile(employeeId);
       const employeeData = {
         employeeId,
         account,
@@ -3698,22 +3681,11 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         travelLeaveDays,
         travelLeaveExpiry,
         photoURL: photoData,
-        shifts: {
-          morning: document.getElementById("shift-morning")?.checked || false,
-          evening: document.getElementById("shift-evening")?.checked || false
-        },
-        weekendsOff: document.getElementById("weekends-off")?.checked || false,
-        showOnLeaveBoard: document.getElementById("show-on-leave-board")?.checked ?? true,
-        permissions: {
-          admin: adminCheckbox?.checked || false,
-          leaveApprove: leaveApproveCheckbox?.checked || false,
-          announcementManage: announcementManageCheckbox?.checked || false,
-          coordinateAdmin: adminCheckbox?.checked || false
-        },
-        manageScopes: {
-          regions: Array.from(document.querySelectorAll('input[name="manage-regions"]:checked')).map((el) => el.value),
-          departments: Array.from(document.querySelectorAll('input[name="manage-departments"]:checked')).map((el) => el.value)
-        },
+        shifts: roleProfile.shifts,
+        weekendsOff: roleProfile.weekendsOff,
+        showOnLeaveBoard: roleProfile.showOnLeaveBoard,
+        permissions: roleProfile.permissions,
+        manageScopes: roleProfile.manageScopes,
         status: "active",
         isHidden: false,
         fcmToken: editingEmployeeId ? (employees.find((item) => item.id === editingEmployeeId)?.fcmToken || "") : "",
@@ -3731,34 +3703,11 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (!employeeData.password) return alert("請輸入密碼");
       if (!employeeData.department) return alert("請選擇部門");
       if (!employeeData.region) return alert("請選擇地區");
-      if (!isSuperAdmin && !employeeData.shifts.morning && !employeeData.shifts.evening) return alert("請至少勾選一個班別");
-
-      if (isSuperAdmin) {
-        employeeData.permissions.admin = true;
-        employeeData.permissions.leaveApprove = true;
-        employeeData.permissions.announcementManage = true;
-        employeeData.permissions.coordinateAdmin = true;
-        employeeData.shifts = {
-          morning: false,
-          evening: false
-        };
-        employeeData.weekendsOff = false;
-        employeeData.showOnLeaveBoard = true;
-        employeeData.manageScopes = {
-          regions: ["新竹區", "台中區", "嘉義區"],
-          departments: ["管理部", "TSE", "FAE", "新場", "倉管", "RD", "線上客服"]
-        };
-      } else if (!employeeData.permissions.admin) {
-        employeeData.manageScopes = { regions: [], departments: [] };
-      }
+      if (!isSuperAdmin && !employeeData.shifts.morning && !employeeData.shifts.evening) return alert("員工班別尚未預設成功，請重新嘗試");
 
       if (!db) return alert("Firebase 未設定，無法新增員工。");
 
       try {
-        if (employeeData.permissions.admin) {
-          employeeData.permissions.leaveApprove = true;
-        }
-
         if (editingEmployeeId) {
           await updateDoc(doc(db, "employees", editingEmployeeId), {
             ...employeeData,
@@ -3776,7 +3725,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         if (employeeSubmitBtn) {
           employeeSubmitBtn.textContent = "新增員工";
         }
-        if (adminScopePanel) adminScopePanel.classList.add("hidden");
         updateSuperAdminFormState();
       } catch (error) {
         console.error("儲存員工失敗", error);
@@ -3785,10 +3733,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     });
   }
 
-  if (adminCheckbox) {
-    adminCheckbox.addEventListener("change", syncAdminPermissionState);
-  }
-  
   if (photoFile) {
     photoFile.addEventListener("change", (e) => {
       const file = e.target.files?.[0];
@@ -3846,27 +3790,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     document.getElementById("employee-form-travel-leave-days").value = employee.travelLeaveDays || 0;
     document.getElementById("employee-form-travel-leave-expiry").value = employee.travelLeaveExpiry || "";
     setPhoto(employee.photoURL || "");   
-    
-    document.getElementById("shift-morning").checked = !!employee.shifts?.morning;
-    document.getElementById("shift-evening").checked = !!employee.shifts?.evening;
-    document.getElementById("weekends-off").checked = !!employee.weekendsOff;
-    document.getElementById("show-on-leave-board").checked = employee.showOnLeaveBoard !== false;
-
-    if (adminCheckbox) adminCheckbox.checked = !!employee.permissions?.admin;
-    if (leaveApproveCheckbox) leaveApproveCheckbox.checked = !!employee.permissions?.leaveApprove;
-    if (announcementManageCheckbox) announcementManageCheckbox.checked = !!employee.permissions?.announcementManage;
-
-    document.querySelectorAll('input[name="manage-regions"]').forEach(function (input) {
-      input.checked = !!employee.manageScopes?.regions?.includes(input.value);
-    });
-    
-    document.querySelectorAll('input[name="manage-departments"]').forEach(function (input) {
-      input.checked = !!employee.manageScopes?.departments?.includes(input.value);
-    });
-
-    if (adminScopePanel) {
-      adminScopePanel.classList.toggle("hidden", !adminCheckbox?.checked);
-    }
 
     if (employeeSubmitBtn) {
       employeeSubmitBtn.textContent = "更新員工";
@@ -4604,7 +4527,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   populateFixedOptions();
   populateScheduleFilters();
-  syncAdminPermissionState();
   setLoginLoadingState(false, "");
   startEmployeesListener();
 
