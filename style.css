@@ -843,7 +843,6 @@ textarea {
   border-color: rgba(15, 118, 110, 0.3);
   box-shadow: 0 2px 8px rgba(15, 118, 110, 0.3);
 }
-}
 
 .schedule-tag.shift-evening {
   background: linear-gradient(135deg, #7c3aed, #6d28d9);
@@ -851,6 +850,7 @@ textarea {
 
 .schedule-tag.shift-support {
   background: linear-gradient(135deg, #facc15, #eab308);
+  color: #1f2937;
   border-color: rgba(146, 64, 14, 0.25);
   box-shadow: 0 2px 8px rgba(202, 138, 4, 0.28);
 }
@@ -917,6 +917,11 @@ textarea {
 #schedule-modal {
   width: min(680px, calc(100vw - 48px));
   padding: 22px;
+}
+
+#schedule-modal .field-label select[multiple] {
+  min-height: 120px;
+  padding: 8px;
 }
 
 #schedule-modal .field-label input,
