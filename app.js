@@ -946,6 +946,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const shiftGraceMinutesInput = document.getElementById("shift-grace-minutes");
   const shiftIsActiveInput = document.getElementById("shift-is-active");
   const shiftSettingsList = document.getElementById("shift-settings-list");
+  const shiftRulesResetBtn = document.getElementById("shift-rules-reset-btn");
   
   const pageTitle = document.getElementById("page-title");
   const menuButtons = document.querySelectorAll(".menu-btn");
@@ -1141,6 +1142,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function getShiftTemplateKey(region, department, shiftType) {
     return `${region || ""}__${department || ""}__${shiftType || ""}`;
+  }
+  
+  function getDefaultShiftTemplateKeys() {
+    const keys = new Set();
+    employees.forEach(function (employee) {
+      const region = employee.region || "";
+      const department = employee.department || "";
+      if (!region || !department || department === "最高權限") return;
+      DEFAULT_SHIFT_SETTINGS.forEach(function (shift) {
+        keys.add(getShiftTemplateKey(region, department, shift.code));
+      });
+    });
+    return Array.from(keys);
   }
   
   function getEmployeeShiftOverride(employeeId, shiftCode) {
@@ -1415,6 +1429,52 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  async function resetAllShiftRuleTimes() {
+    if (!confirm("確定要清空目前所有班別規則時間嗎？清空後可逐筆重新設定。")) return;
+
+    const defaultKeys = getDefaultShiftTemplateKeys();
+    try {
+      if (!db) {
+        shiftTemplates = [];
+        employeeShiftSettings = [];
+        deletedDefaultShiftTemplateKeys = new Set(defaultKeys);
+        safeStorageSet("deleted_default_shift_template_keys", JSON.stringify(defaultKeys));
+        editingShiftRule = null;
+        refreshShiftSettingViews();
+        refreshAttendanceSettings();
+        alert("已清空班別規則時間，請逐筆重新設定。");
+        return;
+      }
+
+      const deleteJobs = [];
+      shiftTemplates.forEach(function (item) {
+        if (!item?.id || String(item.id).startsWith("template-")) return;
+        deleteJobs.push(deleteDoc(doc(db, "shiftTemplates", item.id)));
+      });
+      employeeShiftSettings.forEach(function (item) {
+        if (!item?.id) return;
+        deleteJobs.push(deleteDoc(doc(db, "employeeShiftSettings", item.id)));
+      });
+      defaultKeys.forEach(function (key) {
+        deleteJobs.push(setDoc(doc(db, "shiftTemplateDeletes", key), {
+          key,
+          deletedAt: serverTimestamp(),
+          deletedBy: currentUser?.employeeId || ""
+        }, { merge: true }));
+      });
+      await Promise.all(deleteJobs);
+      editingShiftRule = null;
+      alert("已清空班別規則時間，請逐筆重新設定。");
+    } catch (error) {
+      console.error("清空班別規則失敗", error);
+      if (error?.code === "permission-denied") {
+        alert("清空失敗：目前帳號沒有刪除班別規則權限，請聯絡管理員。");
+        return;
+      }
+      alert("清空班別規則失敗");
+    }
+  }
+  
   function refreshShiftSettingViews() {
     populateShiftSelectOptions();
     syncShiftForm();
@@ -4176,6 +4236,12 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       } else if (action === "delete-shift-rule") {
         deleteShiftRule(scope, id);
       }
+    });
+  }
+  
+  if (shiftRulesResetBtn) {
+    shiftRulesResetBtn.addEventListener("click", function () {
+      resetAllShiftRuleTimes();
     });
   }
   
