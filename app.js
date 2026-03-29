@@ -970,6 +970,15 @@ document.addEventListener("DOMContentLoaded", function () {
   const loginSystemWarning = document.getElementById("login-system-warning");
   const loginClearCacheBtn = document.getElementById("login-clear-cache-btn");
   const logoutBtn = document.getElementById("logout-btn");
+  const changePasswordBtn = document.getElementById("change-password-btn");
+  const changePasswordBackdrop = document.getElementById("change-password-backdrop");
+  const changePasswordForm = document.getElementById("change-password-form");
+  const changePasswordCurrentInput = document.getElementById("change-password-current");
+  const changePasswordNewInput = document.getElementById("change-password-new");
+  const changePasswordConfirmInput = document.getElementById("change-password-confirm");
+  const changePasswordError = document.getElementById("change-password-error");
+  const changePasswordCloseBtn = document.getElementById("change-password-close");
+  const changePasswordCancelBtn = document.getElementById("change-password-cancel");
 
    if (!firebaseApp && loginSystemWarning) {
     loginSystemWarning.textContent = "目前未設定 Firebase（window.__FIREBASE_CONFIG__），僅能使用內建測試帳號登入。";
@@ -2275,6 +2284,41 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     }
     renderTodayAttendanceStaff();
     renderTodayWorkingStaff();
+  }
+
+  function hideChangePasswordModal() {
+    if (changePasswordBackdrop) changePasswordBackdrop.classList.add("hidden");
+    if (changePasswordForm) changePasswordForm.reset();
+    if (changePasswordError) changePasswordError.textContent = "";
+  }
+
+  function showChangePasswordModal() {
+    if (!currentUser) return alert("請先登入");
+    if (changePasswordError) changePasswordError.textContent = "";
+    if (changePasswordForm) changePasswordForm.reset();
+    if (changePasswordBackdrop) changePasswordBackdrop.classList.remove("hidden");
+    if (changePasswordCurrentInput) changePasswordCurrentInput.focus();
+  }
+
+  async function updateCurrentUserPassword(newPassword) {
+    if (!currentUser) return;
+    const targetEmployeeId = currentUser.employeeId;
+    employees = employees.map(function (employee) {
+      if (employee.employeeId !== targetEmployeeId) return employee;
+      return { ...employee, password: newPassword };
+    });
+    const syncedUser = employees.find((employee) => employee.employeeId === targetEmployeeId);
+    if (syncedUser) {
+      currentUser = syncedUser;
+      persistCurrentUserSession(syncedUser);
+      updateUserInfo(syncedUser);
+    }
+    if (db && currentUser?.id && !String(currentUser.id).startsWith("builtin-")) {
+      await updateDoc(doc(db, "employees", currentUser.id), {
+        password: newPassword,
+        updatedAt: serverTimestamp()
+      });
+    }
   }
 
   function populateManageScopeOptions() {
@@ -3822,6 +3866,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   if (logoutBtn) {
     logoutBtn.addEventListener("click", function () {
+      hideChangePasswordModal();
       currentUser = null;
       editingAnnouncementId = null;
       editingScheduleId = null;
@@ -3840,6 +3885,61 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     });
   }
 
+  if (changePasswordBtn) {
+    changePasswordBtn.addEventListener("click", showChangePasswordModal);
+  }
+
+  if (changePasswordCloseBtn) {
+    changePasswordCloseBtn.addEventListener("click", hideChangePasswordModal);
+  }
+
+  if (changePasswordCancelBtn) {
+    changePasswordCancelBtn.addEventListener("click", hideChangePasswordModal);
+  }
+
+  if (changePasswordBackdrop) {
+    changePasswordBackdrop.addEventListener("click", function (event) {
+      if (event.target === changePasswordBackdrop) hideChangePasswordModal();
+    });
+  }
+
+  if (changePasswordForm) {
+    changePasswordForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      if (!currentUser) return;
+
+      const currentPassword = changePasswordCurrentInput?.value.trim() || "";
+      const newPassword = changePasswordNewInput?.value.trim() || "";
+      const confirmPassword = changePasswordConfirmInput?.value.trim() || "";
+
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        if (changePasswordError) changePasswordError.textContent = "請完整填寫所有欄位。";
+        return;
+      }
+      if (currentPassword !== (currentUser.password || "")) {
+        if (changePasswordError) changePasswordError.textContent = "目前密碼不正確。";
+        return;
+      }
+      if (newPassword.length < 4) {
+        if (changePasswordError) changePasswordError.textContent = "新密碼至少需 4 碼。";
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        if (changePasswordError) changePasswordError.textContent = "新密碼與確認密碼不一致。";
+        return;
+      }
+
+      try {
+        await updateCurrentUserPassword(newPassword);
+        hideChangePasswordModal();
+        alert("密碼已更新。");
+      } catch (error) {
+        console.error("變更密碼失敗", error);
+        if (changePasswordError) changePasswordError.textContent = "變更密碼失敗，請稍後再試。";
+      }
+    });
+  }
+  
   if (loginClearCacheBtn) {
     loginClearCacheBtn.addEventListener("click", function () {
       clearCurrentUserSessionCache();
