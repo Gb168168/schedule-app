@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-4</title>
+  <title>班表系統-5</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -38,6 +38,7 @@
         <button class="menu-btn" data-page="roster">排程表</button>
         <button class="menu-btn" data-page="today-staff">當日上班人員</button>
         <button class="menu-btn" data-page="staff">人員資訊</button>
+        <button class="menu-btn hidden" id="menu-permissions-btn" data-page="permissions">權限功能</button>
         <button class="menu-btn hidden" id="menu-shift-settings-btn" data-page="shift-settings">班別設定</button>
         <button class="menu-btn" data-page="leave">請假申請</button>
         <button class="menu-btn hidden" id="menu-attendance-btn" data-page="attendance">打卡紀錄</button>
@@ -185,7 +186,7 @@
       
       <section id="page-staff" class="page-section hidden">
         <div class="content-grid staff-grid">
-          <div class="card">
+         <div id="employee-form-card" class="card">
             <h3>新增員工</h3>
             <form id="employee-form" class="form-grid employee-form">
               <div class="form-section">
@@ -215,6 +216,36 @@
                   <label class="field-label"><span>旅遊假期限</span><input id="employee-form-travel-leave-expiry" type="date" /></label>
                 </div>
               </div>
+              <div class="form-section">
+                <h4>功能權限</h4>
+                <div class="permissions-grid">
+                  <label class="field-label checkbox-inline">
+                    <span>新增員工-建置基本資料</span>
+                    <input id="permission-employee-manage" type="checkbox" />
+                  </label>
+                  <label class="field-label checkbox-inline">
+                    <span>打卡紀錄 &amp; 打卡座標</span>
+                    <input id="permission-attendance-coordinate" type="checkbox" />
+                  </label>
+                  <label class="field-label checkbox-inline">
+                    <span>班別設定</span>
+                    <input id="permission-shift-settings" type="checkbox" />
+                  </label>
+                  <label class="field-label checkbox-inline">
+                    <span>審核假別</span>
+                    <input id="permission-leave-approve" type="checkbox" />
+                  </label>
+                  <label class="field-label checkbox-inline">
+                    <span>公告欄管理</span>
+                    <input id="permission-announcement-manage" type="checkbox" />
+                  </label>
+                </div>
+                <div id="leave-approve-scope-box" class="scope-box hidden">
+                  <p class="helper-text">勾選可審核假別後，需設定可審核的地區與部門。</p>
+                  <label class="field-label"><span>可審核地區</span><select id="manage-regions" multiple></select></label>
+                  <label class="field-label"><span>可審核部門</span><select id="manage-departments" multiple></select></label>
+                </div>
+              </div>
 
               <button id="employee-submit-btn" type="submit" class="primary-btn">新增員工</button>
             </form>
@@ -232,6 +263,30 @@
         </div>
       </section>
 
+      <section id="page-permissions" class="page-section hidden">
+        <div class="card">
+          <h3>權限功能</h3>
+          <div class="list-item">
+            <h4>班別與休假表</h4>
+            <ol>
+              <li>早班</li>
+              <li>晚班</li>
+              <li>週休二日 &amp; 國定假日</li>
+              <li>休假表顯示</li>
+            </ol>
+          </div>
+          <div class="list-item">
+            <h4>功能權限說明</h4>
+            <p>1. 新增員工-建置基本資料：勾選後可在「人員資訊」新增 / 編輯 / 刪除。</p>
+            <p>2. 打卡紀錄 &amp; 打卡座標：勾選後左側顯示「打卡紀錄」與「打卡座標」並可管理。</p>
+            <p>3. 班別設定：勾選後左側顯示「班別設定」並可管理。</p>
+            <p>4. 審核假別：勾選後可設定地區/部門，僅可審核設定範圍內人員申請。</p>
+            <p>5. 公告欄：勾選後可新增 / 編輯 / 隱藏 / 刪除公告。</p>
+            <p class="helper-text">※ GoldBricks 為最高權限，不需勾選即可操作全部功能。</p>
+          </div>
+        </div>
+      </section>
+      
       <section id="page-leave" class="page-section hidden">
         <div class="card">
           <h3>請假管理</h3>
