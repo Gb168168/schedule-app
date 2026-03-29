@@ -2265,11 +2265,11 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     }
 
     if (manageRegions) {
-      manageRegions.innerHTML = REGIONS.map((region) => `<label><input type="checkbox" name="manage-regions" value="${region}" /> ${region}</label>`).join("");
+      manageRegions.innerHTML = REGIONS.map((region) => `<label class="scope-checkbox-item"><input type="checkbox" name="manage-regions" value="${region}" />${region}</label>`).join("");
     }
 
     if (manageDepartments) {
-      manageDepartments.innerHTML = DEPARTMENTS.map((department) => `<label><input type="checkbox" name="manage-departments" value="${department}" /> ${department}</label>`).join("");
+      manageDepartments.innerHTML = DEPARTMENTS.map((department) => `<label class="scope-checkbox-item"><input type="checkbox" name="manage-departments" value="${department}" />${department}</label>`).join("");
     }
     
     populateCoordinateRegionOptions();
@@ -2323,16 +2323,16 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   function populateManageScopeOptions() {
     if (manageRegions) {
-      manageRegions.innerHTML = REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("");
+      manageRegions.innerHTML = REGIONS.map((region) => `<label class="scope-checkbox-item"><input type="checkbox" name="manage-regions" value="${region}" />${region}</label>`).join("");
     }
     if (manageDepartments) {
-      manageDepartments.innerHTML = DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("");
+      manageDepartments.innerHTML = DEPARTMENTS.map((department) => `<label class="scope-checkbox-item"><input type="checkbox" name="manage-departments" value="${department}" />${department}</label>`).join("");
     }
     if (permManageRegions) {
-      permManageRegions.innerHTML = REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("");
+      permManageRegions.innerHTML = REGIONS.map((region) => `<label class="scope-checkbox-item"><input type="checkbox" name="perm-manage-regions" value="${region}" />${region}</label>`).join("");
     }
     if (permManageDepartments) {
-      permManageDepartments.innerHTML = DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("");
+      permManageDepartments.innerHTML = DEPARTMENTS.map((department) => `<label class="scope-checkbox-item"><input type="checkbox" name="perm-manage-departments" value="${department}" />${department}</label>`).join("");
     }
   }
 
@@ -2377,20 +2377,36 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       employeeShowOnLeaveBoardInput.checked = isSuperAdminEditing ? true : employeeShowOnLeaveBoardInput.checked;
       employeeShowOnLeaveBoardInput.disabled = isSuperAdminEditing;
     }
-    
+
+    const scopeDisabled = isSuperAdminEditing || !permissionLeaveApproveInput?.checked;
     if (manageRegions) {
-      manageRegions.disabled = isSuperAdminEditing || !permissionLeaveApproveInput?.checked;
-      if (isSuperAdminEditing) {
-        Array.from(manageRegions.options).forEach((option) => { option.selected = true; });
-      }
+      Array.from(manageRegions.querySelectorAll('input[type="checkbox"]')).forEach((checkbox) => {
+        checkbox.disabled = scopeDisabled;
+        if (isSuperAdminEditing) checkbox.checked = true;
+      });
     }
     if (manageDepartments) {
-      manageDepartments.disabled = isSuperAdminEditing || !permissionLeaveApproveInput?.checked;
-      if (isSuperAdminEditing) {
-        Array.from(manageDepartments.options).forEach((option) => { option.selected = true; });
-      }
+      Array.from(manageDepartments.querySelectorAll('input[type="checkbox"]')).forEach((checkbox) => {
+        checkbox.disabled = scopeDisabled;
+        if (isSuperAdminEditing) checkbox.checked = true;
+      });
     }
     updateLeaveApproveScopeVisibility();
+  }
+
+  function getCheckedValues(containerElement) {
+    if (!containerElement) return [];
+    return Array.from(containerElement.querySelectorAll('input[type="checkbox"]:checked'))
+      .map((input) => input.value)
+      .filter((value) => value !== "");
+  }
+
+  function setCheckedValues(containerElement, values = []) {
+    if (!containerElement) return;
+    const valueSet = new Set(values);
+    Array.from(containerElement.querySelectorAll('input[type="checkbox"]')).forEach((input) => {
+      input.checked = valueSet.has(input.value);
+    });
   }
 
   function setPhoto(src) {
@@ -4050,10 +4066,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const weekendsOff = isSuperAdmin ? false : Boolean(employeeWeekendsOffInput?.checked);
       const showOnLeaveBoard = isSuperAdmin ? true : Boolean(employeeShowOnLeaveBoardInput?.checked);
       const selectedManageRegions = canLeaveApprove
-        ? Array.from(manageRegions?.selectedOptions || []).map((option) => option.value)
+        ? getCheckedValues(manageRegions)
         : [];
       const selectedManageDepartments = canLeaveApprove
-        ? Array.from(manageDepartments?.selectedOptions || []).map((option) => option.value)
+        ? getCheckedValues(manageDepartments)
         : [];
       const employeeData = {
         employeeId,
@@ -4145,8 +4161,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         if (employeeShiftEveningInput) employeeShiftEveningInput.checked = false;
         if (employeeWeekendsOffInput) employeeWeekendsOffInput.checked = false;
         if (employeeShowOnLeaveBoardInput) employeeShowOnLeaveBoardInput.checked = true;
-        Array.from(manageRegions?.options || []).forEach((option) => { option.selected = false; });
-        Array.from(manageDepartments?.options || []).forEach((option) => { option.selected = false; });
+        setCheckedValues(manageRegions, []);
+        setCheckedValues(manageDepartments, []);
         setPhoto("");
         if (employeeSubmitBtn) {
           employeeSubmitBtn.textContent = "新增員工";
@@ -4230,12 +4246,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     const selectedDepartments = isSuperAdminEmployee(employee.employeeId)
       ? [...DEPARTMENTS]
       : (employee.manageScopes?.departments || []);
-    Array.from(manageRegions?.options || []).forEach((option) => {
-      option.selected = selectedRegions.includes(option.value);
-    });
-    Array.from(manageDepartments?.options || []).forEach((option) => {
-      option.selected = selectedDepartments.includes(option.value);
-    });
+    setCheckedValues(manageRegions, selectedRegions);
+    setCheckedValues(manageDepartments, selectedDepartments);
     setPhoto(employee.photoURL || "");   
 
     if (employeeSubmitBtn) {
@@ -4927,12 +4939,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (permCoordinateListVisibleInput) permCoordinateListVisibleInput.checked = Boolean(normalizedPermissions.coordinateListVisible);
     const currentRegions = Array.isArray(employee.manageScopes?.regions) ? employee.manageScopes.regions : [];
     const currentDepartments = Array.isArray(employee.manageScopes?.departments) ? employee.manageScopes.departments : [];
-    Array.from(permManageRegions?.options || []).forEach((option) => {
-      option.selected = currentRegions.includes(option.value);
-    });
-      Array.from(permManageDepartments?.options || []).forEach((option) => {
-      option.selected = currentDepartments.includes(option.value);
-    });
+    setCheckedValues(permManageRegions, currentRegions);
+    setCheckedValues(permManageDepartments, currentDepartments);
     updatePermissionEditorLeaveScopeVisibility();
     permissionEditorBackdrop?.classList.remove("hidden");
   }
@@ -4963,8 +4971,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const leaveApproveEnabled = Boolean(permLeaveApproveInput?.checked);
       const nextManageScopes = leaveApproveEnabled
         ? {
-            regions: Array.from(permManageRegions?.selectedOptions || []).map((option) => option.value),
-            departments: Array.from(permManageDepartments?.selectedOptions || []).map((option) => option.value)
+            regions: getCheckedValues(permManageRegions),
+            departments: getCheckedValues(permManageDepartments)
           }
         : { regions: [], departments: [] };
       if (leaveApproveEnabled && (nextManageScopes.regions.length === 0 || nextManageScopes.departments.length === 0)) {
