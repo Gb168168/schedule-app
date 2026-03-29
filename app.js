@@ -1425,15 +1425,12 @@ document.addEventListener("DOMContentLoaded", function () {
   
   function renderAttendanceSettingsSummary() {
     if (!attendanceSettingsSummary) return;
-    const activeLocations = getVisibleAttendanceLocations().filter((location) => location.isActive);
+    
     const shift = getEffectiveShiftSetting(currentUser, getSelectedShiftCode()) || getActiveShiftSettings()[0];
     attendanceSettingsSummary.innerHTML = `
-      <p><strong>啟用座標：</strong>${activeLocations.length} 筆</p>
       <p><strong>目前班別：</strong>${shift ? `${shift.name}（${formatTimeText(shift.startTime)} - ${formatTimeText(shift.endTime)}）` : "尚未設定"}</p>
-      <p><strong>打卡時區：</strong>北京時間（UTC+8）</p>
       <p><strong>提醒時間：</strong>${shift ? formatTimeText(shift.reminderTime) : "-"}</p>
       <p><strong>最後正常打卡：</strong>${shift ? `${formatTimeText(shift.startTime)} + ${shift.graceMinutes} 分鐘` : "-"}</p>
-      <p><strong>定位打卡：</strong>先比對登入者地區，若該地區沒有符合點位，再回退為所有啟用點位。</p>
     `;
   }
 
