@@ -1239,8 +1239,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const region = shiftRegionSelect?.value || "";
     const department = shiftDepartmentSelect?.value || "";
     const employeeId = shiftEmployeeSelect?.value || "";
-    const shift = shiftScopeSelect?.value === "employee"
-      if (!code || !region || !department || (shiftScopeSelect?.value === "employee" && !employeeId)) {
+    if (!code || !region || !department || (shiftScopeSelect?.value === "employee" && !employeeId)) {
       if (shiftNameInput) shiftNameInput.value = "";
       if (shiftStartTimeInput) shiftStartTimeInput.value = "";
       if (shiftEndTimeInput) shiftEndTimeInput.value = "";
@@ -1249,6 +1248,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (shiftIsActiveInput) shiftIsActiveInput.checked = true;
       return;
     }
+    const shift = shiftScopeSelect?.value === "employee"
       ? (getEmployeeShiftOverride(employeeId, code) || getTemplateShift(region, department, code) || findShiftSetting(code))
       : (getTemplateShift(region, department, code) || findShiftSetting(code));
     if (!shift) {
