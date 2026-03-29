@@ -576,6 +576,28 @@ textarea {
   border-radius: 18px;
 }
 
+.employee-permission-switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+
+.permission-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  font-size: 13px;
+}
+
+.permission-chip input[type="checkbox"] {
+  margin: 0;
+}
+
 .primary-btn {
   padding: 14px 20px;
   border-radius: var(--radius-sm);
