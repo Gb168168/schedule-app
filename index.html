@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-3</title>
+  <title>班表系統-4</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -41,7 +41,7 @@
         <button class="menu-btn hidden" id="menu-permissions-btn" data-page="permissions">權限功能</button>
         <button class="menu-btn hidden" id="menu-shift-settings-btn" data-page="shift-settings">班別設定</button>
         <button class="menu-btn" data-page="leave">請假申請</button>
-        <button class="menu-btn" data-page="monthly-summary">本月統計</button>
+        <button class="menu-btn" id="menu-monthly-summary-btn" data-page="monthly-summary">本月統計</button>
         <button class="menu-btn hidden" id="menu-attendance-btn" data-page="attendance">打卡紀錄</button>
         <button class="menu-btn hidden" id="menu-coordinate-btn" data-page="coordinates">打卡座標</button>
       </nav>
@@ -336,6 +336,10 @@
             <div class="permission-editor-section">
               <h5>【班別設定】</h5>
               <label class="field-label checkbox-inline"><span>左側列表顯示</span><input id="perm-shift-settings-list-visible" type="checkbox" /></label>
+            </div>
+            <div class="permission-editor-section">
+              <h5>【本月統計】</h5>
+              <label class="field-label checkbox-inline"><span>左側列表顯示</span><input id="perm-monthly-summary-list-visible" type="checkbox" /></label>
             </div>
             <div class="permission-editor-section">
               <h5>【請假申請】</h5>
