@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-4</title>
+  <title>班表系統-5</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -56,6 +56,7 @@
         </div>
         <div class="header-right">
           <span>目前登入 <strong id="current-user-name"></strong></span>
+          <button id="change-password-btn" class="small-btn icon-only-btn" type="button" aria-label="變更密碼">👤</button>
           <button id="logout-btn" class="small-btn" type="button">登出</button>
         </div>
       </header>
@@ -644,6 +645,34 @@
       <div class="schedule-top-actions">
         <button id="schedule-detail-add-btn" type="button" class="primary-btn">+ 新增行程</button>
       </div>
+    </div>
+  </div>
+  
+  <div id="change-password-backdrop" class="schedule-popover-backdrop hidden">
+    <div id="change-password-modal" class="schedule-popover">
+      <div class="schedule-popover-header">
+        <h4>變更密碼</h4>
+        <button id="change-password-close" type="button" class="small-btn cancel-btn">關閉</button>
+      </div>
+      <form id="change-password-form" class="form-grid">
+        <label class="field-label">
+          <span>目前密碼</span>
+          <input id="change-password-current" type="password" autocomplete="current-password" required />
+        </label>
+        <label class="field-label">
+          <span>新密碼</span>
+          <input id="change-password-new" type="password" autocomplete="new-password" required />
+        </label>
+        <label class="field-label">
+          <span>確認新密碼</span>
+          <input id="change-password-confirm" type="password" autocomplete="new-password" required />
+        </label>
+        <p id="change-password-error" class="error-text"></p>
+        <div class="form-actions">
+          <button type="submit" class="primary-btn">儲存新密碼</button>
+          <button id="change-password-cancel" type="button" class="secondary-btn">取消</button>
+        </div>
+      </form>
     </div>
   </div>
   
