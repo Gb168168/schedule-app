@@ -368,6 +368,10 @@ function canViewShiftAndAttendance(user) {
   return employeeId === "GoldBricks" || isAdmin(user);
 }
 
+function canViewTodayAttendanceStaff(user) {
+  return isAdmin(user);
+}
+
 function canManageAnnouncements(user) {
   return Boolean(user?.permissions?.admin || user?.permissions?.announcementManage);
 }
@@ -891,6 +895,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const attendanceRecordPopoverTitle = document.getElementById("attendance-record-popover-title");
   const attendanceRecordPopoverContent = document.getElementById("attendance-record-popover-content");
   const attendanceRecordPopoverClose = document.getElementById("attendance-record-popover-close");
+  const homeTodayAttendanceCard = document.getElementById("home-today-attendance-card");
   
   const employeeForm = document.getElementById("employee-form");
   const employeeFormCard = document.getElementById("employee-form-card");
@@ -1050,6 +1055,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     if (attendanceMenuBtn) {
       attendanceMenuBtn.classList.toggle("hidden", !allowShiftAttendance);
+    }
+    
+    if (homeTodayAttendanceCard) {
+      homeTodayAttendanceCard.classList.toggle("hidden", !canViewTodayAttendanceStaff(user));
     }
   }
 
@@ -1743,6 +1752,10 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!todayAttendanceStaffList) return;
     if (!currentUser) {
       todayAttendanceStaffList.innerHTML = `<div class="list-item"><p>請先登入以查看當日上班人員。</p></div>`;
+      return;
+    }
+    if (!canViewTodayAttendanceStaff(currentUser)) {
+      todayAttendanceStaffList.innerHTML = `<div class="list-item"><p>只有管理員可查看今日打卡人員資料。</p></div>`;
       return;
     }
 
@@ -4148,6 +4161,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   if (todayAttendanceStaffList) {
     todayAttendanceStaffList.addEventListener("click", function (event) {
+      if (!canViewTodayAttendanceStaff(currentUser)) return;
       const button = event.target.closest(".today-attendance-employee-btn[data-attendance-employee-name]");
       if (!button) return;
       const employeeName = button.dataset.attendanceEmployeeName || "";
