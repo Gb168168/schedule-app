@@ -1400,18 +1400,6 @@ textarea {
   color: #075985;
 }
 
-.reminder-list {
-  display: grid;
-  gap: 10px;
-}
-
-.reminder-item {
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: #fff;
-}
-
 .record-status-text {
   font-weight: 700;
 }
