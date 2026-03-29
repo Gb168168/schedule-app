@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-3</title>
+  <title>班表系統-4</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -291,6 +291,68 @@
           <div id="permissions-employee-list" class="list-wrap"></div>
         </div>
       </section>
+      
+      <div id="permission-editor-backdrop" class="schedule-popover-backdrop hidden">
+        <div id="permission-editor-modal" class="schedule-popover permission-editor-modal" role="dialog" aria-modal="true" aria-labelledby="permission-editor-title">
+          <div class="schedule-popover-header">
+            <h4 id="permission-editor-title">編輯權限</h4>
+            <button id="permission-editor-close-btn" type="button" class="small-btn">關閉</button>
+          </div>
+          <p id="permission-editor-target" class="helper-text"></p>
+          <form id="permission-editor-form" class="permission-editor-form">
+            <div class="permission-editor-section">
+              <h5>【公告欄】</h5>
+              <label class="field-label checkbox-inline"><span>操作人員</span><input id="perm-announcement-manage" type="checkbox" /></label>
+            </div>
+            <div class="permission-editor-section">
+              <h5>【休假表】</h5>
+              <label class="field-label checkbox-inline"><span>早班</span><input id="perm-shift-morning" type="checkbox" /></label>
+              <label class="field-label checkbox-inline"><span>晚班</span><input id="perm-shift-evening" type="checkbox" /></label>
+              <label class="field-label checkbox-inline"><span>週休二日 &amp; 國定假日</span><input id="perm-weekends-off" type="checkbox" /></label>
+              <label class="field-label checkbox-inline"><span>休假表顯示</span><input id="perm-show-on-leave-board" type="checkbox" /></label>
+            </div>
+            <div class="permission-editor-section">
+              <h5>【排程表】</h5>
+              <p class="helper-text">目前無額外設定。</p>
+            </div>
+            <div class="permission-editor-section">
+              <h5>【當日上班人員】</h5>
+              <p class="helper-text">目前無額外設定。</p>
+            </div>
+            <div class="permission-editor-section">
+              <h5>【人員資訊】</h5>
+              <label class="field-label checkbox-inline"><span>建置基本資料</span><input id="perm-employee-profile-manage" type="checkbox" /></label>
+            </div>
+            <div class="permission-editor-section">
+              <h5>【權限功能】</h5>
+              <label class="field-label checkbox-inline"><span>左側列表顯示</span><input id="perm-permissions-list-visible" type="checkbox" /></label>
+            </div>
+            <div class="permission-editor-section">
+              <h5>【班別設定】</h5>
+              <label class="field-label checkbox-inline"><span>左側列表顯示</span><input id="perm-shift-settings-list-visible" type="checkbox" /></label>
+            </div>
+            <div class="permission-editor-section">
+              <h5>【請假申請】</h5>
+              <label class="field-label checkbox-inline"><span>審核假別</span><input id="perm-leave-approve" type="checkbox" /></label>
+              <div id="permission-leave-approve-scope-box" class="scope-box hidden">
+                <label class="field-label"><span>可審核地區</span><select id="perm-manage-regions" multiple></select></label>
+                <label class="field-label"><span>可審核部門</span><select id="perm-manage-departments" multiple></select></label>
+              </div>
+            </div>
+            <div class="permission-editor-section">
+              <h5>【打卡紀錄】</h5>
+              <label class="field-label checkbox-inline"><span>左側列表顯示</span><input id="perm-attendance-list-visible" type="checkbox" /></label>
+            </div>
+            <div class="permission-editor-section">
+              <h5>【打卡座標】</h5>
+              <label class="field-label checkbox-inline"><span>左側列表顯示</span><input id="perm-coordinate-list-visible" type="checkbox" /></label>
+            </div>
+            <div class="item-actions">
+              <button type="submit" class="primary-btn">儲存權限</button>
+            </div>
+          </form>
+        </div>
+      </div>
       
       <section id="page-leave" class="page-section hidden">
         <div class="card">
