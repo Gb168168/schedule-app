@@ -16,6 +16,11 @@ import {
 
 const REGIONS = ["新竹區", "台中區", "嘉義區"];
 const DEPARTMENTS = ["管理部", "TSE", "FAE", "新場", "倉管", "RD", "線上客服"];
+const REGION_DEPARTMENT_DEFAULTS = {
+  新竹區: ["FAE"],
+  台中區: ["管理部", "倉管", "TSE", "RD", "FAE", "線上客服", "新場"],
+  嘉義區: ["FAE"]
+};
 const LEAVE_TYPE_GROUPS = [
   { label: "一般假", options: ["事假", "病假", "公假", "年假", "特休"] },
   { label: "特殊假", options: ["婚假", "產假", "生理", "喪假", "公傷"] },
@@ -385,6 +390,33 @@ function canManageAnnouncements(user) {
   return Boolean(isGoldBricksUser(user) || user?.permissions?.admin || user?.permissions?.announcementManage);
 }
 
+function canEditAnnouncements(user) {
+  return Boolean(
+    isGoldBricksUser(user) ||
+    user?.permissions?.admin ||
+    user?.permissions?.announcementManage ||
+    user?.permissions?.announcementEdit
+  );
+}
+
+function canDeleteAnnouncements(user) {
+  return Boolean(
+    isGoldBricksUser(user) ||
+    user?.permissions?.admin ||
+    user?.permissions?.announcementManage ||
+    user?.permissions?.announcementDelete
+  );
+}
+
+function canHideAnnouncements(user) {
+  return Boolean(
+    isGoldBricksUser(user) ||
+    user?.permissions?.admin ||
+    user?.permissions?.announcementManage ||
+    user?.permissions?.announcementHide
+  );
+}
+
 function canManageCoordinates(user) {
   return Boolean(
     isGoldBricksUser(user) ||
@@ -420,7 +452,15 @@ function normalizeEmployeePermissions(permissions = {}) {
     attendanceCoordinateManage: Boolean(permissions.attendanceCoordinateManage || permissions.coordinateListVisible || permissions.attendanceListVisible),
     coordinateAdmin: Boolean(permissions.coordinateAdmin || permissions.attendanceCoordinateManage || permissions.coordinateListVisible),
     leaveApprove: Boolean(permissions.leaveApprove),
-    announcementManage: Boolean(permissions.announcementManage),
+    announcementManage: Boolean(
+      permissions.announcementManage ||
+      permissions.announcementHide ||
+      permissions.announcementEdit ||
+      permissions.announcementDelete
+    ),
+    announcementHide: Boolean(permissions.announcementHide || permissions.announcementManage),
+    announcementEdit: Boolean(permissions.announcementEdit || permissions.announcementManage),
+    announcementDelete: Boolean(permissions.announcementDelete || permissions.announcementManage),
     permissionsListVisible: Boolean(permissions.permissionsListVisible),
     shiftSettingsListVisible: Boolean(permissions.shiftSettingsListVisible || permissions.shiftSettingsManage),
     attendanceListVisible: Boolean(permissions.attendanceListVisible || permissions.attendanceCoordinateManage),
@@ -1012,8 +1052,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const permissionsEmployeeList = document.getElementById("permissions-employee-list");
   const employeeDepartmentSelect = document.getElementById("employee-form-department");
   const employeeRegionSelect = document.getElementById("employee-form-region");
-  const manageRegions = document.getElementById("manage-regions");
-  const manageDepartments = document.getElementById("manage-departments");
+  const manageRegionDepartments = document.getElementById("manage-region-departments");
   const leaveApproveScopeBox = document.getElementById("leave-approve-scope-box");
   const permissionEmployeeManageInput = document.getElementById("permission-employee-manage");
   const permissionAttendanceCoordinateInput = document.getElementById("permission-attendance-coordinate");
@@ -1029,7 +1068,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const permissionEditorForm = document.getElementById("permission-editor-form");
   const permissionEditorCloseBtn = document.getElementById("permission-editor-close-btn");
   const permissionEditorTarget = document.getElementById("permission-editor-target");
-  const permAnnouncementManageInput = document.getElementById("perm-announcement-manage");
+  const permAnnouncementHideInput = document.getElementById("perm-announcement-hide");
+  const permAnnouncementEditInput = document.getElementById("perm-announcement-edit");
+  const permAnnouncementDeleteInput = document.getElementById("perm-announcement-delete");
   const permShiftMorningInput = document.getElementById("perm-shift-morning");
   const permShiftEveningInput = document.getElementById("perm-shift-evening");
   const permWeekendsOffInput = document.getElementById("perm-weekends-off");
@@ -1040,8 +1081,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const permLeaveApproveInput = document.getElementById("perm-leave-approve");
   const permAttendanceListVisibleInput = document.getElementById("perm-attendance-list-visible");
   const permCoordinateListVisibleInput = document.getElementById("perm-coordinate-list-visible");
-  const permManageRegions = document.getElementById("perm-manage-regions");
-  const permManageDepartments = document.getElementById("perm-manage-departments");
+  const permManageRegionDepartments = document.getElementById("perm-manage-region-departments");
   const permissionLeaveApproveScopeBox = document.getElementById("permission-leave-approve-scope-box");
   const employeeIdField = document.getElementById("employee-form-id");
   let photoData = "";
@@ -2264,13 +2304,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       employeeDepartmentSelect.innerHTML = `<option value="">請選擇部門</option>${DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("")}`;
     }
 
-    if (manageRegions) {
-      manageRegions.innerHTML = REGIONS.map((region) => `<label class="scope-checkbox-item"><input type="checkbox" name="manage-regions" value="${region}" />${region}</label>`).join("");
-    }
-
-    if (manageDepartments) {
-      manageDepartments.innerHTML = DEPARTMENTS.map((department) => `<label class="scope-checkbox-item"><input type="checkbox" name="manage-departments" value="${department}" />${department}</label>`).join("");
-    }
+    populateManageScopeOptions();
     
     populateCoordinateRegionOptions();
     refreshShiftSettingViews();
@@ -2322,18 +2356,57 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   function populateManageScopeOptions() {
-    if (manageRegions) {
-      manageRegions.innerHTML = REGIONS.map((region) => `<label class="scope-checkbox-item"><input type="checkbox" name="manage-regions" value="${region}" />${region}</label>`).join("");
-    }
-    if (manageDepartments) {
-      manageDepartments.innerHTML = DEPARTMENTS.map((department) => `<label class="scope-checkbox-item"><input type="checkbox" name="manage-departments" value="${department}" />${department}</label>`).join("");
-    }
-    if (permManageRegions) {
-      permManageRegions.innerHTML = REGIONS.map((region) => `<label class="scope-checkbox-item"><input type="checkbox" name="perm-manage-regions" value="${region}" />${region}</label>`).join("");
-    }
-    if (permManageDepartments) {
-      permManageDepartments.innerHTML = DEPARTMENTS.map((department) => `<label class="scope-checkbox-item"><input type="checkbox" name="perm-manage-departments" value="${department}" />${department}</label>`).join("");
-    }
+     renderManageScopeRegionDepartments(manageRegionDepartments, "manage");
+    renderManageScopeRegionDepartments(permManageRegionDepartments, "perm-manage");
+  }
+
+  function getRegionDepartmentScopeOptions() {
+    const regionDepartmentMap = new Map(
+      REGIONS.map((region) => [
+        region,
+        new Set(Array.isArray(REGION_DEPARTMENT_DEFAULTS[region]) ? REGION_DEPARTMENT_DEFAULTS[region] : [])
+      ])
+    );
+
+    employees.forEach(function (employee) {
+      const region = String(employee?.region || "").trim();
+      const department = String(employee?.department || "").trim();
+      if (!region || !department || department === "最高權限") return;
+      if (!regionDepartmentMap.has(region)) regionDepartmentMap.set(region, new Set());
+      regionDepartmentMap.get(region).add(department);
+    });
+
+    return REGIONS.map(function (region) {
+      const departmentSet = regionDepartmentMap.get(region) || new Set();
+      const departments = Array.from(departmentSet);
+      departments.sort(function (a, b) {
+        const aIndex = DEPARTMENTS.indexOf(a);
+        const bIndex = DEPARTMENTS.indexOf(b);
+        if (aIndex === -1 && bIndex === -1) return a.localeCompare(b, "zh-Hant");
+        if (aIndex === -1) return 1;
+        if (bIndex === -1) return -1;
+        return aIndex - bIndex;
+      });
+      return { region, departments };
+    });
+  }
+
+  function renderManageScopeRegionDepartments(containerElement, inputNamePrefix = "manage") {
+    if (!containerElement) return;
+    const groups = getRegionDepartmentScopeOptions();
+    containerElement.innerHTML = groups
+      .map((group) => {
+        const departmentCheckboxes = group.departments.length > 0
+          ? group.departments
+              .map(
+                (department) =>
+                  `<label class="scope-checkbox-item"><input type="checkbox" name="${inputNamePrefix}-region-departments" data-region="${group.region}" value="${department}" />${department}</label>`
+              )
+              .join("")
+          : `<p class="helper-text">目前無可勾選部門</p>`;
+        return `<div class="scope-region-department-group"><p class="scope-region-title">${group.region}</p><div class="scope-checkbox-grid">${departmentCheckboxes}</div></div>`;
+      })
+      .join("");
   }
 
   function updateLeaveApproveScopeVisibility() {
@@ -2379,14 +2452,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     }
 
     const scopeDisabled = isSuperAdminEditing || !permissionLeaveApproveInput?.checked;
-    if (manageRegions) {
-      Array.from(manageRegions.querySelectorAll('input[type="checkbox"]')).forEach((checkbox) => {
-        checkbox.disabled = scopeDisabled;
-        if (isSuperAdminEditing) checkbox.checked = true;
-      });
-    }
-    if (manageDepartments) {
-      Array.from(manageDepartments.querySelectorAll('input[type="checkbox"]')).forEach((checkbox) => {
+    if (manageRegionDepartments) {
+      Array.from(manageRegionDepartments.querySelectorAll('input[type="checkbox"]')).forEach((checkbox) => {
         checkbox.disabled = scopeDisabled;
         if (isSuperAdminEditing) checkbox.checked = true;
       });
@@ -2394,18 +2461,22 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     updateLeaveApproveScopeVisibility();
   }
 
-  function getCheckedValues(containerElement) {
+  function getScopeSelections(containerElement) {
     if (!containerElement) return [];
-    return Array.from(containerElement.querySelectorAll('input[type="checkbox"]:checked'))
-      .map((input) => input.value)
-      .filter((value) => value !== "");
+    return Array.from(containerElement.querySelectorAll('input[type="checkbox"]:checked')).map((input) => ({
+      region: String(input.dataset.region || "").trim(),
+      department: String(input.value || "").trim()
+    }));
   }
 
-  function setCheckedValues(containerElement, values = []) {
+  function setScopeSelections(containerElement, regions = [], departments = []) {
     if (!containerElement) return;
-    const valueSet = new Set(values);
+    const allowedRegionSet = new Set(regions);
+    const allowedDepartmentSet = new Set(departments);
     Array.from(containerElement.querySelectorAll('input[type="checkbox"]')).forEach((input) => {
-      input.checked = valueSet.has(input.value);
+      const region = String(input.dataset.region || "").trim();
+      const department = String(input.value || "").trim();
+      input.checked = allowedRegionSet.has(region) && allowedDepartmentSet.has(department);
     });
   }
 
@@ -2664,8 +2735,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
           author: data.author || "",
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleString() : "",
           authorId: data.authorId || "",
+          isHidden: Boolean(data.isHidden),
         };
-      });
+      }).filter((item) => !item.isHidden);
       renderAnnouncements();
     });
   }
@@ -2678,12 +2750,17 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     }
 
     announcementList.innerHTML = announcements.map(function (item) {
-      const actions = canManageAnnouncements(currentUser)
-        ? `<div class="item-actions">
-            <button type="button" class="small-btn edit-btn" onclick="startEditAnnouncement('${item.id}')">編輯</button>
-            <button type="button" class="small-btn delete-btn" onclick="deleteAnnouncement('${item.id}')">刪除</button>
-         </div>`
-        : "";
+      const actionButtons = [];
+      if (canEditAnnouncements(currentUser)) {
+        actionButtons.push(`<button type="button" class="small-btn edit-btn" onclick="startEditAnnouncement('${item.id}')">編輯</button>`);
+      }
+      if (canHideAnnouncements(currentUser)) {
+        actionButtons.push(`<button type="button" class="small-btn" onclick="hideAnnouncement('${item.id}')">隱藏</button>`);
+      }
+      if (canDeleteAnnouncements(currentUser)) {
+        actionButtons.push(`<button type="button" class="small-btn delete-btn" onclick="deleteAnnouncement('${item.id}')">刪除</button>`);
+      }
+      const actions = actionButtons.length > 0 ? `<div class="item-actions">${actionButtons.join("")}</div>` : "";
 
       return `<div class="list-item"><h4>${item.title}</h4><div class="item-meta">發布者：${item.author}｜時間：${item.createdAt}</div><p>${item.content}</p>${actions}</div>`;
     }).join("");
@@ -3773,7 +3850,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   window.startEditAnnouncement = function (id) {
-    if (!canManageAnnouncements(currentUser)) return;
+    if (!canEditAnnouncements(currentUser)) return;
     const item = announcements.find((announcement) => announcement.id === id);
     if (!item) return;
     editingAnnouncementId = id;
@@ -3783,8 +3860,23 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (announcementEditTitle) announcementEditTitle.focus();
   };
 
+  window.hideAnnouncement = async function (id) {
+    if (!canHideAnnouncements(currentUser) || !db) return;
+    try {
+      await updateDoc(doc(db, "announcements", id), {
+        isHidden: true,
+        hiddenAt: serverTimestamp(),
+        hiddenBy: currentUser?.employeeId || ""
+      });
+      if (editingAnnouncementId === id) hideAnnouncementEditor();
+    } catch (error) {
+      console.error("隱藏公告失敗", error);
+      alert("隱藏公告失敗，請稍後再試。");
+    }
+  };
+
   window.deleteAnnouncement = async function (id) {
-    if (!canManageAnnouncements(currentUser) || !db) return;
+    if (!canDeleteAnnouncements(currentUser) || !db) return;
     try {
       await deleteDoc(doc(db, "announcements", id));
       if (editingAnnouncementId === id) hideAnnouncementEditor();
@@ -3988,7 +4080,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   if (announcementForm) {
     announcementForm.addEventListener("submit", async function (event) {
       event.preventDefault();
-      if (!canManageAnnouncements(currentUser)) return alert("你沒有公告欄管理權限");
+      if (!canEditAnnouncements(currentUser)) return alert("你沒有公告欄編輯權限");
       const title = announcementTitle?.value.trim() || "";
       const content = announcementContent?.value.trim() || "";
       if (!title || !content) return alert("請填寫完整公告內容");
@@ -4016,7 +4108,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   if (announcementEditForm) {
     announcementEditForm.addEventListener("submit", async function (event) {
       event.preventDefault();
-      if (!canManageAnnouncements(currentUser)) return alert("你沒有公告欄管理權限");
+      if (!canEditAnnouncements(currentUser)) return alert("你沒有公告欄編輯權限");
       if (!editingAnnouncementId || !db) return;
       const title = announcementEditTitle?.value.trim() || "";
       const content = announcementEditContent?.value.trim() || "";
@@ -4065,12 +4157,11 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const hasEveningShift = isSuperAdmin || Boolean(employeeShiftEveningInput?.checked);
       const weekendsOff = isSuperAdmin ? false : Boolean(employeeWeekendsOffInput?.checked);
       const showOnLeaveBoard = isSuperAdmin ? true : Boolean(employeeShowOnLeaveBoardInput?.checked);
-      const selectedManageRegions = canLeaveApprove
-        ? getCheckedValues(manageRegions)
+      const selectedScopeEntries = canLeaveApprove
+        ? getScopeSelections(manageRegionDepartments)
         : [];
-      const selectedManageDepartments = canLeaveApprove
-        ? getCheckedValues(manageDepartments)
-        : [];
+      const selectedManageRegions = Array.from(new Set(selectedScopeEntries.map((item) => item.region))).filter(Boolean);
+      const selectedManageDepartments = Array.from(new Set(selectedScopeEntries.map((item) => item.department))).filter(Boolean);
       const employeeData = {
         employeeId,
         account,
@@ -4161,8 +4252,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         if (employeeShiftEveningInput) employeeShiftEveningInput.checked = false;
         if (employeeWeekendsOffInput) employeeWeekendsOffInput.checked = false;
         if (employeeShowOnLeaveBoardInput) employeeShowOnLeaveBoardInput.checked = true;
-        setCheckedValues(manageRegions, []);
-        setCheckedValues(manageDepartments, []);
+        setScopeSelections(manageRegionDepartments, [], []);
         setPhoto("");
         if (employeeSubmitBtn) {
           employeeSubmitBtn.textContent = "新增員工";
@@ -4246,8 +4336,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     const selectedDepartments = isSuperAdminEmployee(employee.employeeId)
       ? [...DEPARTMENTS]
       : (employee.manageScopes?.departments || []);
-    setCheckedValues(manageRegions, selectedRegions);
-    setCheckedValues(manageDepartments, selectedDepartments);
+    setScopeSelections(manageRegionDepartments, selectedRegions, selectedDepartments);
     setPhoto(employee.photoURL || "");   
 
     if (employeeSubmitBtn) {
@@ -4926,7 +5015,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     const normalizedPermissions = normalizeEmployeePermissions(employee.permissions || {});
     editingPermissionEmployeeId = employeeId;
     if (permissionEditorTarget) permissionEditorTarget.textContent = `${employee.name || "未命名員工"}（${employee.employeeId || "-"}）｜${employee.department || "-"}｜${employee.title || "-"}`;
-    if (permAnnouncementManageInput) permAnnouncementManageInput.checked = Boolean(normalizedPermissions.announcementManage);
+    if (permAnnouncementHideInput) permAnnouncementHideInput.checked = Boolean(normalizedPermissions.announcementHide);
+    if (permAnnouncementEditInput) permAnnouncementEditInput.checked = Boolean(normalizedPermissions.announcementEdit);
+    if (permAnnouncementDeleteInput) permAnnouncementDeleteInput.checked = Boolean(normalizedPermissions.announcementDelete);
     if (permShiftMorningInput) permShiftMorningInput.checked = Boolean(employee.shifts?.morning);
     if (permShiftEveningInput) permShiftEveningInput.checked = Boolean(employee.shifts?.evening);
     if (permWeekendsOffInput) permWeekendsOffInput.checked = Boolean(employee.weekendsOff);
@@ -4939,8 +5030,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (permCoordinateListVisibleInput) permCoordinateListVisibleInput.checked = Boolean(normalizedPermissions.coordinateListVisible);
     const currentRegions = Array.isArray(employee.manageScopes?.regions) ? employee.manageScopes.regions : [];
     const currentDepartments = Array.isArray(employee.manageScopes?.departments) ? employee.manageScopes.departments : [];
-    setCheckedValues(permManageRegions, currentRegions);
-    setCheckedValues(permManageDepartments, currentDepartments);
+    setScopeSelections(permManageRegionDepartments, currentRegions, currentDepartments);
     updatePermissionEditorLeaveScopeVisibility();
     permissionEditorBackdrop?.classList.remove("hidden");
   }
@@ -4971,8 +5061,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const leaveApproveEnabled = Boolean(permLeaveApproveInput?.checked);
       const nextManageScopes = leaveApproveEnabled
         ? {
-            regions: getCheckedValues(permManageRegions),
-            departments: getCheckedValues(permManageDepartments)
+            regions: Array.from(new Set(getScopeSelections(permManageRegionDepartments).map((item) => item.region))).filter(Boolean),
+            departments: Array.from(new Set(getScopeSelections(permManageRegionDepartments).map((item) => item.department))).filter(Boolean)
           }
         : { regions: [], departments: [] };
       if (leaveApproveEnabled && (nextManageScopes.regions.length === 0 || nextManageScopes.departments.length === 0)) {
@@ -4980,7 +5070,14 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       }
       const nextPermissions = normalizeEmployeePermissions({
         ...(employee.permissions || {}),
-        announcementManage: Boolean(permAnnouncementManageInput?.checked),
+        announcementHide: Boolean(permAnnouncementHideInput?.checked),
+        announcementEdit: Boolean(permAnnouncementEditInput?.checked),
+        announcementDelete: Boolean(permAnnouncementDeleteInput?.checked),
+        announcementManage: Boolean(
+          permAnnouncementHideInput?.checked ||
+          permAnnouncementEditInput?.checked ||
+          permAnnouncementDeleteInput?.checked
+        ),
         employeeProfileManage: Boolean(permEmployeeProfileManageInput?.checked),
         personInfoBasicDataManage: Boolean(permEmployeeProfileManageInput?.checked),
         permissionsListVisible: Boolean(permPermissionsListVisibleInput?.checked),
