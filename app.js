@@ -2647,31 +2647,46 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   function refreshScheduleEmployeeOptions(defaultEmployeeId = "") {
     if (!scheduleEmployeeSelect) return;
-    const region = scheduleRegionSelect?.value || "";
-    const department = scheduleDepartmentSelect?.value || "";
+    const selectedRegions = getSelectedValues(scheduleRegionSelect).filter((value) => value !== "__all__");
+    const selectedDepartments = getSelectedValues(scheduleDepartmentSelect).filter((value) => value !== "__all__");
     const candidates = employees.filter((employee) => {
       if (employee.isHidden || employee.status === "deleted") return false;
-      if (region && employee.region !== region) return false;
-      if (department && employee.department !== department) return false;
+      if (selectedRegions.length && !selectedRegions.includes(employee.region)) return false;
+      if (selectedDepartments.length && !selectedDepartments.includes(employee.department)) return false;
       return true;
     });
-    scheduleEmployeeSelect.innerHTML = `<option value="">全部員工</option>${candidates.map((employee) => {
-      const selected = defaultEmployeeId && defaultEmployeeId === employee.employeeId ? "selected" : "";
+    const selectedEmployeeIds = Array.isArray(defaultEmployeeId) ? defaultEmployeeId : (defaultEmployeeId ? [defaultEmployeeId] : []);
+    scheduleEmployeeSelect.innerHTML = `${candidates.map((employee) => {
+      const selected = selectedEmployeeIds.includes(employee.employeeId) ? "selected" : "";
       return `<option value="${employee.employeeId}" ${selected}>${employee.name || employee.employeeId}</option>`;
     }).join("")}`;
-    if (defaultEmployeeId && candidates.some((employee) => employee.employeeId === defaultEmployeeId)) {
-      scheduleEmployeeSelect.value = defaultEmployeeId;
-    } else {
-      scheduleEmployeeSelect.value = "";
-    }
+    setSelectedValues(
+      scheduleEmployeeSelect,
+      selectedEmployeeIds.filter((employeeId) => candidates.some((item) => item.employeeId === employeeId))
+    );
+  }
+
+  function getSelectedValues(selectElement) {
+    if (!selectElement) return [];
+    return Array.from(selectElement.selectedOptions || [])
+      .map((option) => option.value)
+      .filter((value) => value !== "");
+  }
+
+  function setSelectedValues(selectElement, values = []) {
+    if (!selectElement) return;
+    const valueSet = new Set(values);
+    Array.from(selectElement.options || []).forEach(function (option) {
+      option.selected = valueSet.has(option.value);
+    });
   }
 
   function populateScheduleModalOptions() {
     if (!scheduleRegionSelect || !scheduleDepartmentSelect || !currentUser) return;
-    scheduleRegionSelect.innerHTML = REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("");
-    scheduleDepartmentSelect.innerHTML = DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("");
-    scheduleRegionSelect.value = currentUser.region && REGIONS.includes(currentUser.region) ? currentUser.region : REGIONS[0];
-    scheduleDepartmentSelect.value = currentUser.department && DEPARTMENTS.includes(currentUser.department) ? currentUser.department : DEPARTMENTS[0];
+    scheduleRegionSelect.innerHTML = `<option value="__all__">全部地區</option>${REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("")}`;
+    scheduleDepartmentSelect.innerHTML = `<option value="__all__">全部部門</option>${DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("")}`;
+    setSelectedValues(scheduleRegionSelect, [currentUser.region && REGIONS.includes(currentUser.region) ? currentUser.region : REGIONS[0]]);
+    setSelectedValues(scheduleDepartmentSelect, [currentUser.department && DEPARTMENTS.includes(currentUser.department) ? currentUser.department : DEPARTMENTS[0]]);
     refreshScheduleEmployeeOptions("");
   }
 
@@ -2685,10 +2700,14 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (scheduleDateLabel) scheduleDateLabel.textContent = dateString;
     if (scheduleTitleInput) scheduleTitleInput.value = scheduleItem?.title || "";
     if (scheduleContentInput) scheduleContentInput.value = scheduleItem?.content || scheduleItem?.note || "";
-    if (scheduleShiftSelect) scheduleShiftSelect.value = normalizeScheduleShift(scheduleItem?.shift) || "全部班別";
+    if (scheduleShiftSelect) setSelectedValues(scheduleShiftSelect, [normalizeScheduleShift(scheduleItem?.shift) || "全部班別"]);
     if (scheduleItem) {
-      if (scheduleRegionSelect && scheduleItem.region && REGIONS.includes(scheduleItem.region)) scheduleRegionSelect.value = scheduleItem.region;
-      if (scheduleDepartmentSelect && scheduleItem.department && DEPARTMENTS.includes(scheduleItem.department)) scheduleDepartmentSelect.value = scheduleItem.department;
+      if (scheduleRegionSelect && scheduleItem.region && REGIONS.includes(scheduleItem.region)) {
+        setSelectedValues(scheduleRegionSelect, [scheduleItem.region]);
+      }
+      if (scheduleDepartmentSelect && scheduleItem.department && DEPARTMENTS.includes(scheduleItem.department)) {
+        setSelectedValues(scheduleDepartmentSelect, [scheduleItem.department]);
+      }
       refreshScheduleEmployeeOptions(scheduleItem.employeeId || "");
     }
     if (scheduleModalBackdrop) scheduleModalBackdrop.classList.remove("hidden");
@@ -3992,13 +4011,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   if (scheduleRegionSelect) {
     scheduleRegionSelect.addEventListener("change", function () {
-      refreshScheduleEmployeeOptions(scheduleEmployeeSelect?.value || "");
+      refreshScheduleEmployeeOptions(getSelectedValues(scheduleEmployeeSelect));
     });
   }
 
   if (scheduleDepartmentSelect) {
     scheduleDepartmentSelect.addEventListener("change", function () {
-      refreshScheduleEmployeeOptions(scheduleEmployeeSelect?.value || "");
+      refreshScheduleEmployeeOptions(getSelectedValues(scheduleEmployeeSelect));
     });
   }
 
@@ -4094,57 +4113,100 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     saveScheduleBtn.addEventListener("click", async function () {
       const title = scheduleTitleInput?.value.trim() || "";
       const content = scheduleContentInput?.value.trim() || "";
-      const region = scheduleRegionSelect?.value || "";
-      const department = scheduleDepartmentSelect?.value || "";
-      const employeeId = scheduleEmployeeSelect?.value || "";
-      const employeeRecord = employees.find((item) => item.employeeId === employeeId);
-      const shift = scheduleShiftSelect?.value || "";
+      const selectedRegions = getSelectedValues(scheduleRegionSelect).filter((value) => value !== "__all__");
+      const selectedDepartments = getSelectedValues(scheduleDepartmentSelect).filter((value) => value !== "__all__");
+      const selectedEmployeeIds = getSelectedValues(scheduleEmployeeSelect);
+      const selectedShifts = getSelectedValues(scheduleShiftSelect);
       if (!currentUser) return alert("請先登入");
       if (!selectedScheduleDate) return alert("請先選擇日期");
       if (!title) return alert("請輸入標題");
-      if (employeeId && !employeeRecord) return alert("請選擇有效員工");
-      const payload = {
+      if (!selectedRegions.length && !selectedEmployeeIds.length) return alert("請至少選擇 1 個地區或員工");
+      if (!selectedDepartments.length && !selectedEmployeeIds.length) return alert("請至少選擇 1 個部門或員工");
+      if (!selectedShifts.length) return alert("請至少選擇 1 個班別");
+
+      const selectedEmployees = selectedEmployeeIds
+        .map((employeeId) => employees.find((item) => item.employeeId === employeeId))
+        .filter(Boolean);
+      if (selectedEmployeeIds.length && selectedEmployees.length !== selectedEmployeeIds.length) {
+        return alert("請選擇有效員工");
+      }
+
+      const normalizedRegions = selectedRegions.length ? selectedRegions : [currentUser.region || ""];
+      const normalizedDepartments = selectedDepartments.length ? selectedDepartments : [currentUser.department || ""];
+      const baseRows = selectedEmployees.length
+        ? selectedEmployees.map((employeeRecord) => ({
+            region: employeeRecord.region || currentUser.region || "",
+            department: employeeRecord.department || currentUser.department || "",
+            employeeId: employeeRecord.employeeId || "",
+            employeeName: employeeRecord.name || employeeRecord.employeeId || "全部員工"
+          }))
+        : normalizedRegions.flatMap((region) => normalizedDepartments.map((department) => ({
+            region,
+            department,
+            employeeId: "",
+            employeeName: "全部員工"
+          })));
+
+      const payloads = baseRows.flatMap((row) => selectedShifts.map((shift) => ({
         date: selectedScheduleDate,
         title,
         content,
         note: content,
-        region,
-        department,
-        employeeId: employeeRecord?.employeeId || "",
-        employeeName: employeeRecord?.name || employeeRecord?.employeeId || "全部員工",
+        region: row.region,
+        department: row.department,
+        employeeId: row.employeeId,
+        employeeName: row.employeeName,
         shift,
         createdBy: currentUser.employeeId || "",
         createdByName: currentUser.name || "",
         updatedAt: serverTimestamp()
-      };
+      })));
+
+      const dedupMap = new Map();
+      payloads.forEach((item) => {
+        const key = [item.date, item.region, item.department, item.employeeId, item.shift, item.title, item.content].join("__");
+        if (!dedupMap.has(key)) dedupMap.set(key, item);
+      });
+      const finalPayloads = Array.from(dedupMap.values());
+      if (editingScheduleId && finalPayloads.length > 1) {
+        return alert("編輯模式一次僅能儲存 1 筆排程，請改用新增模式批次通知。");
+      }
       try {
         if (!db) {
-          if (editingScheduleId) {
+          if (editingScheduleId && finalPayloads.length === 1) {
             schedules = schedules.map((item) => (item.id === editingScheduleId
-              ? { ...item, ...payload, updatedAt: new Date(), updatedBy: currentUser.employeeId || "", updatedByName: currentUser.name || "" }
+              ? { ...item, ...finalPayloads[0], updatedAt: new Date(), updatedBy: currentUser.employeeId || "", updatedByName: currentUser.name || "" }
               : item));
           } else {
-            schedules = [{ id: `local-${Date.now()}`, ...payload }, ...schedules];
+            const localRows = finalPayloads.map((payload, index) => ({ id: `local-${Date.now()}-${index}`, ...payload }));
+            schedules = [...localRows, ...schedules.filter((item) => item.id !== editingScheduleId)];
           }
           renderSchedules();
           renderRosterCalendar();
           closeScheduleModal();
           return;
         }
-        if (editingScheduleId) {
+        if (editingScheduleId && finalPayloads.length === 1) {
           await updateSchedule(editingScheduleId, {
-            ...payload,
+            ...finalPayloads[0],
             updatedAt: serverTimestamp(),
             updatedBy: currentUser.employeeId || "",
             updatedByName: currentUser.name || ""
           });
+          schedules = schedules.map((item) => (item.id === editingScheduleId
+            ? { ...item, ...finalPayloads[0], updatedAt: new Date(), updatedBy: currentUser.employeeId || "", updatedByName: currentUser.name || "" }
+            : item));
         } else {
-          await saveSchedule({
+          await Promise.all(finalPayloads.map((payload) => saveSchedule({
             ...payload,
             createdAt: serverTimestamp(),
             createdAtClient: new Date()
-          });
+          })));
+          const localRows = finalPayloads.map((payload, index) => ({ id: `pending-${Date.now()}-${index}`, ...payload, createdAtClient: new Date() }));
+          schedules = [...localRows, ...schedules.filter((item) => item.id !== editingScheduleId)];
         }
+        renderSchedules();
+        renderRosterCalendar();
         closeScheduleModal();
       } catch (error) {
         console.error("儲存排程失敗", error);
