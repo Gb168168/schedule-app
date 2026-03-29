@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-3</title>
+  <title>班表系統-4</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -213,33 +213,6 @@
                   <label class="field-label"><span>年度特休天數期限</span><input id="employee-form-annual-leave-expiry" type="date" /></label>
                   <label class="field-label"><span>旅遊假</span><input id="employee-form-travel-leave-days" type="number" min="0" /></label>
                   <label class="field-label"><span>旅遊假期限</span><input id="employee-form-travel-leave-expiry" type="date" /></label>
-                </div>
-              </div>
-
-              <div id="employee-shift-section" class="form-section">
-                <h4>班別與權限</h4>
-                <div class="checkbox-grid">
-                  <label><input id="shift-morning" type="checkbox" /> 早班</label>
-                  <label><input id="shift-evening" type="checkbox" /> 晚班</label>
-                  <label><input id="weekends-off" type="checkbox" /> 週休二日 &amp; 國定假日</label>
-                  <label><input id="show-on-leave-board" type="checkbox" checked /> 休假表顯示</label>
-                  <label><input id="permission-admin" type="checkbox" /> 設為管理員</label>
-                </div>
-                <div id="admin-scope-panel" class="admin-scope-panel hidden">
-                  <h5>權限管理範圍</h5>
-                  <div class="checkbox-grid admin-permissions-grid">
-                    <label><input id="permission-leave-approve" type="checkbox" /> 可審核請假</label>
-                    <label><input id="permission-announcement-manage" type="checkbox" /> 可新增 / 編輯 / 隱藏 / 刪除公告</label>
-                  </div>
-                  <details class="scope-collapse">
-                    <summary>地區</summary>
-                    <label><input id="show-on-leave-board" type="checkbox" checked /> 休假表顯示</label>
-                    <div id="manage-regions" class="checkbox-grid checkbox-grid-compact"></div>
-                  </details>
-                  <details class="scope-collapse">
-                    <summary>部門</summary>
-                    <div id="manage-departments" class="checkbox-grid checkbox-grid-compact"></div>
-                  </details>
                 </div>
               </div>
 
