@@ -450,6 +450,14 @@ function canManageShiftSettings(user) {
   );
 }
 
+function canViewMonthlySummary(user) {
+  return Boolean(
+    isGoldBricksUser(user) ||
+    user?.permissions?.admin ||
+    user?.permissions?.monthlySummaryListVisible
+  );
+}
+
 function normalizeEmployeePermissions(permissions = {}) {
   return {
     ...permissions,
@@ -469,6 +477,7 @@ function normalizeEmployeePermissions(permissions = {}) {
     announcementDelete: Boolean(permissions.announcementDelete || permissions.announcementManage),
     permissionsListVisible: Boolean(permissions.permissionsListVisible),
     shiftSettingsListVisible: Boolean(permissions.shiftSettingsListVisible || permissions.shiftSettingsManage),
+    monthlySummaryListVisible: Boolean(permissions.monthlySummaryListVisible),
     attendanceListVisible: Boolean(permissions.attendanceListVisible || permissions.attendanceCoordinateManage),
     coordinateListVisible: Boolean(permissions.coordinateListVisible || permissions.attendanceCoordinateManage),
     personInfoBasicDataManage: Boolean(permissions.personInfoBasicDataManage || permissions.employeeProfileManage)
@@ -711,6 +720,7 @@ function formatEmployeePermissions(employee) {
   if (employee.permissions?.attendanceListVisible) tags.push("打卡紀錄");
   if (employee.permissions?.coordinateListVisible) tags.push("打卡座標");
   if (employee.permissions?.shiftSettingsListVisible) tags.push("班別設定")
+  if (employee.permissions?.monthlySummaryListVisible) tags.push("本月統計");
   if (employee.permissions?.permissionsListVisible) tags.push("權限功能");
   if (employee.permissions?.leaveApprove) tags.push("可審核請假");
   if (employee.permissions?.announcementManage) tags.push("公告管理");
@@ -739,6 +749,7 @@ function getEmployeeRoleProfile(employeeId = "") {
       coordinateListVisible: isSuperAdmin,
       shiftSettingsManage: isSuperAdmin,
       shiftSettingsListVisible: isSuperAdmin,
+      monthlySummaryListVisible: isSuperAdmin,
       permissionsListVisible: isSuperAdmin,
       leaveApprove: isSuperAdmin,
       announcementManage: isSuperAdmin,
@@ -1084,6 +1095,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const permEmployeeProfileManageInput = document.getElementById("perm-employee-profile-manage");
   const permPermissionsListVisibleInput = document.getElementById("perm-permissions-list-visible");
   const permShiftSettingsListVisibleInput = document.getElementById("perm-shift-settings-list-visible");
+  const permMonthlySummaryListVisibleInput = document.getElementById("perm-monthly-summary-list-visible");
   const permLeaveApproveInput = document.getElementById("perm-leave-approve");
   const permAttendanceListVisibleInput = document.getElementById("perm-attendance-list-visible");
   const permCoordinateListVisibleInput = document.getElementById("perm-coordinate-list-visible");
@@ -1098,6 +1110,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const coordinateMenuBtn = document.getElementById("menu-coordinate-btn");
   const permissionsMenuBtn = document.getElementById("menu-permissions-btn");
   const shiftSettingsMenuBtn = document.getElementById("menu-shift-settings-btn");
+  const monthlySummaryMenuBtn = document.getElementById("menu-monthly-summary-btn");
   const attendanceMenuBtn = document.getElementById("menu-attendance-btn");
   const coordinateAdminDisabled = document.getElementById("coordinate-admin-disabled");
   const coordinateEditorCard = document.getElementById("coordinate-editor-card");
@@ -1242,8 +1255,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const allowShiftAttendance = canViewShiftAndAttendance(user);
     const allowShiftSettings = canManageShiftSettings(user);
+    const allowMonthlySummary = canViewMonthlySummary(user);
     if (shiftSettingsMenuBtn) {
       shiftSettingsMenuBtn.classList.toggle("hidden", !allowShiftSettings);
+    }
+    if (monthlySummaryMenuBtn) {
+      monthlySummaryMenuBtn.classList.toggle("hidden", !allowMonthlySummary);
     }
     if (attendanceMenuBtn) {
       attendanceMenuBtn.classList.toggle("hidden", !allowShiftAttendance);
@@ -5173,6 +5190,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (permEmployeeProfileManageInput) permEmployeeProfileManageInput.checked = Boolean(normalizedPermissions.employeeProfileManage);
     if (permPermissionsListVisibleInput) permPermissionsListVisibleInput.checked = Boolean(normalizedPermissions.permissionsListVisible);
     if (permShiftSettingsListVisibleInput) permShiftSettingsListVisibleInput.checked = Boolean(normalizedPermissions.shiftSettingsListVisible);
+    if (permMonthlySummaryListVisibleInput) permMonthlySummaryListVisibleInput.checked = Boolean(normalizedPermissions.monthlySummaryListVisible);
     if (permLeaveApproveInput) permLeaveApproveInput.checked = Boolean(normalizedPermissions.leaveApprove);
     if (permAttendanceListVisibleInput) permAttendanceListVisibleInput.checked = Boolean(normalizedPermissions.attendanceListVisible);
     if (permCoordinateListVisibleInput) permCoordinateListVisibleInput.checked = Boolean(normalizedPermissions.coordinateListVisible);
@@ -5230,6 +5248,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         personInfoBasicDataManage: Boolean(permEmployeeProfileManageInput?.checked),
         permissionsListVisible: Boolean(permPermissionsListVisibleInput?.checked),
         shiftSettingsListVisible: Boolean(permShiftSettingsListVisibleInput?.checked),
+        monthlySummaryListVisible: Boolean(permMonthlySummaryListVisibleInput?.checked),
         leaveApprove: leaveApproveEnabled,
         attendanceListVisible: Boolean(permAttendanceListVisibleInput?.checked),
         coordinateListVisible: Boolean(permCoordinateListVisibleInput?.checked),
