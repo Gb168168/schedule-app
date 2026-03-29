@@ -647,6 +647,14 @@ function formatEmployeePermissions(employee) {
   return tags.length > 0 ? tags.join("、") : "一般員工";
 }
 
+const EMPLOYEE_PERMISSION_FIELDS = [
+  { key: "employeeProfileManage", label: "建置員工資料" },
+  { key: "attendanceCoordinateManage", label: "打卡/座標" },
+  { key: "shiftSettingsManage", label: "班別設定" },
+  { key: "leaveApprove", label: "審核假別" },
+  { key: "announcementManage", label: "公告欄" }
+];
+
 function isSuperAdminEmployee(employeeId) {
   return employeeId === "GoldBricks";
 }
@@ -2356,6 +2364,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                           ].filter(Boolean);
 
                           const canManageEmployeeData = canManageEmployees(currentUser);
+                          const permissionSwitches = EMPLOYEE_PERMISSION_FIELDS
+                            .map(function (permission) {
+                              const checked = employee.permissions?.[permission.key] ? "checked" : "";
+                              const disabled = !canManageEmployeeData || isSuperAdminEmployee(employee.employeeId) ? "disabled" : "";
+                              return `<label class="permission-chip"><input type="checkbox" data-action="toggle-employee-permission" data-id="${employee.id}" data-key="${permission.key}" ${checked} ${disabled} /><span>${permission.label}</span></label>`;
+                            })
+                            .join("");
                           return `
                             <div class="list-item">
                               <div class="employee-card-main">
@@ -2380,6 +2395,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
                                   <p>班別：${shiftLabels.length ? shiftLabels.join(" / ") : "未設定"}｜週休二日與國定假日：${employee.weekendsOff ? "啟用" : "關閉"}</p>
                                   <p>休假表顯示：${showOnLeaveBoard ? "顯示" : "隱藏"}</p>
                                   <p>功能權限：${formatEmployeePermissions(employee)}</p>
+                                  <div class="employee-permission-switches">${permissionSwitches}</div>
                                   ${canManageEmployeeData ? `<div class="item-actions"><button type="button" class="small-btn edit-btn" onclick="editEmployee('${employee.id}')">編輯</button><button type="button" class="small-btn delete-btn" onclick="deleteEmployee('${employee.id}')">刪除</button></div>` : ""}
                               </div>
                               </div>
@@ -4662,6 +4678,61 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       }
     }
   });
+  
+  if (employeeList) {
+    employeeList.addEventListener("change", async function (event) {
+      const toggle = event.target.closest('input[data-action="toggle-employee-permission"]');
+      if (!toggle) return;
+      if (!canManageEmployees(currentUser)) {
+        toggle.checked = !toggle.checked;
+        alert("你沒有權限設定員工功能權限");
+        return;
+      }
+
+      const id = toggle.dataset.id || "";
+      const permissionKey = toggle.dataset.key || "";
+      const checked = Boolean(toggle.checked);
+      const targetEmployee = employees.find((item) => item.id === id);
+      if (!targetEmployee) return;
+      if (isSuperAdminEmployee(targetEmployee.employeeId)) {
+        toggle.checked = true;
+        alert("最高權限帳號不需調整功能權限");
+        return;
+      }
+      if (!db) {
+        toggle.checked = !checked;
+        alert("Firebase 未設定，無法儲存權限變更。");
+        return;
+      }
+
+      const nextPermissions = {
+        ...(targetEmployee.permissions || {}),
+        [permissionKey]: checked
+      };
+      if (permissionKey === "attendanceCoordinateManage") {
+        nextPermissions.coordinateAdmin = checked;
+      }
+
+      employees = employees.map(function (item) {
+        if (item.id !== id) return item;
+        return {
+          ...item,
+          permissions: nextPermissions
+        };
+      });
+      renderEmployees();
+
+      try {
+        await updateDoc(doc(db, "employees", id), {
+          permissions: nextPermissions,
+          updatedAt: serverTimestamp()
+        });
+      } catch (error) {
+        console.error("更新員工權限失敗", error);
+        alert("儲存權限失敗，請稍後再試");
+      }
+    });
+  }
   if (prevMonthBtn) prevMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() - 1); renderLeaveBoard(); });
   if (nextMonthBtn) nextMonthBtn.addEventListener("click", function () { calendarDate.setMonth(calendarDate.getMonth() + 1); renderLeaveBoard(); });
     
