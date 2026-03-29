@@ -878,10 +878,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const attendanceStatusBadge = document.getElementById("attendance-status-badge");
   const attendanceSettingsSummary = document.getElementById("attendance-settings-summary");
   const attendanceResult = document.getElementById("attendance-result");
-  const attendanceReminderPanel = document.getElementById("attendance-reminder-panel");
-  const attendanceLocation = document.getElementById("attendance-location");
-  const attendanceOffice = document.getElementById("attendance-office");
-  const attendanceNetworkType = document.getElementById("attendance-network-type");
   const clockInBtn = document.getElementById("clock-in-btn");
   const clockOutBtn = document.getElementById("clock-out-btn");
   const attendanceFilterName = document.getElementById("attendance-filter-name");
@@ -1203,24 +1199,6 @@ document.addEventListener("DOMContentLoaded", function () {
     };
   }
 
-  function buildReminderMessages(shift, now = new Date()) {
-    if (!shift) return [];
-    const shiftStart = getShiftDateTime(now, shift.startTime);
-    const reminder = getShiftDateTime(now, shift.reminderTime);
-    if (!shiftStart || !reminder) return [];
-    const deadline = new Date(shiftStart.getTime() + Number(shift.graceMinutes || 0) * 60000);
-    const tenMinuteReminder = new Date(shiftStart.getTime() - 10 * 60000);
-    const fiveMinuteReminder = new Date(shiftStart.getTime() - 5 * 60000);
-    const lastFiveMinuteReminder = new Date(deadline.getTime() - 5 * 60000);
-    return [
-      { label: "上班前提醒", time: formatAttendanceDateTime(reminder), message: `距離上班剩 ${Math.max(Math.round((shiftStart - reminder) / 60000), 0)} 分鐘` },
-      { label: "上班前 5 分鐘", time: formatAttendanceDateTime(fiveMinuteReminder), message: "距離上班剩 5 分鐘" },
-      { label: "到班提醒", time: formatAttendanceDateTime(shiftStart), message: "已到上班時間" },
-      { label: "最後打卡提醒", time: formatAttendanceDateTime(lastFiveMinuteReminder), message: "距離最後正常打卡剩 5 分鐘" },
-      { label: "逾時提醒", time: formatAttendanceDateTime(deadline), message: "已超過最後正常打卡時間" }
-    ].filter((item, index) => index !== 0 || tenMinuteReminder <= shiftStart);
-  }
-
   function populateShiftSelectOptions() {
     if (shiftCodeSelect) {
       shiftCodeSelect.innerHTML = shiftSettings.map((shift) => `<option value="${shift.code}">${shift.name}（${shift.code}）</option>`).join("");
@@ -1400,27 +1378,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  function renderAttendanceReminderPanel() {
-    if (!attendanceReminderPanel) return;
-    const shift = getEffectiveShiftSetting(currentUser, getSelectedShiftCode()) || getActiveShiftSettings()[0];
-    if (!shift) {
-      attendanceReminderPanel.innerHTML = '<p>尚未設定班別提醒。</p>';
-      return;
-    }
-    const items = buildReminderMessages(shift);
-    attendanceReminderPanel.innerHTML = `
-      <h4>${shift.name} 站內提醒</h4>
-      <div class="reminder-list">
-        ${items.map((item) => `<div class="reminder-item"><strong>${item.label}</strong><p>${item.message}</p><div class="item-meta">預計時間：${item.time}</div></div>`).join("")}
-      </div>
-    `;
-  }
-
   function refreshShiftSettingViews() {
     populateShiftSelectOptions();
     syncShiftForm();
     renderShiftSettingsList();
-    renderAttendanceReminderPanel();
   }
   
   function renderAttendanceSettingsSummary() {
@@ -1486,7 +1447,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function refreshAttendanceSettings() {
     renderAttendanceSettingsSummary();
-    renderAttendanceReminderPanel();
     renderAttendanceAttempt();
   }
 
@@ -1511,17 +1471,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function renderAttendanceAttempt() {
     if (!lastAttendanceAttempt) return;
-    if (attendanceLocation) {
-      attendanceLocation.textContent = lastAttendanceAttempt.lat && lastAttendanceAttempt.lng
-        ? `${lastAttendanceAttempt.lat.toFixed(6)}, ${lastAttendanceAttempt.lng.toFixed(6)}`
-        : "-";
-    }
-    if (attendanceOffice) {
-      attendanceOffice.textContent = lastAttendanceAttempt.officeName
-        ? `${lastAttendanceAttempt.officeName}${lastAttendanceAttempt.distanceMeters !== undefined ? `（距離 ${lastAttendanceAttempt.distanceMeters}m）` : ""}`
-        : "未匹配";
-    }
-    if (attendanceNetworkType) attendanceNetworkType.textContent = lastAttendanceAttempt.networkType || "unknown";
     if (attendanceResult) attendanceResult.innerHTML = `<p>${lastAttendanceAttempt.message}</p>`;
     setAttendanceBadge(lastAttendanceAttempt.badgeKind, lastAttendanceAttempt.badgeText);
   }
