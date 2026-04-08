@@ -6,6 +6,11 @@
   <title>班表系統-4</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
+  <meta name="theme-color" content="#1d4ed8" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
 </head>
 <body>
   <div id="login-page" class="login-page">
@@ -730,6 +735,7 @@
     window.__ATTENDANCE_API_URL__ = window.__ATTENDANCE_API_URL__ || "https://us-central1-schedule-app-5845b.cloudfunctions.net/submitAttendance";
   </script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="pwa.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
