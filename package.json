@@ -1,0 +1,21 @@
+{
+  "name": "schedule-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Schedule app with PWA and Capacitor wrappers.",
+  "scripts": {
+    "serve": "npx serve .",
+    "cap:init": "npx cap sync",
+    "cap:android": "npx cap open android",
+    "cap:ios": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/ios": "^7.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0",
+    "serve": "^14.2.4"
+  }
+}
