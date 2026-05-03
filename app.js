@@ -1043,6 +1043,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   const currentUserName = document.getElementById("current-user-name");
+  const currentUserTime = document.getElementById("current-user-time");
   const shiftInfo = document.getElementById("today-shift-info");
 
   const attendanceStatusBadge = document.getElementById("attendance-status-badge");
@@ -2341,6 +2342,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   
   function updateUserInfo(user) {
     if (currentUserName) currentUserName.textContent = user.name;
+    updateCurrentUserTime(user);
     if (shiftInfo && user) {
       const shift = getUserShiftType(user);
       shiftInfo.textContent = `今日班別：${shift}`;
@@ -4155,6 +4157,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (loginForm) loginForm.reset();
       if (loginError) loginError.textContent = "";
       updateMenuPermissions(null);
+      updateCurrentUserTime(null);
     });
   }
 
@@ -5399,3 +5402,18 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   startAttendanceRecordsListener();
   renderAttendanceRecords();
 });
+  function updateCurrentUserTime(user) {
+    if (!currentUserTime) return;
+    if (!user) {
+      currentUserTime.textContent = "";
+      currentUserTime.classList.add("hidden");
+      return;
+    }
+    currentUserTime.textContent = `登入者時間 ${new Date().toLocaleString("zh-TW", { hour12: false })}`;
+    currentUserTime.classList.remove("hidden");
+  }
+
+  setInterval(function () {
+    if (!currentUser) return;
+    updateCurrentUserTime(currentUser);
+  }, 1000);
