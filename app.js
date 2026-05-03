@@ -98,7 +98,6 @@ const users = [
       attendance: true,
       leave: true
     }
-  }
   },
   {
     employeeId: "GB080202",
