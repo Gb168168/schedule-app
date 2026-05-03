@@ -538,13 +538,13 @@ function normalizePasswordValue(value) {
 
 function getUserPasswordCandidates(user) {
   const explicitPassword = normalizePasswordValue(user?.password);
-  if (explicitPassword) return [explicitPassword];
 
   const fallbackCandidates = [user?.employeeId, user?.account, user?.id]
     .map(normalizePasswordValue)
     .filter(Boolean);
 
-  return Array.from(new Set(fallbackCandidates));
+  const candidates = [explicitPassword, ...fallbackCandidates].filter(Boolean);
+  return Array.from(new Set(candidates));
 }
 
 function isPasswordMatched(user, normalizedPassword) {
