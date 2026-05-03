@@ -80,7 +80,7 @@ const users = [
     shifts: { morning: true, evening: true },
     weekendsOff: false,
     permissions: {
-     employeeProfileManage: true,
+      employeeProfileManage: true,
       attendanceCoordinateManage: true,
       shiftSettingsManage: true,
       announcementManage: true,
@@ -99,6 +99,34 @@ const users = [
       leave: true
     }
   }
+  },
+  {
+    employeeId: "GB080202",
+    account: "GB080202",
+    password: "GB080202",
+    name: "GB080202",
+    role: "員工",
+    title: "員工",
+    region: "台中區",
+    department: "FAE",
+    category: "一般員工",
+    annualLeaveDays: 0,
+    annualLeaveExpiry: "",
+    travelLeaveDays: 0,
+    travelLeaveExpiry: "",
+    shifts: { morning: true, evening: false },
+    weekendsOff: false,
+    permissions: {},
+    manageScopes: {
+      regions: ["台中區"],
+      departments: ["FAE"]
+    },
+    fcmToken: "",
+    notificationSettings: {
+      announcement: true,
+      attendance: true,
+      leave: true
+    }
 ];
 
 const DEFAULT_SHIFT_SETTINGS = [
