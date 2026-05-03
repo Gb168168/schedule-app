@@ -349,6 +349,11 @@ textarea {
   flex-wrap: wrap;
 }
 
+.current-user-time {
+  color: var(--text-soft);
+  font-size: 14px;
+}
+
 .icon-only-btn {
   min-width: 40px;
   padding-left: 10px;
