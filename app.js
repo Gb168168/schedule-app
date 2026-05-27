@@ -3712,9 +3712,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       </div>
       <div class="leave-employee-filter-fields">
         <label class="field-label"><span>地區</span><select id="leave-region-filter-popover"><option value="">全部地區</option>${REGIONS.map((region) => `<option value="${region}" ${pendingSelectedRegion === region ? "selected" : ""}>${region}</option>`).join("")}</select></label>
-        <label class="field-label"><span>部門（下拉）</span><select id="leave-department-filter-popover">
-          <option value="__all__" ${pendingSelectedDepartments.length === 0 ? "selected" : ""}>全部門（都選）</option>
-          ${DEPARTMENTS.map((department) => `<option value="${department}" ${pendingSelectedDepartments.length === 1 && pendingSelectedDepartments[0] === department ? "selected" : ""}>${department}</option>`).join("")}
+        <label class="field-label"><span>部門（下選，可複選）</span><select id="leave-department-filter-popover" multiple size="6">
+          <option value="__all__" ${pendingSelectedDepartments.length === 0 ? "selected" : ""}>都選（全部門）</option>
+          ${DEPARTMENTS.map((department) => `<option value="${department}" ${pendingSelectedDepartments.includes(department) ? "selected" : ""}>${department}</option>`).join("")}
         </select></label>
         <label class="field-label"><span>班別</span><select id="leave-shift-filter-popover">${shiftOptions.map((option) => `<option value="${option.value}" ${pendingSelectedShiftType === option.value ? "selected" : ""}>${option.label}</option>`).join("")}</select></label>
       </div>
@@ -5161,8 +5161,12 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       }
       const departmentSelect = event.target.closest("#leave-department-filter-popover");
       if (departmentSelect instanceof HTMLSelectElement) {
-        const selectedValue = departmentSelect.value || "__all__";
-        pendingSelectedDepartments = selectedValue === "__all__" ? [] : [selectedValue];
+        const selectedValues = Array.from(departmentSelect.selectedOptions).map((option) => option.value);
+        if (selectedValues.includes("__all__") || selectedValues.length === 0) {
+          pendingSelectedDepartments = [];
+        } else {
+          pendingSelectedDepartments = selectedValues.filter((value) => value !== "__all__");
+        }
         renderLeaveBoard();
         return;
       }
