@@ -2142,10 +2142,12 @@ textarea {
 }
 
 .leave-employee-filter-popover {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: calc(100% + 10px);
-  width: min(460px, 68vw);
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
   z-index: 5;
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -2154,6 +2156,7 @@ textarea {
   padding: 14px;
   display: grid;
   gap: 10px;
+  overflow: auto;
 }
 
 .leave-employee-filter-popover .section-header-row {
