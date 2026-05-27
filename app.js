@@ -126,6 +126,7 @@ const users = [
       attendance: true,
       leave: true
     }
+  }
 ];
 
 const DEFAULT_SHIFT_SETTINGS = [
