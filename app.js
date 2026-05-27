@@ -5100,7 +5100,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         selectedRegion = pendingSelectedRegion;
         selectedDepartments = [...pendingSelectedDepartments];
         selectedShiftType = pendingSelectedShiftType;
-        isLeaveEmployeeFilterOpen = true;
+        isLeaveEmployeeFilterOpen = false;
         renderLeaveBoard();
         return;
       }
