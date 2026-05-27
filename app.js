@@ -3563,12 +3563,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   function getVisibleLeaveEmployees() {
     return employees.filter((employee) => {
       if (!currentUser) return false;
+      const normalizedEmployeeId = String(employee.employeeId || "");
       if (employee.isHidden || employee.status === "deleted") return false;
       if (employee.showOnLeaveBoard === false) return false;
       if (selectedRegion && employee.region !== selectedRegion) return false;
       if (selectedDepartments.length && !selectedDepartments.includes(employee.department)) return false;
       if (selectedShiftType && getUserShiftType(employee) !== selectedShiftType) return false;
-      if (selectedEmployeeIds.length > 0 && !selectedEmployeeIds.includes(employee.employeeId)) return false;
+      if (selectedEmployeeIds.length > 0 && !selectedEmployeeIds.some((id) => String(id || "") === normalizedEmployeeId)) return false;
       return true;
     });
   }
@@ -3695,8 +3696,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     const candidates = getPendingFilterCandidates();
     const shiftOptions = [{ value: "", label: "全部班別" }, { value: "早班", label: "早班" }, { value: "晚班", label: "晚班" }];
     const options = candidates.map((employee) => {
-      const checked = pendingSelectedEmployeeIds.includes(employee.employeeId) ? "checked" : "";
-      return `<label class="leave-employee-option"><input type="checkbox" value="${employee.employeeId}" ${checked} /><span>${employee.name || employee.employeeId}</span></label>`;
+      const normalizedEmployeeId = String(employee.employeeId || "");
+      const checked = pendingSelectedEmployeeIds.some((id) => String(id || "") === normalizedEmployeeId) ? "checked" : "";
+      return `<label class="leave-employee-option"><input type="checkbox" value="${normalizedEmployeeId}" ${checked} /><span>${employee.name || employee.employeeId}</span></label>`;
     }).join("");
      return `<div class="leave-employee-filter-popover">
       <div class="section-header-row">
