@@ -219,10 +219,10 @@ let selectedEmployeeIds = [];
 let pendingSelectedEmployeeIds = [];
 let isLeaveEmployeeFilterOpen = false;
 let selectedRegion = "";
-let selectedDepartment = "";
+let selectedDepartments = [];
 let selectedShiftType = "";
 let pendingSelectedRegion = "";
-let pendingSelectedDepartment = "";
+let pendingSelectedDepartments = [];
 let pendingSelectedShiftType = "";
 let leaveMonthSettings = [];
 let leaveAssignments = [];
@@ -2943,9 +2943,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   function applyDefaultLeaveFiltersByUser(user) {
     if (!user) return;
     selectedRegion = user.region && REGIONS.includes(user.region) ? user.region : "";
-    selectedDepartment = user.department && DEPARTMENTS.includes(user.department) ? user.department : "";
+    selectedDepartments = user.department && DEPARTMENTS.includes(user.department) ? [user.department] : [];
     pendingSelectedRegion = selectedRegion;
-    pendingSelectedDepartment = selectedDepartment;
+    pendingSelectedDepartments = [...selectedDepartments];
     selectedEmployeeIds = [];
     pendingSelectedEmployeeIds = [];
   }
@@ -3568,7 +3568,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (employee.region !== currentUser.region) return false;
       if (employee.department !== currentUser.department) return false;
       if (selectedRegion && employee.region !== selectedRegion) return false;
-      if (selectedDepartment && employee.department !== selectedDepartment) return false;
+      if (selectedDepartments.length && !selectedDepartments.includes(employee.department)) return false;
       if (selectedShiftType && getUserShiftType(employee) !== selectedShiftType) return false;
       if (selectedEmployeeIds.length > 0 && !selectedEmployeeIds.includes(employee.employeeId)) return false;
       return true;
@@ -3665,7 +3665,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (!pendingSelectedEmployeeIds.length && !selectedEmployeeIds.length) pendingSelectedEmployeeIds = [];
        if (!isLeaveEmployeeFilterOpen) {
       pendingSelectedRegion = selectedRegion;
-      pendingSelectedDepartment = selectedDepartment;
+      pendingSelectedDepartments = [...selectedDepartments];
       pendingSelectedShiftType = selectedShiftType;
     }
   }
@@ -3675,7 +3675,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (employee.isHidden || employee.status === "deleted") return false;
       if (employee.showOnLeaveBoard === false) return false;
       if (pendingSelectedRegion && employee.region !== pendingSelectedRegion) return false;
-      if (pendingSelectedDepartment && employee.department !== pendingSelectedDepartment) return false;
+      if (pendingSelectedDepartments.length && !pendingSelectedDepartments.includes(employee.department)) return false;
       if (pendingSelectedShiftType && getUserShiftType(employee) !== pendingSelectedShiftType) return false;
       return true;
     });
@@ -3714,7 +3714,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       </div>
       <div class="leave-employee-filter-fields">
         <label class="field-label"><span>地區</span><select id="leave-region-filter-popover"><option value="">全部地區</option>${REGIONS.map((region) => `<option value="${region}" ${pendingSelectedRegion === region ? "selected" : ""}>${region}</option>`).join("")}</select></label>
-        <label class="field-label"><span>部門</span><select id="leave-department-filter-popover"><option value="">全部部門</option>${DEPARTMENTS.map((department) => `<option value="${department}" ${pendingSelectedDepartment === department ? "selected" : ""}>${department}</option>`).join("")}</select></label>
+        <div class="field-label"><span>部門（可複選）</span><div id="leave-department-filter-popover" class="leave-department-filter-list">${DEPARTMENTS.map((department) => `<label class="leave-employee-option"><input type="checkbox" class="leave-department-filter-checkbox" value="${department}" ${pendingSelectedDepartments.includes(department) ? "checked" : ""} /><span>${department}</span></label>`).join("")}</div></div>
         <label class="field-label"><span>班別</span><select id="leave-shift-filter-popover">${shiftOptions.map((option) => `<option value="${option.value}" ${pendingSelectedShiftType === option.value ? "selected" : ""}>${option.label}</option>`).join("")}</select></label>
       </div>
       <div id="leave-employee-filter-list" class="leave-employee-filter-list">${options || '<p class="helper-text">目前沒有符合條件的人員。</p>'}</div>
@@ -5086,7 +5086,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         if (!isLeaveEmployeeFilterOpen) {
           pendingSelectedEmployeeIds = [...selectedEmployeeIds];
           pendingSelectedRegion = selectedRegion;
-          pendingSelectedDepartment = selectedDepartment;
+          pendingSelectedDepartments = [...selectedDepartments];
           pendingSelectedShiftType = selectedShiftType;
         }
         isLeaveEmployeeFilterOpen = !isLeaveEmployeeFilterOpen;
@@ -5098,7 +5098,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (applyButton) {
         selectedEmployeeIds = [...pendingSelectedEmployeeIds];
         selectedRegion = pendingSelectedRegion;
-        selectedDepartment = pendingSelectedDepartment;
+        selectedDepartments = [...pendingSelectedDepartments];
         selectedShiftType = pendingSelectedShiftType;
         isLeaveEmployeeFilterOpen = false;
         renderLeaveBoard();
@@ -5109,7 +5109,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (clearButton) {
         pendingSelectedEmployeeIds = [];
         pendingSelectedRegion = "";
-        pendingSelectedDepartment = "";
+        pendingSelectedDepartments = [];
         pendingSelectedShiftType = "";
         renderLeaveBoard();
         return;
@@ -5119,7 +5119,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (cancelButton) {
         pendingSelectedEmployeeIds = [...selectedEmployeeIds];
         pendingSelectedRegion = selectedRegion;
-        pendingSelectedDepartment = selectedDepartment;
+        pendingSelectedDepartments = [...selectedDepartments];
         pendingSelectedShiftType = selectedShiftType;
         isLeaveEmployeeFilterOpen = false;
         renderLeaveBoard();
@@ -5148,16 +5148,30 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     });
     
     leaveBoardTable.addEventListener("change", function (event) {
-      const checkbox = event.target.closest('#leave-employee-filter-list input[type="checkbox"]');
-      if (checkbox) {
-        pendingSelectedEmployeeIds = Array.from(leaveBoardTable.querySelectorAll('#leave-employee-filter-list input[type="checkbox"]:checked')).map((input) => input.value);
+      const employeeCheckbox = event.target.closest('#leave-employee-filter-list input[type="checkbox"]');
+      if (employeeCheckbox) {
+        const employeeId = employeeCheckbox.value;
+        if (employeeCheckbox.checked) {
+          if (!pendingSelectedEmployeeIds.includes(employeeId)) pendingSelectedEmployeeIds.push(employeeId);
+        } else {
+          pendingSelectedEmployeeIds = pendingSelectedEmployeeIds.filter((id) => id !== employeeId);
+        }
+        return;
+      }
+      const departmentCheckbox = event.target.closest('#leave-department-filter-popover input[type="checkbox"]');
+      if (departmentCheckbox) {
+        const department = departmentCheckbox.value;
+        if (departmentCheckbox.checked) {
+          if (!pendingSelectedDepartments.includes(department)) pendingSelectedDepartments.push(department);
+        } else {
+          pendingSelectedDepartments = pendingSelectedDepartments.filter((item) => item !== department);
+        }
         renderLeaveBoard();
         return;
       }
       const target = event.target;
       if (!(target instanceof HTMLSelectElement)) return;
       if (target.id === "leave-region-filter-popover") pendingSelectedRegion = target.value || "";
-      if (target.id === "leave-department-filter-popover") pendingSelectedDepartment = target.value || "";
       if (target.id === "leave-shift-filter-popover") pendingSelectedShiftType = target.value || "";
       renderLeaveBoard();
     });
