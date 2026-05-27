@@ -94,6 +94,14 @@ input[type="radio"] {
   box-shadow: none;
 }
 
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .login-page {
   min-height: 100vh;
   display: flex;
