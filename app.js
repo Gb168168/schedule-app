@@ -2941,7 +2941,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   function applyDefaultScheduleFiltersByUser(user) {
     if (!user || !filterRegion || !filterDepartment || !filterEmployee) return;
     filterRegion.value = user.region && REGIONS.includes(user.region) ? user.region : "";
-    filterDepartment.value = "";
+    filterDepartment.value = user.department && DEPARTMENTS.includes(user.department) ? user.department : "";
     refreshScheduleFilterEmployeeOptions("");
     filterEmployee.value = "";
     if (filterShift) filterShift.value = "";
@@ -4304,6 +4304,11 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const targetSection = document.getElementById(`page-${targetPage}`);
       if (targetSection) targetSection.classList.remove("hidden");
       if (pageTitle) pageTitle.textContent = button.textContent;
+      if (targetPage === "roster") {
+        applyDefaultScheduleFiltersByUser(currentUser);
+        renderSchedules();
+        renderRosterCalendar();
+      }
       closeAttendanceRecordPopover();
       setSidebarCollapsed(true);
       
