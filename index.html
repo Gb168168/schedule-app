@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-4</title>
+  <title>班表系統-5</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
   <meta name="theme-color" content="#1d4ed8" />
@@ -43,7 +43,6 @@
         <button class="menu-btn" data-page="roster">排程表</button>
         <button class="menu-btn" data-page="today-staff">當日上班人員</button>
         <button class="menu-btn" data-page="staff">人員資訊</button>
-        <button class="menu-btn hidden" id="menu-permissions-btn" data-page="permissions">權限功能</button>
         <button class="menu-btn hidden" id="menu-shift-settings-btn" data-page="shift-settings">班別設定</button>
         <button class="menu-btn" data-page="leave">請假申請</button>
         <button class="menu-btn" id="menu-monthly-summary-btn" data-page="monthly-summary">本月統計</button>
@@ -290,15 +289,16 @@
               </div>
             </div>
             <div id="employee-list" class="list-wrap"></div>
+            <div id="permissions-panel" class="permissions-panel hidden">
+              <div class="section-header-row permissions-panel-header">
+                <div>
+                  <h3>權限功能</h3>
+                  <p class="helper-text">人員由「人員資訊」自動連動，依地區 → 部門 → 人員排序，僅顯示必要欄位。</p>
+                </div>
+              </div>
+              <div id="permissions-employee-list" class="list-wrap"></div>
+            </div>
           </div>
-        </div>
-      </section>
-
-      <section id="page-permissions" class="page-section hidden">
-        <div class="card">
-          <h3>權限功能</h3>
-           <p class="helper-text">人員由「人員資訊」自動連動，依地區 → 部門 → 人員排序，僅顯示必要欄位。</p>
-          <div id="permissions-employee-list" class="list-wrap"></div>
         </div>
       </section>
       
