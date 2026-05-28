@@ -239,6 +239,14 @@ input[type="radio"] {
   font-weight: 700;
 }
 
+.menu-divider {
+  padding: 6px 18px 2px;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
 .menu-btn:hover {
   background: rgba(255, 255, 255, 0.07);
 }
