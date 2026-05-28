@@ -4480,22 +4480,26 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       const annualLeaveExpiry = document.getElementById("employee-form-annual-leave-expiry")?.value || "";
       const travelLeaveDays = Number(document.getElementById("employee-form-travel-leave-days")?.value || 0);
       const travelLeaveExpiry = document.getElementById("employee-form-travel-leave-expiry")?.value || "";
+      const existingEmployee = editingEmployeeId
+        ? employees.find((item) => item.id === editingEmployeeId)
+        : null;
       const roleProfile = getEmployeeRoleProfile(employeeId);
       const isSuperAdmin = isSuperAdminEmployee(employeeId);
-      const canEmployeeManage = isSuperAdmin || Boolean(permissionEmployeeManageInput?.checked);
-      const canAttendanceCoordinateManage = isSuperAdmin || Boolean(permissionAttendanceCoordinateInput?.checked);
-      const canShiftSettingsManage = isSuperAdmin || Boolean(permissionShiftSettingsInput?.checked);
-      const canLeaveApprove = isSuperAdmin || Boolean(permissionLeaveApproveInput?.checked);
-      const canAnnouncementManage = isSuperAdmin || Boolean(permissionAnnouncementManageInput?.checked);
-      const hasMorningShift = isSuperAdmin || Boolean(employeeShiftMorningInput?.checked);
-      const hasEveningShift = isSuperAdmin || Boolean(employeeShiftEveningInput?.checked);
-      const weekendsOff = isSuperAdmin ? false : Boolean(employeeWeekendsOffInput?.checked);
-      const showOnLeaveBoard = isSuperAdmin ? true : Boolean(employeeShowOnLeaveBoardInput?.checked);
-      const selectedScopeEntries = canLeaveApprove
-        ? getScopeSelections(manageRegionDepartments)
-        : [];
-      const selectedManageRegions = Array.from(new Set(selectedScopeEntries.map((item) => item.region))).filter(Boolean);
-      const selectedManageDepartments = Array.from(new Set(selectedScopeEntries.map((item) => item.department))).filter(Boolean);
+      const existingPermissions = existingEmployee?.permissions || {};
+      const nextPermissions = isSuperAdmin
+        ? { ...roleProfile.permissions }
+        : (existingEmployee ? { ...existingPermissions } : { ...roleProfile.permissions });
+      const nextShifts = isSuperAdmin
+        ? { morning: true, evening: true }
+        : (existingEmployee ? { ...roleProfile.shifts, ...(existingEmployee.shifts || {}) } : { ...roleProfile.shifts });
+      const weekendsOff = isSuperAdmin ? false : Boolean(existingEmployee?.weekendsOff ?? roleProfile.weekendsOff);
+      const showOnLeaveBoard = isSuperAdmin ? true : Boolean(existingEmployee?.showOnLeaveBoard ?? roleProfile.showOnLeaveBoard);
+      const nextManageScopes = isSuperAdmin
+        ? { regions: [...REGIONS], departments: [...DEPARTMENTS] }
+        : (existingEmployee?.manageScopes || roleProfile.manageScopes || { regions: [], departments: [] });
+      const nextScheduleScopes = isSuperAdmin
+        ? { view: getAllScheduleScopeEntries(), edit: getAllScheduleScopeEntries() }
+        : (existingEmployee?.scheduleScopes || { view: getAllScheduleScopeEntries(), edit: [] });
       const employeeData = {
         employeeId,
         account,
@@ -4514,42 +4518,18 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         travelLeaveDays,
         travelLeaveExpiry,
         photoURL: photoData,
-        shifts: {
-          ...roleProfile.shifts,
-          morning: hasMorningShift,
-          evening: hasEveningShift
-        },
+        shifts: nextShifts,
         weekendsOff,
         showOnLeaveBoard,
-        permissions: {
-          ...roleProfile.permissions,
-          employeeProfileManage: canEmployeeManage,
-          personInfoBasicDataManage: canEmployeeManage,
-          attendanceCoordinateManage: canAttendanceCoordinateManage,
-          attendanceListVisible: canAttendanceCoordinateManage,
-          coordinateListVisible: canAttendanceCoordinateManage,
-          shiftSettingsManage: canShiftSettingsManage,
-          shiftSettingsListVisible: canShiftSettingsManage,
-          permissionsListVisible: canEmployeeManage,
-          leaveApprove: canLeaveApprove,
-          announcementManage: canAnnouncementManage,
-          coordinateAdmin: canAttendanceCoordinateManage
-        },
-        manageScopes: canLeaveApprove
-          ? {
-              regions: isSuperAdmin ? [...REGIONS] : selectedManageRegions,
-              departments: isSuperAdmin ? [...DEPARTMENTS] : selectedManageDepartments
-            }
-          : { regions: [], departments: [] },
-        scheduleScopes: isSuperAdmin
-          ? { view: getAllScheduleScopeEntries(), edit: getAllScheduleScopeEntries() }
-          : { view: getAllScheduleScopeEntries(), edit: [] },
+        permissions: nextPermissions,
+        manageScopes: nextManageScopes,
+        scheduleScopes: nextScheduleScopes,
         status: "active",
         isHidden: false,
-        fcmToken: editingEmployeeId ? (employees.find((item) => item.id === editingEmployeeId)?.fcmToken || "") : "",
+        fcmToken: editingEmployeeId ? (existingEmployee?.fcmToken || "") : "",
         notificationSettings: getDefaultNotificationSettings(
           editingEmployeeId
-            ? employees.find((item) => item.id === editingEmployeeId)?.notificationSettings || {}
+            ? existingEmployee?.notificationSettings || {}
             : {}
         )
       };
@@ -4559,10 +4539,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (!employeeData.password) return alert("請輸入密碼");
       if (!employeeData.department) return alert("請選擇部門");
       if (!employeeData.region) return alert("請選擇地區");
-      if (canLeaveApprove && !isSuperAdmin && (selectedManageRegions.length === 0 || selectedManageDepartments.length === 0)) {
-        return alert("審核假別需至少勾選 1 個地區與 1 個部門");
-      }
-      if (!isSuperAdmin && !employeeData.shifts.morning && !employeeData.shifts.evening) return alert("員工班別尚未預設成功，請重新嘗試");
+      if (!isSuperAdmin && !employeeData.shifts.morning && !employeeData.shifts.evening) return alert("員工班別尚未預設成功，請到員工列表的權限中設定班別");
 
       if (!db) return alert("Firebase 未設定，無法新增員工。");
 
@@ -4580,16 +4557,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         }
         
         employeeForm.reset();
-        if (permissionEmployeeManageInput) permissionEmployeeManageInput.checked = false;
-        if (permissionAttendanceCoordinateInput) permissionAttendanceCoordinateInput.checked = false;
-        if (permissionShiftSettingsInput) permissionShiftSettingsInput.checked = false;
-        if (permissionLeaveApproveInput) permissionLeaveApproveInput.checked = false;
-        if (permissionAnnouncementManageInput) permissionAnnouncementManageInput.checked = false;
-        if (employeeShiftMorningInput) employeeShiftMorningInput.checked = true;
-        if (employeeShiftEveningInput) employeeShiftEveningInput.checked = false;
-        if (employeeWeekendsOffInput) employeeWeekendsOffInput.checked = false;
-        if (employeeShowOnLeaveBoardInput) employeeShowOnLeaveBoardInput.checked = true;
-        setScopeSelections(manageRegionDepartments, [], []);
         setPhoto("");
         if (employeeSubmitBtn) {
           employeeSubmitBtn.textContent = "新增員工";
