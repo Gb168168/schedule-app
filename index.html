@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-1</title>
+  <title>班表系統-2</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
   <meta name="theme-color" content="#1d4ed8" />
@@ -223,60 +223,6 @@
                   <label class="field-label"><span>旅遊假期限</span><input id="employee-form-travel-leave-expiry" type="date" /></label>
                 </div>
               </div>
-              <div class="form-section">
-                <h4>班別與休假表</h4>
-                <div class="permissions-grid">
-                  <label class="field-label checkbox-inline">
-                    <span>早班</span>
-                    <input id="employee-shift-morning" type="checkbox" checked />
-                  </label>
-                  <label class="field-label checkbox-inline">
-                    <span>晚班</span>
-                    <input id="employee-shift-evening" type="checkbox" />
-                  </label>
-                  <label class="field-label checkbox-inline">
-                    <span>週休二日 &amp; 國定假日</span>
-                    <input id="employee-weekends-off" type="checkbox" />
-                  </label>
-                  <label class="field-label checkbox-inline">
-                    <span>休假表顯示</span>
-                    <input id="employee-show-on-leave-board" type="checkbox" checked />
-                  </label>
-                </div>
-              </div>
-              <div class="form-section">
-                <h4>功能權限</h4>
-                <div class="permissions-grid">
-                  <label class="field-label checkbox-inline">
-                    <span>新增員工-建置基本資料</span>
-                    <input id="permission-employee-manage" type="checkbox" />
-                  </label>
-                  <label class="field-label checkbox-inline">
-                    <span>打卡紀錄 &amp; 打卡座標</span>
-                    <input id="permission-attendance-coordinate" type="checkbox" />
-                  </label>
-                  <label class="field-label checkbox-inline">
-                    <span>班別設定</span>
-                    <input id="permission-shift-settings" type="checkbox" />
-                  </label>
-                  <label class="field-label checkbox-inline">
-                    <span>審核假別</span>
-                    <input id="permission-leave-approve" type="checkbox" />
-                  </label>
-                  <label class="field-label checkbox-inline">
-                    <span>公告欄</span>
-                    <input id="permission-announcement-manage" type="checkbox" />
-                  </label>
-                </div>
-                <div id="leave-approve-scope-box" class="scope-box hidden">
-                  <p class="helper-text">勾選可審核假別後，請依地區勾選可審核部門。</p>
-                  <div class="field-label">
-                    <span>可審核地區 / 部門</span>
-                    <div id="manage-region-departments" class="scope-region-department-list" role="group" aria-label="可審核地區與部門"></div>
-                  </div>
-                </div>
-              </div>
-
               <button id="employee-submit-btn" type="submit" class="primary-btn">新增員工</button>
             </form>
           </div>
