@@ -617,6 +617,20 @@ input[type="radio"] {
   margin-top: 20px;
 }
 
+.permissions-panel {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.permissions-panel-header {
+  margin-bottom: 12px;
+}
+
+.permissions-panel h3 {
+  margin-bottom: 8px;
+}
+
 .employee-card-header {
   display: flex;
   align-items: center;
