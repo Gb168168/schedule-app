@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>班表系統-3</title>
+  <title>班表系統-4</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
   <meta name="theme-color" content="#1d4ed8" />
@@ -247,20 +247,20 @@
           </div>
           <p id="permission-editor-target" class="helper-text"></p>
           <form id="permission-editor-form" class="permission-editor-form">
-           <details class="permission-editor-section" open>
+          <details class="permission-editor-section">
               <summary><span>【公告欄】</span></summary>
               <label class="field-label checkbox-inline"><span>隱藏</span><input id="perm-announcement-hide" type="checkbox" /></label>
               <label class="field-label checkbox-inline"><span>編輯</span><input id="perm-announcement-edit" type="checkbox" /></label>
               <label class="field-label checkbox-inline"><span>刪除</span><input id="perm-announcement-delete" type="checkbox" /></label>
            </details>
-            <details class="permission-editor-section" open>
+            <details class="permission-editor-section">
               <summary><span>【休假表】</span></summary>
               <label class="field-label checkbox-inline"><span>早班</span><input id="perm-shift-morning" type="checkbox" /></label>
               <label class="field-label checkbox-inline"><span>晚班</span><input id="perm-shift-evening" type="checkbox" /></label>
               <label class="field-label checkbox-inline"><span>週休二日 &amp; 國定假日</span><input id="perm-weekends-off" type="checkbox" /></label>
               <label class="field-label checkbox-inline"><span>休假表顯示</span><input id="perm-show-on-leave-board" type="checkbox" /></label>
             </details>
-            <details class="permission-editor-section" open>
+            <details class="permission-editor-section">
               <summary><span>【排程表】</span></summary>
               <p class="helper-text">地區與部門的排程皆可互相查看；請勾選此人員可編輯的排程部門，未勾選則僅能查看不能編輯。</p>
               <div class="field-label">
@@ -268,27 +268,27 @@
                 <div id="perm-schedule-edit-region-departments" class="scope-region-department-list" role="group" aria-label="權限編輯可編輯排程地區與部門"></div>
               </div>
             </details>
-            <details class="permission-editor-section" open>
+            <details class="permission-editor-section">
               <summary><span>【當日上班人員】</span></summary>
               <p class="helper-text">目前無額外設定。</p>
             </details>
-            <details class="permission-editor-section" open>
+            <details class="permission-editor-section">
               <summary><span>【人員資訊】</span></summary>
               <label class="field-label checkbox-inline"><span>建置基本資料</span><input id="perm-employee-profile-manage" type="checkbox" /></label>
             </details>
-            <details class="permission-editor-section" open>
+            <details class="permission-editor-section">
               <summary><span>【權限功能】</span></summary>
               <label class="field-label checkbox-inline"><span>左側列表顯示</span><input id="perm-permissions-list-visible" type="checkbox" /></label>
             </details>
-            <details class="permission-editor-section" open>
+            <details class="permission-editor-section">
               <summary><span>【班別設定】</span></summary>
               <label class="field-label checkbox-inline"><span>左側列表顯示</span><input id="perm-shift-settings-list-visible" type="checkbox" /></label>
             </details>
-            <details class="permission-editor-section" open>
+            <details class="permission-editor-section">
               <summary><span>【本月統計】</span></summary>
               <label class="field-label checkbox-inline"><span>左側列表顯示</span><input id="perm-monthly-summary-list-visible" type="checkbox" /></label>
            </details>
-            <details class="permission-editor-section" open>
+            <details class="permission-editor-section">
               <summary><span>【請假申請】</span></summary>
               <label class="field-label checkbox-inline"><span>審核假別</span><input id="perm-leave-approve" type="checkbox" /></label>
               <div id="permission-leave-approve-scope-box" class="scope-box hidden">
@@ -298,11 +298,11 @@
                 </div>
               </div>
            </details>
-            <details class="permission-editor-section" open>
+            <details class="permission-editor-section">
               <summary><span>【打卡紀錄】</span></summary>
               <label class="field-label checkbox-inline"><span>左側列表顯示</span><input id="perm-attendance-list-visible" type="checkbox" /></label>
             </details>
-            <details class="permission-editor-section" open>
+            <details class="permission-editor-section">
               <summary><span>【打卡座標】</span></summary>
               <label class="field-label checkbox-inline"><span>左側列表顯示</span><input id="perm-coordinate-list-visible" type="checkbox" /></label>
             </details>
