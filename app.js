@@ -2849,19 +2849,26 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     });
   }
 
+  function getScheduleDepartment(item) {
+    if (!item) return "";
+    if (item.department) return item.department;
+    const scheduleEmployee = employees.find((employee) => employee.employeeId === item.employeeId);
+    return scheduleEmployee?.department || "";
+  }
+
+  function isSameDepartmentSchedule(item, viewer = currentUser) {
+    const scheduleDepartment = getScheduleDepartment(item);
+    return Boolean(viewer?.department && scheduleDepartment && scheduleDepartment === viewer.department);
+  }
+  
   function canViewScheduleItem(item, viewer = currentUser) {
-    if (!viewer) return false;
-    if (canManageAllSchedules(viewer)) return true;
-    const isOwnerMemo = Boolean(item?.employeeId) && item.employeeId === viewer.employeeId;
-    const isDepartmentMemo = !item?.employeeId && item?.region === viewer.region && item?.department === viewer.department;
-    const isCreator = Boolean(item?.createdBy) && item.createdBy === viewer.employeeId;
-    return isOwnerMemo || isDepartmentMemo || isCreator;
+    return Boolean(viewer && item);
   }
 
   function canEditScheduleItem(item, viewer = currentUser) {
     if (!viewer || !item) return false;
     if (canManageAllSchedules(viewer)) return true;
-    return Boolean(item.createdBy) && item.createdBy === viewer.employeeId;
+    return isSameDepartmentSchedule(item, viewer);
   }
 
   function formatScheduleDate(year, monthIndex, day) {
@@ -2934,7 +2941,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   function applyDefaultScheduleFiltersByUser(user) {
     if (!user || !filterRegion || !filterDepartment || !filterEmployee) return;
     filterRegion.value = user.region && REGIONS.includes(user.region) ? user.region : "";
-    filterDepartment.value = user.department && DEPARTMENTS.includes(user.department) ? user.department : "";
+    filterDepartment.value = "";
     refreshScheduleFilterEmployeeOptions("");
     filterEmployee.value = "";
     if (filterShift) filterShift.value = "";
@@ -2958,8 +2965,6 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
     return schedules.filter(function (item) {
       if (!currentUser) return false;
-      if (item.region !== currentUser.region) return false;
-      if (item.department !== currentUser.department) return false;
       if (region && item.region !== region) return false;
       if (department && item.department !== department) return false;
       const itemEmployee = item.employeeName || item.employee || "";
@@ -3148,10 +3153,13 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   function populateScheduleModalOptions() {
     if (!scheduleRegionSelect || !scheduleDepartmentSelect || !currentUser) return;
+    const departmentOptions = canManageAllSchedules(currentUser)
+      ? DEPARTMENTS
+      : Array.from(new Set([currentUser.department, ...DEPARTMENTS.filter((department) => department === currentUser.department)])).filter(Boolean);
     scheduleRegionSelect.innerHTML = `<option value="__all__">全部地區</option>${REGIONS.map((region) => `<option value="${region}">${region}</option>`).join("")}`;
-    scheduleDepartmentSelect.innerHTML = `<option value="__all__">全部部門</option>${DEPARTMENTS.map((department) => `<option value="${department}">${department}</option>`).join("")}`;
+    scheduleDepartmentSelect.innerHTML = `${canManageAllSchedules(currentUser) ? `<option value="__all__">全部部門</option>` : ""}${departmentOptions.map((department) => `<option value="${department}">${department}</option>`).join("")}`;
     setSelectedValues(scheduleRegionSelect, [currentUser.region && REGIONS.includes(currentUser.region) ? currentUser.region : REGIONS[0]]);
-    setSelectedValues(scheduleDepartmentSelect, [currentUser.department && DEPARTMENTS.includes(currentUser.department) ? currentUser.department : DEPARTMENTS[0]]);
+    setSelectedValues(scheduleDepartmentSelect, [currentUser.department && departmentOptions.includes(currentUser.department) ? currentUser.department : departmentOptions[0]]);
     refreshScheduleEmployeeOptions("");
   }
 
@@ -4827,6 +4835,11 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (!selectedDepartments.length && !selectedEmployeeIds.length) return alert("請至少選擇 1 個部門或員工");
       if (!selectedShifts.length) return alert("請至少選擇 1 個班別");
 
+      if (editingScheduleId) {
+        const originalSchedule = schedules.find((item) => item.id === editingScheduleId);
+        if (!canEditScheduleItem(originalSchedule)) return alert("你沒有編輯此行程的權限。");
+      }
+
       const selectedEmployees = selectedEmployeeIds
         .map((employeeId) => employees.find((item) => item.employeeId === employeeId))
         .filter(Boolean);
@@ -4871,6 +4884,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         if (!dedupMap.has(key)) dedupMap.set(key, item);
       });
       const finalPayloads = Array.from(dedupMap.values());
+      if (!canManageAllSchedules(currentUser) && finalPayloads.some((payload) => !canEditScheduleItem(payload))) {
+        return alert("只能新增或修改同部門的排程。");
+      }
       if (editingScheduleId && finalPayloads.length > 1) {
         return alert("編輯模式一次僅能儲存 1 筆排程，請改用新增模式批次通知。");
       }
