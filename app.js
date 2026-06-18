@@ -739,6 +739,26 @@ function getUserShiftCode(user) {
   return "";
 }
 
+function getLeaveBoardShiftSortOrder(user) {
+  const shiftType = getUserShiftType(user);
+  if (shiftType === "早班") return 0;
+  if (shiftType === "晚班") return 1;
+  return 2;
+}
+
+function compareLeaveBoardEmployees(a, b) {
+  const regionCompare = String(a?.region || "").localeCompare(String(b?.region || ""), "zh-Hant");
+  if (regionCompare !== 0) return regionCompare;
+
+  const departmentCompare = String(a?.department || "").localeCompare(String(b?.department || ""), "zh-Hant");
+  if (departmentCompare !== 0) return departmentCompare;
+
+  const shiftCompare = getLeaveBoardShiftSortOrder(a) - getLeaveBoardShiftSortOrder(b);
+  if (shiftCompare !== 0) return shiftCompare;
+
+  return String(a?.name || a?.employeeId || "").localeCompare(String(b?.name || b?.employeeId || ""), "zh-Hant");
+}
+
 function getEmployeePhotoUrl(employee) {
   return employee?.photoURL || "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><rect width='120' height='120' rx='24' fill='#dbeafe'/><circle cx='60' cy='45' r='24' fill='#60a5fa'/><path d='M24 104c7-20 24-30 36-30s29 10 36 30' fill='#60a5fa'/></svg>`);
 }
@@ -3709,7 +3729,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (selectedDepartments.length && !selectedDepartments.includes(employee.department)) return false;
       if (selectedShiftType && getUserShiftType(employee) !== selectedShiftType) return false;
       return true;
-    });
+    }).sort(compareLeaveBoardEmployees);
   }
   
     function getMonthAssignments(monthKey) {
