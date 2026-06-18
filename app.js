@@ -2958,6 +2958,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     onSnapshot(q, function (snapshot) {
       leaveRequests = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() }));
       renderLeaves();
+      renderLeaveBoard();
       renderMonthlySummary();
     });
   }
@@ -3740,6 +3741,36 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     return leaveAssignments.find((item) => item.monthKey === monthKey && item.employeeId === employeeId && item.date === dateString) || null;
   }
 
+  function getEmployeeForLeaveRequest(leaveItem) {
+    if (!leaveItem) return null;
+    const normalizedEmployeeId = String(leaveItem.employeeId || "").trim();
+    if (normalizedEmployeeId) {
+      const byId = employees.find((employee) => String(employee.employeeId || "").trim() === normalizedEmployeeId);
+      if (byId) return byId;
+    }
+    const normalizedName = String(leaveItem.userName || leaveItem.employeeName || "").trim();
+    if (!normalizedName) return null;
+    return employees.find((employee) => String(employee.name || "").trim() === normalizedName || String(employee.employeeId || "").trim() === normalizedName) || null;
+  }
+
+  function getApprovedLeaveForCell(employeeId, dateString) {
+    const normalizedEmployeeId = String(employeeId || "").trim();
+    if (!normalizedEmployeeId || !dateString) return null;
+    return leaveRequests.find((leaveItem) => {
+      if (leaveItem.status !== "已核准") return false;
+      const leaveEmployee = getEmployeeForLeaveRequest(leaveItem);
+      if (String(leaveEmployee?.employeeId || leaveItem.employeeId || "").trim() !== normalizedEmployeeId) return false;
+      return dateString >= (leaveItem.startDate || "") && dateString <= (leaveItem.endDate || "");
+    }) || null;
+  }
+
+  function getEffectiveLeaveTypeForCell(assignment, employeeId, dateString) {
+    const assignedLeaveType = getNormalizedLeaveType(assignment?.leaveType || "");
+    if (assignedLeaveType) return assignedLeaveType;
+    const approvedLeave = getApprovedLeaveForCell(employeeId, dateString);
+    return getNormalizedLeaveType(approvedLeave?.type || "");
+  }
+  
   function getNormalizedLeaveType(typeValue = "") {
     const normalized = String(typeValue || "").trim();
     if (!normalized) return "";
@@ -3927,7 +3958,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         const dateString = formatDate(date);
         const assignment = getAssignmentForCell(currentLeaveMonth, employee.employeeId, dateString);
         const assignedSymbolTypes = getAssignmentSymbolTypes(assignment, dateString);
-        const leaveTypeValue = getNormalizedLeaveType(assignment?.leaveType || "");
+        const leaveTypeValue = getEffectiveLeaveTypeForCell(assignment, employee.employeeId, dateString);
         const symbolTypes = getEffectiveCellSymbolTypes(employee, assignment, dateString);
         const metas = symbolTypes.map((symbolType) => ({
           symbolType,
@@ -4269,11 +4300,65 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     }
   };
 
+  
+  function getDateRangeStrings(startDate, endDate) {
+    const start = new Date(`${startDate || ""}T00:00:00`);
+    const end = new Date(`${endDate || ""}T00:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return [];
+    const dates = [];
+    for (const cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+      dates.push(formatDate(cursor));
+    }
+    return dates;
+  }
+
+  async function syncApprovedLeaveToBoard(leaveItem) {
+    if (!db || !leaveItem || leaveItem.status !== "已核准") return;
+    const targetEmployee = getEmployeeForLeaveRequest(leaveItem);
+    const leaveTypeValue = getNormalizedLeaveType(leaveItem.type || "");
+    if (!targetEmployee || !leaveTypeValue) return;
+
+    const dates = getDateRangeStrings(leaveItem.startDate, leaveItem.endDate);
+    for (const dateString of dates) {
+      const monthKey = dateString.slice(0, 7);
+      const existing = getAssignmentForCell(monthKey, targetEmployee.employeeId, dateString);
+      const currentSymbolTypes = getAssignmentSymbolTypes(existing, dateString);
+      const payload = {
+        employeeId: targetEmployee.employeeId,
+        employeeName: targetEmployee.name || leaveItem.userName || "",
+        region: targetEmployee.region || leaveItem.region || "",
+        department: targetEmployee.department || leaveItem.department || "",
+        category: targetEmployee.category || "",
+        date: dateString,
+        monthKey,
+        symbolType: existing?.symbolType || "",
+        symbolTypes: currentSymbolTypes,
+        leaveType: leaveTypeValue,
+        sourceLeaveRequestId: leaveItem.id || "",
+        updatedBy: currentUser?.employeeId || "",
+        updatedByName: currentUser?.name || "",
+        updatedAt: serverTimestamp()
+      };
+      if (existing?.id) {
+        await updateDoc(doc(db, "leaveAssignments", existing.id), payload);
+      } else {
+        await addDoc(collection(db, "leaveAssignments"), {
+          ...payload,
+          createdBy: currentUser?.employeeId || "",
+          createdByName: currentUser?.name || "",
+          createdAt: serverTimestamp()
+        });
+      }
+    }
+  }
+
   window.approveLeave = async function (id) {
     if (!db) return;
     const item = leaveRequests.find((request) => request.id === id);
     if (!canApproveLeaveInScope(currentUser, item)) return alert("你沒有該筆請假單審核權限");
+    const approvedLeave = { ...item, id, status: "已核准" };
     await updateDoc(doc(db, "leaveRequests", id), { status: "已核准", reviewedBy: currentUser.name, reviewedAt: new Date().toLocaleString() });
+    await syncApprovedLeaveToBoard(approvedLeave);
   };
 
   window.rejectLeave = async function (id) {
@@ -4731,6 +4816,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       try {
         await addDoc(collection(db, "leaveRequests"), {
           userName: currentUser.name,
+          employeeId: currentUser.employeeId || "",
+          employeeName: currentUser.name || "",
           department: currentUser.department,
           region: currentUser.region,
           type: selectedLeaveType,
