@@ -764,6 +764,11 @@ function compareLeaveBoardDepartments(a, b, region = "") {
   return String(a || "").localeCompare(String(b || ""), "zh-Hant");
 }
 
+
+function formatLeaveEmployeeScheduleMeta(employee) {
+  return `${employee?.region || "-"}｜${employee?.department || "-"}｜${getUserShiftType(employee) || "-"}`;
+}
+
 function compareLeaveBoardEmployees(a, b) {
   const regionCompare = compareRegionsNorthToSouth(a?.region || "", b?.region || "");
   if (regionCompare !== 0) return regionCompare;
@@ -4022,8 +4027,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         const leaveTypeHtml = leaveTypeValue ? `<span class="leave-tag" style="background:${leaveTagColor}">${leaveTypeValue}</span>` : "";
         return `<button type="button" class="leave-cell ${editableClass} ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}" data-employee-id="${employee.employeeId}" data-date="${dateString}" title="${title}"><div class="leave-cell-symbols">${symbols}</div>${leaveTypeHtml}</button>`;
       }).join("");
-      return `<div class="leave-board-row" style="--days:${daysInMonth}"><div class="leave-employee-card"><strong>${employee.name || employee.employeeId}</strong><small>${employee.region || "-"}｜${employee.department || "-"}</small><small>${employee.category || getUserShiftType(employee) || "-"}</small></div><div class="leave-row-cells" style="--days:${daysInMonth}">${cells}</div><div class="leave-summary-card"><div><span>▲</span><strong>${counts.rest}</strong></div><div><span>★</span><strong>${counts.newYear}</strong></div><div><span>🎰</span><strong>${counts.event}</strong></div></div></div>`;
-    }).join("");
+      return `<div class="leave-board-row" style="--days:${daysInMonth}"><div class="leave-employee-card"><strong>${employee.name || employee.employeeId}</strong><small>${formatLeaveEmployeeScheduleMeta(employee)}</small></div><div class="leave-row-cells" style="--days:${daysInMonth}">${cells}</div><div class="leave-summary-card"><div><span>▲</span><strong>${counts.rest}</strong></div><div><span>★</span><strong>${counts.newYear}</strong></div><div><span>🎰</span><strong>${counts.event}</strong></div></div></div>`;
 
      leaveBoardTable.innerHTML = `<div class="leave-board-head" style="--days:${daysInMonth}"><div class="leave-sticky-col"><div class="leave-sticky-col-head"><strong>人員</strong><div class="employee-filter-toggle-wrap"><small class="employee-filter-toggle-label">${selectedCount > 0 ? `已套用 ${selectedCount} 人` : `待選 ${pendingCount} 人`}</small><button type="button" id="leave-employee-toggle" class="switch ${isLeaveEmployeeFilterOpen ? "is-on" : ""}" aria-label="切換人員篩選"></button></div></div>${filterPopover}</div><div class="leave-header-days" style="--days:${daysInMonth}">${headerDays}</div><div class="leave-summary-head"><div>▲</div><div>★</div><div>🎰</div></div></div><div class="leave-board-body">${rows}</div>`;
   }
