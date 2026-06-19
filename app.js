@@ -353,9 +353,9 @@ let resolveEmployeesReady = null;
 let resolveEmployeesSnapshotReady = null;
 const employeesReadyPromise = new Promise(function (resolve) {
   resolveEmployeesReady = resolve;
-  const employeesSnapshotReadyPromise = new Promise(function (resolve) {
-  resolveEmployeesSnapshotReady = resolve;
 });
+const employeesSnapshotReadyPromise = new Promise(function (resolve) {
+  resolveEmployeesSnapshotReady = resolve;
 });
 let attendanceLocations = DEFAULT_ATTENDANCE_LOCATIONS.map((item, index) => ({
   id: `default-${index}`,
