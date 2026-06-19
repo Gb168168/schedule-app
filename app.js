@@ -746,11 +746,19 @@ function getLeaveBoardShiftSortOrder(user) {
   return 2;
 }
 
+function compareLeaveBoardDepartments(a, b, region = "") {
+  if (region !== "台中區") return String(a || "").localeCompare(String(b || ""), "zh-Hant");
+
+  const orderDiff = getDepartmentOrder(a) - getDepartmentOrder(b);
+  if (orderDiff !== 0) return orderDiff;
+  return String(a || "").localeCompare(String(b || ""), "zh-Hant");
+}
+
 function compareLeaveBoardEmployees(a, b) {
-  const regionCompare = String(a?.region || "").localeCompare(String(b?.region || ""), "zh-Hant");
+  const regionCompare = compareRegionsNorthToSouth(a?.region || "", b?.region || "");
   if (regionCompare !== 0) return regionCompare;
 
-  const departmentCompare = String(a?.department || "").localeCompare(String(b?.department || ""), "zh-Hant");
+  const departmentCompare = compareLeaveBoardDepartments(a?.department || "", b?.department || "", a?.region || "");
   if (departmentCompare !== 0) return departmentCompare;
 
   const shiftCompare = getLeaveBoardShiftSortOrder(a) - getLeaveBoardShiftSortOrder(b);
