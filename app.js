@@ -101,6 +101,118 @@ const users = [
     }
   },
   {
+    employeeId: "GB250201",
+    account: "GB250201",
+    password: "GB250201",
+    name: "臻",
+    role: "員工",
+    title: "員工",
+    region: "台中區",
+    department: "FAE",
+    category: "一般員工",
+    annualLeaveDays: 0,
+    annualLeaveExpiry: "",
+    travelLeaveDays: 0,
+    travelLeaveExpiry: "",
+    shifts: { morning: true, evening: false },
+    weekendsOff: false,
+    permissions: {},
+    manageScopes: {
+      regions: ["台中區"],
+      departments: ["FAE"]
+    },
+    fcmToken: "",
+    notificationSettings: {
+      announcement: true,
+      attendance: true,
+      leave: true
+    }
+  },
+  {
+    employeeId: "GB250901",
+    account: "GB250901",
+    password: "GB250901",
+    name: "晴",
+    role: "員工",
+    title: "員工",
+    region: "台中區",
+    department: "FAE",
+    category: "一般員工",
+    annualLeaveDays: 0,
+    annualLeaveExpiry: "",
+    travelLeaveDays: 0,
+    travelLeaveExpiry: "",
+    shifts: { morning: true, evening: false },
+    weekendsOff: false,
+    permissions: {},
+    manageScopes: {
+      regions: ["台中區"],
+      departments: ["FAE"]
+    },
+    fcmToken: "",
+    notificationSettings: {
+      announcement: true,
+      attendance: true,
+      leave: true
+    }
+  },
+  {
+    employeeId: "GB251001",
+    account: "GB251001",
+    password: "GB251001",
+    name: "澄",
+    role: "員工",
+    title: "員工",
+    region: "台中區",
+    department: "FAE",
+    category: "一般員工",
+    annualLeaveDays: 0,
+    annualLeaveExpiry: "",
+    travelLeaveDays: 0,
+    travelLeaveExpiry: "",
+    shifts: { morning: true, evening: false },
+    weekendsOff: false,
+    permissions: {},
+    manageScopes: {
+      regions: ["台中區"],
+      departments: ["FAE"]
+    },
+    fcmToken: "",
+    notificationSettings: {
+      announcement: true,
+      attendance: true,
+      leave: true
+    }
+  },
+  {
+    employeeId: "GB260601",
+    account: "GB260601",
+    password: "GB260601",
+    name: "茗",
+    role: "員工",
+    title: "員工",
+    region: "台中區",
+    department: "FAE",
+    category: "一般員工",
+    annualLeaveDays: 0,
+    annualLeaveExpiry: "",
+    travelLeaveDays: 0,
+    travelLeaveExpiry: "",
+    shifts: { morning: true, evening: false },
+    weekendsOff: false,
+    permissions: {},
+    manageScopes: {
+      regions: ["台中區"],
+      departments: ["FAE"]
+    },
+    fcmToken: "",
+    notificationSettings: {
+      announcement: true,
+      attendance: true,
+      leave: true
+    }
+  },
+  {
     employeeId: "GB080202",
     account: "GB080202",
     password: "GB080202",
