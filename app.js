@@ -236,9 +236,14 @@ let employees = users.map((user, index) => ({
 }));
 let isBootstrappingEmployees = false;
 let hasLoadedEmployees = false;
+let hasReceivedEmployeesSnapshot = false;
 let resolveEmployeesReady = null;
+let resolveEmployeesSnapshotReady = null;
 const employeesReadyPromise = new Promise(function (resolve) {
   resolveEmployeesReady = resolve;
+  const employeesSnapshotReadyPromise = new Promise(function (resolve) {
+  resolveEmployeesSnapshotReady = resolve;
+});
 });
 let attendanceLocations = DEFAULT_ATTENDANCE_LOCATIONS.map((item, index) => ({
   id: `default-${index}`,
@@ -700,6 +705,15 @@ function markEmployeesReady() {
   }
 }
 
+function markEmployeesSnapshotReady() {
+  if (hasReceivedEmployeesSnapshot) return;
+  hasReceivedEmployeesSnapshot = true;
+  if (typeof resolveEmployeesSnapshotReady === "function") {
+    resolveEmployeesSnapshotReady();
+    resolveEmployeesSnapshotReady = null;
+  }
+}
+
 function setLoginLoadingState(isLoading, message = "") {
   const loginButton = document.getElementById("login-btn");
   const loginError = document.getElementById("login-error");
@@ -714,9 +728,7 @@ function setLoginLoadingState(isLoading, message = "") {
   }
 }
 
-async function waitForEmployeesReady(timeoutMs = 10000) {
-  if (hasLoadedEmployees) return true;
-
+async function waitForPromiseWithTimeout(promise, timeoutMs = 10000) {
   const timeoutPromise = new Promise(function (resolve) {
     window.setTimeout(function () {
       resolve(false);
@@ -724,11 +736,21 @@ async function waitForEmployeesReady(timeoutMs = 10000) {
   });
 
   return Promise.race([
-    employeesReadyPromise.then(function () {
+    promise.then(function () {
       return true;
     }),
     timeoutPromise
   ]);
+}
+
+async function waitForEmployeesReady(timeoutMs = 10000) {
+  if (hasLoadedEmployees) return true;
+  return waitForPromiseWithTimeout(employeesReadyPromise, timeoutMs);
+}
+
+async function waitForEmployeesSnapshotReady(timeoutMs = 5000) {
+  if (!db || hasReceivedEmployeesSnapshot) return true;
+  return waitForPromiseWithTimeout(employeesSnapshotReadyPromise, timeoutMs);
 }
 
 function getShiftNameFromCode(code) {
@@ -2894,6 +2916,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   function startEmployeesListener() {
     if (!db) {
       employees = getBuiltinEmployees();
+      markEmployeesSnapshotReady();
       markEmployeesReady();
       populateScheduleFilters();
       renderEmployees();
@@ -2922,8 +2945,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
             })
         );
 
+        markEmployeesSnapshotReady();
+        
         if (visibleEmployees.length === 0) {
-        employees = getBuiltinEmployees();
+          employees = getBuiltinEmployees();
           populateScheduleFilters();
           markEmployeesReady();
           renderEmployees();
@@ -2941,6 +2966,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       },
       function (error) {
         console.error("載入員工資料失敗，改用內建帳號", error);
+        markEmployeesSnapshotReady();
         employees = getBuiltinEmployees();
         ensureBaseShiftTemplates();
         populateScheduleFilters();
@@ -4472,13 +4498,20 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   if (loginForm) {
-    loginForm.addEventListener("submit", function (event) {
+    loginForm.addEventListener("submit", async function (event) {
       event.preventDefault();
 
       const employeeId = document.getElementById("employeeId")?.value.trim() || "";
       const password = document.getElementById("password")?.value.trim() || "";
 
-      const matchedUser = findLoginUser(employeeId, password);
+      let matchedUser = findLoginUser(employeeId, password);
+
+      if (!matchedUser && db && !hasReceivedEmployeesSnapshot) {
+        setLoginLoadingState(true, "正在同步員工資料，請稍候...");
+        await waitForEmployeesSnapshotReady(5000);
+        setLoginLoadingState(false, "");
+        matchedUser = findLoginUser(employeeId, password);
+      }
       
       if (!matchedUser) {
         if (loginError) loginError.textContent = getLoginFailureMessage(employeeId, password);
