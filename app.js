@@ -462,6 +462,14 @@ function canManageCoordinates(user) {
   );
 }
 
+function canDeleteAttendanceRecords(user) {
+  return Boolean(
+    isGoldBricksUser(user) ||
+    user?.permissions?.admin ||
+    user?.permissions?.attendanceRecordDelete
+  );
+}
+
 function canManageEmployees(user) {
   return Boolean(
     isGoldBricksUser(user) ||
@@ -507,7 +515,8 @@ function normalizeEmployeePermissions(permissions = {}) {
     permissionsListVisible: Boolean(permissions.permissionsListVisible),
     shiftSettingsListVisible: Boolean(permissions.shiftSettingsListVisible || permissions.shiftSettingsManage),
     monthlySummaryListVisible: Boolean(permissions.monthlySummaryListVisible),
-    attendanceListVisible: Boolean(permissions.attendanceListVisible || permissions.attendanceCoordinateManage),
+    attendanceListVisible: Boolean(permissions.attendanceListVisible || permissions.attendanceCoordinateManage || permissions.attendanceRecordDelete),
+    attendanceRecordDelete: Boolean(permissions.attendanceRecordDelete),
     coordinateListVisible: Boolean(permissions.coordinateListVisible || permissions.attendanceCoordinateManage),
     personInfoBasicDataManage: Boolean(permissions.personInfoBasicDataManage || permissions.employeeProfileManage)
   };
@@ -784,6 +793,7 @@ function formatEmployeePermissions(employee) {
   if (employee.permissions?.admin) tags.push("管理員");
   if (employee.permissions?.employeeProfileManage) tags.push("可建置員工資料");
   if (employee.permissions?.attendanceListVisible) tags.push("打卡紀錄");
+  if (employee.permissions?.attendanceRecordDelete) tags.push("打卡紀錄刪除");
   if (employee.permissions?.coordinateListVisible) tags.push("打卡座標");
   if (employee.permissions?.shiftSettingsListVisible) tags.push("班別設定")
   if (employee.permissions?.monthlySummaryListVisible) tags.push("本月統計");
@@ -1168,6 +1178,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const permMonthlySummaryListVisibleInput = document.getElementById("perm-monthly-summary-list-visible");
   const permLeaveApproveInput = document.getElementById("perm-leave-approve");
   const permAttendanceListVisibleInput = document.getElementById("perm-attendance-list-visible");
+  const permAttendanceRecordDeleteInput = document.getElementById("perm-attendance-record-delete");
   const permCoordinateListVisibleInput = document.getElementById("perm-coordinate-list-visible");
   const permScheduleViewRegionDepartments = document.getElementById("perm-schedule-view-region-departments");
   const permScheduleEditRegionDepartments = document.getElementById("perm-schedule-edit-region-departments");
@@ -2142,6 +2153,30 @@ document.addEventListener("DOMContentLoaded", function () {
     if (attendanceRecordPopoverBackdrop) attendanceRecordPopoverBackdrop.classList.add("hidden");
   }
 
+  function renderAttendanceRecordMeta(record) {
+    const deleteButton = canDeleteAttendanceRecords(currentUser) && record.id
+      ? ` <button type="button" class="small-btn delete-btn" data-action="delete-attendance-record" data-id="${record.id}">刪除</button>`
+      : "";
+    return `<div class="item-meta">${record.type === "clockIn" ? "上班時間" : "下班時間"}｜${formatTimeOnly(record.createdAtClient)}｜${record.officeName || "範圍外"}｜座標 ${Number(record.lat || 0).toFixed(6)}, ${Number(record.lng || 0).toFixed(6)}${record.outsideReason ? `｜原因：${record.outsideReason}` : ""}${deleteButton}</div>`;
+  }
+
+  async function deleteAttendanceRecord(recordId) {
+    if (!recordId || !db) return;
+    if (!canDeleteAttendanceRecords(currentUser)) return alert("你沒有刪除打卡紀錄權限");
+    const targetRecord = attendanceRecords.find((item) => item.id === recordId);
+    const recordLabel = targetRecord
+      ? `${targetRecord.employeeName || "未知員工"} ${formatDateKey(targetRecord.createdAtClient)} ${targetRecord.type === "clockIn" ? "上班" : "下班"}打卡`
+      : "此筆打卡紀錄";
+    if (!confirm(`確定要刪除${recordLabel}嗎？`)) return;
+    try {
+      await deleteDoc(doc(db, "attendanceRecords", recordId));
+      if (attendanceRecordPopoverBackdrop && !attendanceRecordPopoverBackdrop.classList.contains("hidden")) closeAttendanceRecordPopover();
+    } catch (error) {
+      console.error("刪除打卡紀錄失敗", error);
+      alert("刪除打卡紀錄失敗，請稍後再試。");
+    }
+  }
+
   function openAttendanceRecordPopover(group) {
     if (!attendanceRecordPopoverBackdrop || !attendanceRecordPopoverTitle || !attendanceRecordPopoverContent) return;
     if (!group) return;
@@ -2157,7 +2192,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
         <div class="list-item">
           <h4>今日打卡明細</h4>
-          ${item.records.map((record) => `<div class="item-meta">${record.type === "clockIn" ? "上班時間" : "下班時間"}｜${formatTimeOnly(record.createdAtClient)}｜${record.officeName || "範圍外"}｜座標 ${Number(record.lat || 0).toFixed(6)}, ${Number(record.lng || 0).toFixed(6)}${record.outsideReason ? `｜原因：${record.outsideReason}` : ""}</div>`).join("")}
+          ${item.records.map(renderAttendanceRecordMeta).join("")}
         </div>
       </div>
     `;
@@ -2360,7 +2395,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
             const item = summarizeEmployeeAttendance(group);
             const focusRecord = item.clockInRecord || item.latestRecord || {};
             const mapId = `${date}-${item.employeeId}-${shiftType}`.replace(/[^a-zA-Z0-9-_]/g, "");
-            return `<details class="attendance-record-card"><summary>${item.employeeName}（${item.employeeId || "未填編號"}）</summary><div class="list-item"><p>上班時間：${item.clockInRecord ? formatTimeOnly(item.clockInRecord.createdAtClient) : "-"}</p><p>下班時間：${item.clockOutRecord ? formatTimeOnly(item.clockOutRecord.createdAtClient) : "-"}</p><p>打卡地點：${focusRecord.officeName || "範圍外打卡"}</p><p>座標：<span class="coordinate-text">${Number(focusRecord.lat || 0).toFixed(6)}, ${Number(focusRecord.lng || 0).toFixed(6)}</span></p><p>工時：${item.workHours} 小時｜最終狀態：<span class="status-badge status-${item.latestRecord?.status || "success"}">${item.latestRecord?.status || "success"}</span></p><div class="attendance-map" data-map-id="${mapId}" data-lat="${focusRecord.lat || ""}" data-lng="${focusRecord.lng || ""}" data-name="${focusRecord.officeName || item.employeeName}"></div><div style="margin-top:10px;">${item.records.map((record) => `<div class="item-meta">${record.type === "clockIn" ? "上班時間" : "下班時間"}｜${formatTimeOnly(record.createdAtClient)}｜${record.officeName || "範圍外"}｜座標 ${Number(record.lat || 0).toFixed(6)}, ${Number(record.lng || 0).toFixed(6)}${record.outsideReason ? `｜原因：${record.outsideReason}` : ""}</div>`).join("")}</div></div></details>`;
+            return `<details class="attendance-record-card"><summary>${item.employeeName}（${item.employeeId || "未填編號"}）</summary><div class="list-item"><p>上班時間：${item.clockInRecord ? formatTimeOnly(item.clockInRecord.createdAtClient) : "-"}</p><p>下班時間：${item.clockOutRecord ? formatTimeOnly(item.clockOutRecord.createdAtClient) : "-"}</p><p>打卡地點：${focusRecord.officeName || "範圍外打卡"}</p><p>座標：<span class="coordinate-text">${Number(focusRecord.lat || 0).toFixed(6)}, ${Number(focusRecord.lng || 0).toFixed(6)}</span></p><p>工時：${item.workHours} 小時｜最終狀態：<span class="status-badge status-${item.latestRecord?.status || "success"}">${item.latestRecord?.status || "success"}</span></p><div class="attendance-map" data-map-id="${mapId}" data-lat="${focusRecord.lat || ""}" data-lng="${focusRecord.lng || ""}" data-name="${focusRecord.officeName || item.employeeName}"></div><div style="margin-top:10px;">${item.records.map(renderAttendanceRecordMeta).join("")}</div></div></details>`;
           }).join("")}</div></details>`).join("")}</div></details>`).join("")}</div></details>`).join("")}
         </div>
       </details>`).join("")}</div>`;
@@ -5259,6 +5294,14 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   }
 
   if (attendanceSummaryList) {
+    attendanceSummaryList.addEventListener("click", function (event) {
+      const actionButton = event.target.closest('button[data-action="delete-attendance-record"]');
+      if (!actionButton) return;
+      event.preventDefault();
+      event.stopPropagation();
+      deleteAttendanceRecord(actionButton.dataset.id || "");
+    });
+    
     attendanceSummaryList.addEventListener("toggle", function (event) {
       const detail = event.target;
       if (!(detail instanceof HTMLDetailsElement) || !detail.open) return;
@@ -5294,6 +5337,12 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
 
   if (attendanceRecordPopoverBackdrop) {
     attendanceRecordPopoverBackdrop.addEventListener("click", function (event) {
+      const actionButton = event.target.closest('button[data-action="delete-attendance-record"]');
+      if (actionButton) {
+        event.preventDefault();
+        deleteAttendanceRecord(actionButton.dataset.id || "");
+        return;
+      }
       if (event.target === attendanceRecordPopoverBackdrop) closeAttendanceRecordPopover();
     });
   }
@@ -5501,6 +5550,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
     if (permMonthlySummaryListVisibleInput) permMonthlySummaryListVisibleInput.checked = Boolean(normalizedPermissions.monthlySummaryListVisible);
     if (permLeaveApproveInput) permLeaveApproveInput.checked = Boolean(normalizedPermissions.leaveApprove);
     if (permAttendanceListVisibleInput) permAttendanceListVisibleInput.checked = Boolean(normalizedPermissions.attendanceListVisible);
+    if (permAttendanceRecordDeleteInput) permAttendanceRecordDeleteInput.checked = Boolean(normalizedPermissions.attendanceRecordDelete);
     if (permCoordinateListVisibleInput) permCoordinateListVisibleInput.checked = Boolean(normalizedPermissions.coordinateListVisible);
     const currentRegions = Array.isArray(employee.manageScopes?.regions) ? employee.manageScopes.regions : [];
     const currentDepartments = Array.isArray(employee.manageScopes?.departments) ? employee.manageScopes.departments : [];
@@ -5567,7 +5617,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         shiftSettingsListVisible: Boolean(permShiftSettingsListVisibleInput?.checked),
         monthlySummaryListVisible: Boolean(permMonthlySummaryListVisibleInput?.checked),
         leaveApprove: leaveApproveEnabled,
-        attendanceListVisible: Boolean(permAttendanceListVisibleInput?.checked),
+        attendanceListVisible: Boolean(permAttendanceListVisibleInput?.checked || permAttendanceRecordDeleteInput?.checked),
+        attendanceRecordDelete: Boolean(permAttendanceRecordDeleteInput?.checked),
         coordinateListVisible: Boolean(permCoordinateListVisibleInput?.checked),
         attendanceCoordinateManage: Boolean(permAttendanceListVisibleInput?.checked || permCoordinateListVisibleInput?.checked),
         shiftSettingsManage: Boolean(permShiftSettingsListVisibleInput?.checked),
