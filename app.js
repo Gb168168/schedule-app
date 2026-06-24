@@ -224,11 +224,12 @@ const SYMBOL_TYPES = {
   must_rest: { icon: "▲", color: "red", label: "必休" },
   new_year_rest: { icon: "★", color: "black", label: "過年休假" },
   new_year_must_rest: { icon: "★", color: "red", label: "過年必休" },
-  event: { icon: "🎰", color: "default", label: "公司活動" }
+  event: { icon: "🎰", color: "default", label: "公司活動" },
+  rakuten_home: { icon: "🐵", color: "default", label: "Rakuten主場" }
 };
-const SYMBOL_BUTTON_ORDER = ["rest", "must_rest", "new_year_rest", "new_year_must_rest", "event"];
+const SYMBOL_BUTTON_ORDER = ["rest", "must_rest", "new_year_rest", "new_year_must_rest", "event", "rakuten_home"];
 const SYMBOL_LABELS = Object.fromEntries(Object.entries(SYMBOL_TYPES).map(([key, value]) => [key, value.label]));
-const LEAVE_EXCLUDED_SYMBOL_TYPES = new Set(["rest", "must_rest", "new_year_rest", "new_year_must_rest", "event"]);
+const LEAVE_EXCLUDED_SYMBOL_TYPES = new Set(["rest", "must_rest", "new_year_rest", "new_year_must_rest", "event", "rakuten_home"]);
 const NEW_YEAR_SYMBOL_TYPES = new Set(["new_year_rest", "new_year_must_rest"]);
 const FIXED_HOLIDAY_RULES = [
   { monthDay: "01-01", name: "元旦" },
@@ -4005,9 +4006,9 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
   function getEmployeeSummaryCounts(employeeId, monthKey) {
      const employee = employees.find((item) => item.employeeId === employeeId);
     const monthDate = new Date(`${monthKey}-01T00:00:00`);
-    if (!employee || Number.isNaN(monthDate.getTime())) return { rest: 0, newYear: 0, event: 0 };
+    if (!employee || Number.isNaN(monthDate.getTime())) return { rest: 0, newYear: 0, event: 0, rakutenHome: 0 };
     const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
-    const summary = { rest: 0, newYear: 0, event: 0 };
+    const summary = { rest: 0, newYear: 0, event: 0, rakutenHome: 0 };
     for (let day = 1; day <= daysInMonth; day += 1) {
       const dateString = formatDate(new Date(monthDate.getFullYear(), monthDate.getMonth(), day));
       const assignment = getAssignmentForCell(monthKey, employeeId, dateString);
@@ -4015,6 +4016,7 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       if (symbolTypes.some((symbolType) => ["rest", "must_rest"].includes(symbolType))) summary.rest += 1;
       if (symbolTypes.some((symbolType) => ["new_year_rest", "new_year_must_rest"].includes(symbolType))) summary.newYear += 1;
       if (symbolTypes.includes("event")) summary.event += 1;
+      if (symbolTypes.includes("rakuten_home")) summary.rakutenHome += 1;
     }
     return summary;
   }
@@ -4149,10 +4151,10 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
         const leaveTypeHtml = leaveTypeValue ? `<span class="leave-tag" style="background:${leaveTagColor}">${leaveTypeValue}</span>` : "";
         return `<button type="button" class="leave-cell ${editableClass} ${isWeekend ? "isWeekend" : ""} ${isHoliday ? "isHoliday" : ""}" data-employee-id="${employee.employeeId}" data-date="${dateString}" title="${title}"><div class="leave-cell-symbols">${symbols}</div>${leaveTypeHtml}</button>`;
       }).join("");
-      return `<div class="leave-board-row" style="--days:${daysInMonth}"><div class="leave-employee-card"><strong>${employee.name || employee.employeeId}</strong><small>${formatLeaveEmployeeScheduleMeta(employee)}</small></div><div class="leave-row-cells" style="--days:${daysInMonth}">${cells}</div><div class="leave-summary-card"><div><span>▲</span><strong>${counts.rest}</strong></div><div><span>★</span><strong>${counts.newYear}</strong></div><div><span>🎰</span><strong>${counts.event}</strong></div></div></div>`;
+      return `<div class="leave-board-row" style="--days:${daysInMonth}"><div class="leave-employee-card"><strong>${employee.name || employee.employeeId}</strong><small>${formatLeaveEmployeeScheduleMeta(employee)}</small></div><div class="leave-row-cells" style="--days:${daysInMonth}">${cells}</div><div class="leave-summary-card"><div><span>▲</span><strong>${counts.rest}</strong></div><div><span>★</span><strong>${counts.newYear}</strong></div><div><span>🎰</span><strong>${counts.event}</strong></div><div><span>🐵</span><strong>${counts.rakutenHome}</strong></div></div></div>`;
       }).join("");
     
-     leaveBoardTable.innerHTML = `<div class="leave-board-head" style="--days:${daysInMonth}"><div class="leave-sticky-col"><div class="leave-sticky-col-head"><strong>人員</strong><div class="employee-filter-toggle-wrap"><small class="employee-filter-toggle-label">${selectedCount > 0 ? `已套用 ${selectedCount} 人` : `待選 ${pendingCount} 人`}</small><button type="button" id="leave-employee-toggle" class="switch ${isLeaveEmployeeFilterOpen ? "is-on" : ""}" aria-label="切換人員篩選"></button></div></div>${filterPopover}</div><div class="leave-header-days" style="--days:${daysInMonth}">${headerDays}</div><div class="leave-summary-head"><div>▲</div><div>★</div><div>🎰</div></div></div><div class="leave-board-body">${rows}</div>`;
+     leaveBoardTable.innerHTML = `<div class="leave-board-head" style="--days:${daysInMonth}"><div class="leave-sticky-col"><div class="leave-sticky-col-head"><strong>人員</strong><div class="employee-filter-toggle-wrap"><small class="employee-filter-toggle-label">${selectedCount > 0 ? `已套用 ${selectedCount} 人` : `待選 ${pendingCount} 人`}</small><button type="button" id="leave-employee-toggle" class="switch ${isLeaveEmployeeFilterOpen ? "is-on" : ""}" aria-label="切換人員篩選"></button></div></div>${filterPopover}</div><div class="leave-header-days" style="--days:${daysInMonth}">${headerDays}</div><div class="leave-summary-head"><div>▲</div><div>★</div><div>🎰</div><div>🐵</div></div></div><div class="leave-board-body">${rows}</div>`;
   }
   
     function closeLeaveTypePicker() {
@@ -4286,8 +4288,8 @@ attendanceSummaryList.innerHTML = `<div class="attendance-tree">${Object.keys(tr
       return;
     }
     const targetSymbolTypes = allowedSymbolTypes.filter((type) => nextSymbolTypeSet.has(type));
-    if (targetSymbolTypes.length > 1 && !targetSymbolTypes.includes("event")) {
-      alert("只有含有 🎰（公司活動）的欄位才可多選。");
+    if (targetSymbolTypes.length > 1 && !targetSymbolTypes.includes("rakuten_home")) {
+      alert("只有含有 🐵（公司活動）的欄位才可多選。");
       return;
     }
     const targetSymbolType = targetSymbolTypes[0] || "";
